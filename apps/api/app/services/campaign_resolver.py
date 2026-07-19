@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.models.campaign import Campaign, CampaignTarget
