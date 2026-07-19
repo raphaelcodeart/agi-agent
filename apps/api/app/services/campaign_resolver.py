@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+from app.core.config import settings
 from app.models.campaign import Campaign, CampaignTarget
 from app.models.user import User, UserGroup
 from app.models.buffer import BufferConnection, BufferOrganization, SocialChannel

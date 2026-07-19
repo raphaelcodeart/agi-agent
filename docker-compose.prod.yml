@@ -118,10 +118,10 @@ services:
   certbot:
     image: certbot/certbot:latest
     container_name: social_publisher_certbot_prod
+    command: ["--version"]
     volumes:
       - certbot_www:/var/www/certbot
       - certbot_conf:/etc/letsencrypt
-    entrypoint: ["true"]
 
 volumes:
   postgres_data_prod:

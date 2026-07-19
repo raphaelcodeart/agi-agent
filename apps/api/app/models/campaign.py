@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from sqlalchemy import String, DateTime, ForeignKey, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.session import Base
 
@@ -32,7 +32,11 @@ class Campaign(Base):
     scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     timezone: Mapped[str] = mapped_column(String(100), default="UTC", nullable=False)
     targeting_mode: Mapped[str] = mapped_column(String(50), default="all_active_channels", nullable=False) # all_active_channels, selected_users, selected_groups, selected_channels, selected_platforms
-    
+    # Targeting params matching targeting_mode (e.g. user_ids/group_ids/channel_ids),
+    # persisted so poll_and_queue_scheduled_publications can re-launch a scheduled
+    # campaign with the same selection later.
+    metadata_json: Mapped[Optional[Dict[str, Any]]] = mapped_column("metadata", JSONB, nullable=True)
+
     status: Mapped[str] = mapped_column(String(50), default="draft", nullable=False) # draft, preparing, queued, running, paused, partially_completed, completed, failed, cancelled
     
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("administrators.id", ondelete="SET NULL"), nullable=True)

@@ -32,5 +32,13 @@ docker compose -f "${COMPOSE_FILE}" run --rm api alembic upgrade head
 echo "==> Starting all services"
 docker compose -f "${COMPOSE_FILE}" up -d
 
+# Nginx caches the resolved IP of upstream containers (api/dashboard) and doesn't
+# notice on its own when they get recreated with a new image - reload picks up
+# the new addresses. A no-op if nginx isn't part of this compose file's services.
+if docker compose -f "${COMPOSE_FILE}" ps nginx >/dev/null 2>&1; then
+  echo "==> Reloading nginx to pick up any recreated upstream containers"
+  docker compose -f "${COMPOSE_FILE}" exec nginx nginx -s reload || true
+fi
+
 echo "==> Done. Current status:"
 docker compose -f "${COMPOSE_FILE}" ps

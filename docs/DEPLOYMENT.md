@@ -337,6 +337,20 @@ Consigli pratici:
 
 ## 11. Aggiornare il progetto in futuro
 
+> **Attenzione se sei passato allo stack produzione (`docker-compose.prod.yml`)**: i due file compose usano
+> nomi di servizio identici (`db`, `redis`, `api`, `dashboard`, `nginx`...) sotto lo stesso progetto Docker
+> Compose (derivato dal nome della cartella). Questo significa che comandi `docker compose` **senza `-f
+> docker-compose.prod.yml`** (cioè che usano implicitamente `docker-compose.yml`) possono rimuovere o
+> ricreare containers di produzione già in esecuzione, scambiandoli per lo stesso servizio. **Una volta in
+> produzione, usa sempre `-f docker-compose.prod.yml` in ogni comando `docker compose`, mai il file dev.**
+> I volumi dati restano comunque separati e al sicuro (`postgres_data` vs `postgres_data_prod`, ecc.), quindi
+> nella peggiore ipotesi si tratta di un riavvio, non di perdita dati — ma è comunque da evitare.
+>
+> Nota anche: se ricostruisci le immagini `api`/`worker`/`beat`/`dashboard` mentre lo stack è già attivo,
+> Nginx tiene in cache l'IP dei container upstream e non si accorge da solo che sono stati ricreati — dopo
+> ogni `docker compose -f docker-compose.prod.yml up -d <servizio>` che ricrea un container, esegui anche
+> `docker compose -f docker-compose.prod.yml exec nginx nginx -s reload` (lo fa già `scripts/deploy.sh`).
+
 Se hai usato Git (opzione A al passo 3), aggiornare è semplice. Ho preparato uno script che fa tutto:
 
 ```bash
