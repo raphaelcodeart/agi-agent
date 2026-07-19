@@ -16,7 +16,7 @@ import { useMediaList, useDeleteMedia } from "@/hooks/use-media";
 import { formatBytes, formatDateTime, formatDuration } from "@/lib/format";
 import { ApiError } from "@/lib/api/errors";
 import type { MediaResponse } from "@/types/api";
-import { UploadDropzone } from "./_components/upload-dropzone";
+import { UploadDropzone } from "@/components/shared/upload-dropzone";
 
 export default function MediaPage() {
   const mediaQuery = useMediaList();

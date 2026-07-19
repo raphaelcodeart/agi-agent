@@ -37,3 +37,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Celery beat runtime schedule file
+celerybeat-schedule

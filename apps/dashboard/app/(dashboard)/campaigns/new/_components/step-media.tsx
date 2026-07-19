@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { MediaPreview } from "@/components/shared/media-preview";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CardGridSkeleton } from "@/components/shared/loading-skeleton";
+import { UploadDropzone } from "@/components/shared/upload-dropzone";
 import { useMediaList } from "@/hooks/use-media";
 import type { CampaignWizardValues } from "@/lib/validation/campaigns";
 
@@ -11,14 +12,19 @@ export function StepMedia({ form }: { form: UseFormReturn<CampaignWizardValues> 
   const mediaQuery = useMediaList();
   const selectedId = form.watch("media_file_id");
 
-  if (mediaQuery.isLoading) {
-    return <CardGridSkeleton count={4} />;
-  }
-
   const readyMedia = mediaQuery.data?.filter((m) => m.processing_status === "ready") ?? [];
+  const processingCount =
+    mediaQuery.data?.filter((m) => m.processing_status !== "ready" && m.processing_status !== "failed").length ?? 0;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <UploadDropzone />
+      {processingCount > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {processingCount} file in elaborazione — comparirà qui appena pronto (di solito pochi secondi).
+        </p>
+      )}
+
       <button
         type="button"
         onClick={() => form.setValue("media_file_id", null)}
@@ -31,8 +37,10 @@ export function StepMedia({ form }: { form: UseFormReturn<CampaignWizardValues> 
         {!selectedId && <CheckIcon className="size-4 text-primary" />}
       </button>
 
-      {readyMedia.length === 0 ? (
-        <EmptyState title="Nessun media pronto" description="Carica un file nella sezione Media oppure prosegui senza allegato." />
+      {mediaQuery.isLoading ? (
+        <CardGridSkeleton count={4} />
+      ) : readyMedia.length === 0 ? (
+        <EmptyState title="Nessun media pronto" description="Carica un file qui sopra oppure prosegui senza allegato." />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {readyMedia.map((media) => {
