@@ -8,10 +8,15 @@ import { getBackendInternalUrl, SESSION_COOKIE_NAME } from "@/lib/env";
  * since the browser only ever talks to this Next.js origin.
  */
 const HOP_BY_HOP_REQUEST_HEADERS = new Set(["host", "connection", "cookie", "content-length"]);
-const FORWARDED_RESPONSE_HEADERS = ["content-type", "content-disposition", "cache-control"];
+const FORWARDED_RESPONSE_HEADERS = ["content-type", "content-disposition", "cache-control", "location"];
 
 async function proxy(request: NextRequest, path: string[]) {
-  const backendUrl = new URL(`${getBackendInternalUrl()}/api/v1/${path.join("/")}`);
+  // Next.js catch-all route params never include a trailing slash, even though
+  // FastAPI's collection routes (e.g. POST /users/) require one and 307-redirect
+  // otherwise. Re-derive it from the raw incoming pathname so it round-trips.
+  const joinedPath = path.join("/");
+  const trailingSlash = request.nextUrl.pathname.endsWith("/") && !joinedPath.endsWith("/") ? "/" : "";
+  const backendUrl = new URL(`${getBackendInternalUrl()}/api/v1/${joinedPath}${trailingSlash}`);
   backendUrl.search = request.nextUrl.search;
 
   const headers = new Headers();
