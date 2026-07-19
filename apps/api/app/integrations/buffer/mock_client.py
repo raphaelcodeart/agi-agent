@@ -1,0 +1,169 @@
+import uuid
+import time
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Any, List, Optional
+from app.integrations.buffer.client import BaseBufferClient
+from app.integrations.buffer.exceptions import (
+    BufferAuthError,
+    BufferRateLimitError,
+    BufferServerError,
+    BufferApiError,
+)
+
+class MockBufferClient(BaseBufferClient):
+    def get_auth_url(self) -> str:
+        return "https://publish.buffer.com/oauth2/authorize?client_id=mock_id&redirect_uri=mock_uri&response_type=code"
+
+    def exchange_code(self, code: str) -> Dict[str, Any]:
+        if code == "invalid_code":
+            raise BufferAuthError("Invalid authorization code", status_code=400)
+        return {
+            "access_token": f"mock_access_token_{uuid.uuid4().hex[:12]}",
+            "refresh_token": f"mock_refresh_token_{uuid.uuid4().hex[:12]}",
+            "expires_in": 3600,
+            "scope": "profile:read profile:write",
+        }
+
+    def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
+        if "invalid" in refresh_token:
+            raise BufferAuthError("Invalid refresh token", status_code=400)
+        return {
+            "access_token": f"mock_refreshed_access_{uuid.uuid4().hex[:12]}",
+            "refresh_token": f"mock_refreshed_refresh_{uuid.uuid4().hex[:12]}",
+            "expires_in": 3600,
+        }
+
+    def get_user_info(self, access_token: str) -> Dict[str, Any]:
+        if "invalid" in access_token:
+            raise BufferAuthError("Invalid access token", status_code=401)
+        return {
+            "id": "mock_buffer_user_123",
+            "name": "Mock Administrator",
+            "email": "mock_admin@buffer.com",
+        }
+
+    def sync_organizations(self, access_token: str) -> List[Dict[str, Any]]:
+        if "invalid" in access_token:
+            raise BufferAuthError("Invalid access token", status_code=401)
+        return [
+            {
+                "id": "org_mock_1",
+                "name": "Algarve Hotels Group",
+                "is_active": True,
+            },
+            {
+                "id": "org_mock_2",
+                "name": "Lisbon Marketing Agency",
+                "is_active": True,
+            }
+        ]
+
+    def sync_channels(self, access_token: str, organization_id: str) -> List[Dict[str, Any]]:
+        if "invalid" in access_token:
+            raise BufferAuthError("Invalid access token", status_code=401)
+        
+        # Depending on organization, return different channels
+        if organization_id == "org_mock_1":
+            return [
+                {
+                    "id": "chan_ig_hotel",
+                    "platform": "instagram",
+                    "name": "Algarve Beach Resort IG",
+                    "username": "@algarvebeachresort",
+                    "avatar_url": "https://media.example.com/avatars/hotel_ig.png",
+                    "channel_type": "instagram_business",
+                },
+                {
+                    "id": "chan_fb_hotel",
+                    "platform": "facebook",
+                    "name": "Algarve Hotel FB Page",
+                    "username": "AlgarveHotelOfficial",
+                    "avatar_url": "https://media.example.com/avatars/hotel_fb.png",
+                    "channel_type": "facebook_page",
+                },
+                {
+                    "id": "chan_li_hotel",
+                    "platform": "linkedin",
+                    "name": "Algarve Hospitality Group",
+                    "username": "algarve-hospitality",
+                    "avatar_url": "https://media.example.com/avatars/hotel_li.png",
+                    "channel_type": "linkedin_organization",
+                }
+            ]
+        elif organization_id == "org_mock_2":
+            return [
+                {
+                    "id": "chan_x_agency",
+                    "platform": "x",
+                    "name": "Lisbon Marketing X",
+                    "username": "@lisbonmarketing",
+                    "avatar_url": "https://media.example.com/avatars/agency_x.png",
+                    "channel_type": "x_profile",
+                },
+                {
+                    "id": "chan_tt_agency",
+                    "platform": "tiktok",
+                    "name": "Lisbon Agency TikTok",
+                    "username": "@lisbonagency",
+                    "avatar_url": "https://media.example.com/avatars/agency_tt.png",
+                    "channel_type": "tiktok_profile",
+                }
+            ]
+        return []
+
+    def create_post(
+        self,
+        access_token: str,
+        channel_id: str,
+        text: str,
+        media_url: Optional[str] = None,
+        thumbnail_url: Optional[str] = None,
+        media_type: Optional[str] = None,
+        scheduled_at: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        # Auth checks
+        if "invalid" in access_token:
+            raise BufferAuthError("Invalid access token", status_code=401)
+        
+        # Failure simulations
+        if "simulate-fail-temp-429" in text:
+            raise BufferRateLimitError("Buffer API Rate Limit Exceeded", status_code=429)
+        elif "simulate-fail-temp-500" in text:
+            raise BufferServerError("Buffer Internal Server Error", status_code=500)
+        elif "simulate-fail-perm" in text:
+            raise BufferApiError(
+                message="Unsupported media format for this platform",
+                status_code=400,
+                error_code="invalid_media_format",
+                is_temporary=False,
+                category="invalid_media"
+            )
+        
+        # Simulate successful post response
+        post_id = f"buffer_post_{uuid.uuid4().hex[:12]}"
+        
+        # Calculate status
+        is_scheduled = scheduled_at is not None
+        status = "scheduled" if is_scheduled else "published"
+        
+        return {
+            "id": post_id,
+            "status": status,
+            "channel_id": channel_id,
+            "text": text,
+            "media_url": media_url,
+            "scheduled_at": scheduled_at.isoformat() if scheduled_at else None,
+            "published_at": datetime.now(timezone.utc).isoformat() if not is_scheduled else None,
+            "url": f"https://buffer.com/post/{post_id}",
+        }
+
+    def get_post_status(self, access_token: str, external_post_id: str) -> Dict[str, Any]:
+        if "invalid" in access_token:
+            raise BufferAuthError("Invalid access token", status_code=401)
+        
+        return {
+            "id": external_post_id,
+            "status": "published",
+            "published_at": datetime.now(timezone.utc).isoformat(),
+            "url": f"https://buffer.com/post/{external_post_id}",
+        }

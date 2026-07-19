@@ -1,0 +1,381 @@
+/**
+ * In-memory mock adapter used only when NEXT_PUBLIC_USE_MOCK_API=true in a
+ * non-production build (see lib/env.ts#isMockApiEnabled). Mirrors the function
+ * signatures of services/*.ts so callers don't need to know which is active.
+ * Mutations affect the fixture arrays for the lifetime of the page session only.
+ */
+import { ApiError } from "@/lib/api/errors";
+import {
+  mockCampaigns,
+  mockChannels,
+  mockConnections,
+  mockGroups,
+  mockMedia,
+  mockPublications,
+  mockSettings,
+  mockUsers,
+} from "@/lib/api/mock/fixtures";
+import type {
+  BufferConnectionResponse,
+  CampaignCreatePayload,
+  CampaignDetailResponse,
+  CampaignPreviewResponse,
+  CampaignResponse,
+  GroupResponse,
+  MediaResponse,
+  PublicationDetailResponse,
+  PublicationResponse,
+  SocialChannelResponse,
+  SystemSettingsResponse,
+  SystemSettingsUpdatePayload,
+  UserResponse,
+} from "@/types/api";
+import type { GroupPayload, ListUsersParams, UserPayload } from "@/services/users";
+import type { ListChannelsParams } from "@/services/channels";
+import type { ListCampaignsParams } from "@/services/campaigns";
+import type { ListPublicationsParams } from "@/services/publications";
+
+const LATENCY_MS = 250;
+
+function delay<T>(value: T): Promise<T> {
+  return new Promise((resolve) => setTimeout(() => resolve(value), LATENCY_MS));
+}
+
+function notFound(entity: string): never {
+  throw new ApiError(404, `${entity} not found`);
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+// ---------------------------------------------------------------------------
+// Users & Groups
+// ---------------------------------------------------------------------------
+export function listUsers(params: ListUsersParams = {}): Promise<UserResponse[]> {
+  let result = mockUsers.filter((u) => !("deleted" in u));
+  if (params.status_filter) result = result.filter((u) => u.status === params.status_filter);
+  if (params.search) {
+    const term = params.search.toLowerCase();
+    result = result.filter(
+      (u) =>
+        u.name.toLowerCase().includes(term) ||
+        u.email.toLowerCase().includes(term) ||
+        u.company_name?.toLowerCase().includes(term)
+    );
+  }
+  return delay(result.slice(params.skip ?? 0, (params.skip ?? 0) + (params.limit ?? 20)));
+}
+
+export function createUser(payload: UserPayload): Promise<UserResponse> {
+  const user: UserResponse = {
+    id: `usr-${crypto.randomUUID()}`,
+    name: payload.name,
+    email: payload.email,
+    company_name: payload.company_name ?? null,
+    status: payload.status,
+    notes: payload.notes ?? null,
+    created_at: nowIso(),
+    updated_at: nowIso(),
+    groups: mockGroups.filter((g) => payload.group_ids?.includes(g.id)),
+  };
+  mockUsers.push(user);
+  return delay(user);
+}
+
+export function getUser(id: string): Promise<UserResponse> {
+  const user = mockUsers.find((u) => u.id === id);
+  if (!user) notFound("User");
+  return delay(user);
+}
+
+export function updateUser(id: string, payload: Partial<UserPayload>): Promise<UserResponse> {
+  const user = mockUsers.find((u) => u.id === id);
+  if (!user) notFound("User");
+  Object.assign(user, {
+    ...(payload.name !== undefined && { name: payload.name }),
+    ...(payload.email !== undefined && { email: payload.email }),
+    ...(payload.company_name !== undefined && { company_name: payload.company_name }),
+    ...(payload.status !== undefined && { status: payload.status }),
+    ...(payload.notes !== undefined && { notes: payload.notes }),
+    updated_at: nowIso(),
+  });
+  if (payload.group_ids) {
+    user.groups = mockGroups.filter((g) => payload.group_ids?.includes(g.id));
+  }
+  return delay(user);
+}
+
+export function deleteUser(id: string): Promise<void> {
+  const index = mockUsers.findIndex((u) => u.id === id);
+  if (index === -1) notFound("User");
+  mockUsers.splice(index, 1);
+  return delay(undefined);
+}
+
+export function listGroups(): Promise<GroupResponse[]> {
+  return delay(mockGroups);
+}
+
+export function createGroup(payload: GroupPayload): Promise<GroupResponse> {
+  const group: GroupResponse = {
+    id: `grp-${crypto.randomUUID()}`,
+    name: payload.name,
+    description: payload.description ?? null,
+    created_at: nowIso(),
+  };
+  mockGroups.push(group);
+  return delay(group);
+}
+
+// ---------------------------------------------------------------------------
+// Buffer connections & channels
+// ---------------------------------------------------------------------------
+export function listConnections(): Promise<BufferConnectionResponse[]> {
+  return delay(mockConnections);
+}
+
+export function getOAuthUrl(userId: string): Promise<{ url: string }> {
+  return delay({ url: `https://publish.buffer.com/oauth2/authorize?client_id=mock&state=${userId}` });
+}
+
+export function syncConnection(connectionId: string): Promise<{ message: string }> {
+  const conn = mockConnections.find((c) => c.id === connectionId);
+  if (conn) conn.last_sync_at = nowIso();
+  return delay({ message: "Sync job dispatched to background worker" });
+}
+
+export function disconnectConnection(connectionId: string): Promise<void> {
+  const index = mockConnections.findIndex((c) => c.id === connectionId);
+  if (index === -1) notFound("Connection");
+  mockConnections.splice(index, 1);
+  return delay(undefined);
+}
+
+export function listChannels(params: ListChannelsParams = {}): Promise<SocialChannelResponse[]> {
+  let result = mockChannels;
+  if (params.platform) result = result.filter((c) => c.platform === params.platform);
+  if (params.publication_mode) result = result.filter((c) => c.publication_mode === params.publication_mode);
+  return delay(result);
+}
+
+export function updateChannelMode(
+  channelId: string,
+  mode: SocialChannelResponse["publication_mode"]
+): Promise<SocialChannelResponse> {
+  const channel = mockChannels.find((c) => c.id === channelId);
+  if (!channel) notFound("Channel");
+  channel.publication_mode = mode;
+  return delay(channel);
+}
+
+// ---------------------------------------------------------------------------
+// Media
+// ---------------------------------------------------------------------------
+export function listMedia(): Promise<MediaResponse[]> {
+  return delay(mockMedia);
+}
+
+export function uploadMedia(file: File): Promise<MediaResponse> {
+  const media: MediaResponse = {
+    id: `med-${crypto.randomUUID()}`,
+    original_filename: file.name,
+    stored_filename: file.name,
+    public_url: "https://placehold.co/600x400",
+    mime_type: file.type || "application/octet-stream",
+    size_bytes: file.size,
+    duration_seconds: null,
+    width: null,
+    height: null,
+    aspect_ratio: null,
+    video_codec: null,
+    audio_codec: null,
+    checksum: null,
+    processing_status: "ready",
+    validation_status: "valid",
+    validation_errors: null,
+    created_at: nowIso(),
+  };
+  mockMedia.unshift(media);
+  return delay(media);
+}
+
+export function getMedia(id: string): Promise<MediaResponse> {
+  const media = mockMedia.find((m) => m.id === id);
+  if (!media) notFound("Media");
+  return delay(media);
+}
+
+export function deleteMedia(id: string): Promise<void> {
+  const index = mockMedia.findIndex((m) => m.id === id);
+  if (index === -1) notFound("Media");
+  mockMedia.splice(index, 1);
+  return delay(undefined);
+}
+
+// ---------------------------------------------------------------------------
+// Campaigns
+// ---------------------------------------------------------------------------
+export function listCampaigns(params: ListCampaignsParams = {}): Promise<CampaignResponse[]> {
+  let result = mockCampaigns;
+  if (params.status_filter) result = result.filter((c) => c.status === params.status_filter);
+  return delay(result.slice(params.skip ?? 0, (params.skip ?? 0) + (params.limit ?? 20)));
+}
+
+export function createCampaign(payload: CampaignCreatePayload): Promise<CampaignResponse> {
+  const campaign: CampaignResponse = {
+    id: `cmp-${crypto.randomUUID()}`,
+    title: payload.title,
+    default_text: payload.default_text,
+    publishing_mode: payload.publishing_mode,
+    scheduled_at: payload.scheduled_at ?? null,
+    timezone: payload.timezone,
+    targeting_mode: payload.targeting_mode,
+    status: "draft",
+    media_file_id: payload.media_file_id ?? null,
+    started_at: null,
+    completed_at: null,
+    created_at: nowIso(),
+  };
+  mockCampaigns.unshift(campaign);
+  return delay(campaign);
+}
+
+export function previewCampaignTargets(): Promise<CampaignPreviewResponse> {
+  // Approximate preview against the fixture channel set only; not authoritative.
+  return delay({
+    estimated_publications_count: mockChannels.length,
+    total_users_targeted: mockUsers.filter((u) => u.status === "active").length,
+    platform_distribution: mockChannels.reduce<Record<string, number>>((acc, channel) => {
+      acc[channel.platform] = (acc[channel.platform] ?? 0) + 1;
+      return acc;
+    }, {}),
+    channels_requiring_notification_approval: mockChannels.filter((c) =>
+      ["notification", "approval"].includes(c.publication_mode)
+    ).length,
+    excluded_channels_count: 0,
+    total_active_users: mockUsers.filter((u) => u.status === "active").length,
+  });
+}
+
+export function launchCampaign(campaignId: string): Promise<CampaignResponse> {
+  const campaign = mockCampaigns.find((c) => c.id === campaignId);
+  if (!campaign) notFound("Campaign");
+  campaign.status = "queued";
+  campaign.started_at = nowIso();
+  return delay(campaign);
+}
+
+export function getCampaignDetail(campaignId: string): Promise<CampaignDetailResponse> {
+  const campaign = mockCampaigns.find((c) => c.id === campaignId);
+  if (!campaign) notFound("Campaign");
+  const publications = mockPublications.filter((p) => p.campaign_id === campaignId);
+  const stats = {
+    pending: 0,
+    queued: 0,
+    processing: 0,
+    submitted: 0,
+    scheduled: 0,
+    published: 0,
+    retry_wait: 0,
+    failed: 0,
+    cancelled: 0,
+    skipped: 0,
+    unknown: 0,
+  };
+  publications.forEach((p) => {
+    stats[p.status] += 1;
+  });
+  const total = publications.length;
+  const resolved = stats.published + stats.scheduled + stats.failed + stats.cancelled + stats.skipped;
+  return delay({
+    campaign,
+    media: mockMedia.find((m) => m.id === campaign.media_file_id) ?? null,
+    stats,
+    progress_percentage: total > 0 ? Math.round((resolved / total) * 10000) / 100 : 0,
+  });
+}
+
+function updateCampaignStatus(campaignId: string, status: CampaignResponse["status"]): Promise<CampaignResponse> {
+  const campaign = mockCampaigns.find((c) => c.id === campaignId);
+  if (!campaign) notFound("Campaign");
+  campaign.status = status;
+  return delay(campaign);
+}
+
+export const pauseCampaign = (campaignId: string) => updateCampaignStatus(campaignId, "paused");
+export const resumeCampaign = (campaignId: string) => updateCampaignStatus(campaignId, "running");
+export const cancelCampaign = (campaignId: string) => updateCampaignStatus(campaignId, "cancelled");
+
+// ---------------------------------------------------------------------------
+// Publications
+// ---------------------------------------------------------------------------
+export function listPublications(params: ListPublicationsParams = {}): Promise<PublicationResponse[]> {
+  let result = mockPublications;
+  if (params.campaign_id) result = result.filter((p) => p.campaign_id === params.campaign_id);
+  if (params.status_filter) result = result.filter((p) => p.status === params.status_filter);
+  return delay(result.slice(params.skip ?? 0, (params.skip ?? 0) + (params.limit ?? 50)));
+}
+
+export function getPublication(id: string): Promise<PublicationDetailResponse> {
+  const publication = mockPublications.find((p) => p.id === id);
+  if (!publication) notFound("Publication");
+  const channel = mockChannels.find((c) => c.id === publication.social_channel_id);
+  const user = mockUsers.find((u) => u.id === publication.user_id);
+  return delay({
+    publication,
+    attempts: [],
+    resolved_text: "Testo di esempio (dati mock)",
+    channel_name: channel?.name ?? "—",
+    channel_platform: channel?.platform ?? "—",
+    user_name: user?.name ?? "—",
+  });
+}
+
+function updatePublicationStatus(id: string, status: PublicationResponse["status"]): Promise<PublicationResponse> {
+  const publication = mockPublications.find((p) => p.id === id);
+  if (!publication) notFound("Publication");
+  publication.status = status;
+  publication.updated_at = nowIso();
+  return delay(publication);
+}
+
+export const retryPublication = (id: string) => updatePublicationStatus(id, "pending");
+export const cancelPublication = (id: string) => updatePublicationStatus(id, "cancelled");
+export const skipPublication = (id: string) => updatePublicationStatus(id, "skipped");
+
+export function retrySelectedPublications(ids: string[]): Promise<{ message: string }> {
+  ids.forEach((id) => {
+    const publication = mockPublications.find((p) => p.id === id);
+    if (publication) publication.status = "pending";
+  });
+  return delay({ message: `Successfully queued ${ids.length} publications for retry.` });
+}
+
+export function retryCampaignFailures(campaignId: string): Promise<{ message: string }> {
+  const failed = mockPublications.filter((p) => p.campaign_id === campaignId && p.status === "failed");
+  failed.forEach((p) => (p.status = "pending"));
+  return delay({ message: `Queued ${failed.length} failed publications for retry.` });
+}
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+export function getSettings(): Promise<SystemSettingsResponse> {
+  return delay(mockSettings);
+}
+
+export function updateSettings(payload: SystemSettingsUpdatePayload): Promise<SystemSettingsResponse> {
+  Object.assign(mockSettings, payload);
+  return delay(mockSettings);
+}
+
+export function getHealth() {
+  return delay({
+    status: "healthy" as const,
+    database: "ok" as const,
+    redis: "ok" as const,
+    celery_worker: "ok" as const,
+    timestamp: nowIso(),
+  });
+}

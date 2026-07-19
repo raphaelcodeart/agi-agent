@@ -1,0 +1,190 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { toast } from "sonner";
+import { PageHeader } from "@/components/shared/page-header";
+import { DataTable } from "@/components/shared/data-table";
+import { PlatformBadge } from "@/components/shared/platform-badge";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { SearchInput } from "@/components/shared/search-input";
+import { FilterBar, FilterSelect } from "@/components/shared/filter-bar";
+import { Pagination } from "@/components/shared/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useChannels, useUpdateChannelMode } from "@/hooks/use-channels";
+import { useDebounce } from "@/hooks/use-debounce";
+import { formatDateTime } from "@/lib/format";
+import { ApiError } from "@/lib/api/errors";
+import type { PublicationMode, SocialChannelResponse } from "@/types/api";
+
+const PLATFORM_OPTIONS = [
+  { value: "instagram", label: "Instagram" },
+  { value: "facebook", label: "Facebook" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "youtube", label: "YouTube" },
+  { value: "x", label: "X" },
+  { value: "threads", label: "Threads" },
+];
+
+const MODE_OPTIONS: { value: PublicationMode; label: string }[] = [
+  { value: "automatic", label: "Automatico" },
+  { value: "notification", label: "Notifica" },
+  { value: "approval", label: "Approvazione" },
+  { value: "disabled", label: "Disabilitato" },
+];
+
+const PAGE_SIZE = 25;
+
+export default function ChannelsPage() {
+  const [platform, setPlatform] = useState("");
+  const [publicationMode, setPublicationMode] = useState("");
+  const [search, setSearch] = useState("");
+  const [skip, setSkip] = useState(0);
+
+  const debouncedSearch = useDebounce(search, 300);
+  const channelsQuery = useChannels({
+    platform: platform || undefined,
+    publication_mode: (publicationMode as PublicationMode) || undefined,
+  });
+  const updateMode = useUpdateChannelMode();
+
+  // The /buffer/channels endpoint has no server-side pagination, so filtering by
+  // name/username and paging through results happens client-side over the full set.
+  const filtered = useMemo(() => {
+    const term = debouncedSearch.trim().toLowerCase();
+    const all = channelsQuery.data ?? [];
+    if (!term) return all;
+    return all.filter(
+      (channel) =>
+        channel.name.toLowerCase().includes(term) || channel.username?.toLowerCase().includes(term)
+    );
+  }, [channelsQuery.data, debouncedSearch]);
+
+  const page = filtered.slice(skip, skip + PAGE_SIZE);
+
+  function handleModeChange(channelId: string, mode: PublicationMode) {
+    updateMode.mutate(
+      { channelId, mode },
+      {
+        onSuccess: () => toast.success("Modalità di pubblicazione aggiornata"),
+        onError: (error) =>
+          toast.error(error instanceof ApiError ? error.detail : "Aggiornamento non riuscito"),
+      }
+    );
+  }
+
+  const columns = useMemo<ColumnDef<SocialChannelResponse, unknown>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Canale",
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium text-foreground">{row.original.name}</p>
+            {row.original.username && (
+              <p className="text-xs text-muted-foreground">@{row.original.username}</p>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "platform",
+        header: "Piattaforma",
+        cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
+      },
+      {
+        accessorKey: "is_active",
+        header: "Stato",
+        cell: ({ row }) => <StatusBadge status={row.original.is_active ? "active" : "inactive"} />,
+      },
+      {
+        id: "publication_mode",
+        header: "Modalità pubblicazione",
+        cell: ({ row }) => (
+          <Select
+            value={row.original.publication_mode}
+            onValueChange={(value) => handleModeChange(row.original.id, value as PublicationMode)}
+          >
+            <SelectTrigger size="sm" className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MODE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ),
+      },
+      {
+        accessorKey: "last_sync_at",
+        header: "Ultima sincronizzazione",
+        cell: ({ row }) => formatDateTime(row.original.last_sync_at),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Canali social"
+        description="Profili social collegati tramite Buffer e modalità di pubblicazione"
+      />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <SearchInput
+          value={search}
+          onChange={(value) => {
+            setSearch(value);
+            setSkip(0);
+          }}
+          placeholder="Cerca canale o username..."
+          className="sm:max-w-xs"
+        />
+        <FilterBar>
+          <FilterSelect
+            value={platform}
+            onChange={(value) => {
+              setPlatform(value);
+              setSkip(0);
+            }}
+            placeholder="Piattaforma"
+            options={PLATFORM_OPTIONS}
+          />
+          <FilterSelect
+            value={publicationMode}
+            onChange={(value) => {
+              setPublicationMode(value);
+              setSkip(0);
+            }}
+            placeholder="Modalità"
+            options={MODE_OPTIONS}
+          />
+        </FilterBar>
+      </div>
+
+      <DataTable
+        columns={columns}
+        data={page}
+        isLoading={channelsQuery.isLoading}
+        isError={channelsQuery.isError}
+        error={channelsQuery.error}
+        onRetry={() => channelsQuery.refetch()}
+        emptyTitle="Nessun canale trovato"
+      />
+
+      <Pagination skip={skip} limit={PAGE_SIZE} count={page.length} onSkipChange={setSkip} />
+    </div>
+  );
+}

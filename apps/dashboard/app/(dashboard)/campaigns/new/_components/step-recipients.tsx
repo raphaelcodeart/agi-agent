@@ -1,0 +1,183 @@
+import type { UseFormReturn } from "react-hook-form";
+import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { PlatformBadge } from "@/components/shared/platform-badge";
+import { FormField, FormItem, FormMessage } from "@/components/ui/form";
+import { useUsers, useGroups } from "@/hooks/use-users";
+import { useChannels } from "@/hooks/use-channels";
+import { targetingModeValues, type CampaignWizardValues } from "@/lib/validation/campaigns";
+
+const MODE_LABELS: Record<(typeof targetingModeValues)[number], { label: string; description: string }> = {
+  all_active_channels: {
+    label: "Tutti i canali attivi",
+    description: "Pubblica su tutti i canali social attivi con connessione Buffer valida.",
+  },
+  selected_users: { label: "Utenti selezionati", description: "Scegli manualmente uno o più utenti." },
+  selected_groups: { label: "Gruppi selezionati", description: "Scegli uno o più gruppi di utenti." },
+  selected_channels: { label: "Canali selezionati", description: "Scegli manualmente i singoli canali social." },
+  selected_platforms: { label: "Piattaforme selezionate", description: "Pubblica solo su determinate piattaforme." },
+};
+
+const PLATFORMS = ["instagram", "facebook", "linkedin", "tiktok", "youtube", "x", "threads"];
+
+function CheckboxList<T extends { id: string }>({
+  items,
+  selected,
+  onToggle,
+  renderLabel,
+}: {
+  items: T[];
+  selected: string[];
+  onToggle: (id: string, checked: boolean) => void;
+  renderLabel: (item: T) => React.ReactNode;
+}) {
+  return (
+    <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border p-3">
+      {items.length === 0 && <p className="text-sm text-muted-foreground">Nessun elemento disponibile.</p>}
+      {items.map((item) => (
+        <label key={item.id} className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={selected.includes(item.id)}
+            onCheckedChange={(checked) => onToggle(item.id, !!checked)}
+          />
+          {renderLabel(item)}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+export function StepRecipients({ form }: { form: UseFormReturn<CampaignWizardValues> }) {
+  const targetingMode = form.watch("targeting_mode");
+  const usersQuery = useUsers({ status_filter: "active", limit: 100 });
+  const groupsQuery = useGroups();
+  const channelsQuery = useChannels({});
+
+  return (
+    <div className="space-y-4">
+      <FormField
+        control={form.control}
+        name="targeting_mode"
+        render={({ field }) => (
+          <FormItem>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {targetingModeValues.map((mode) => (
+                <button
+                  type="button"
+                  key={mode}
+                  onClick={() => field.onChange(mode)}
+                  className={cn(
+                    "rounded-lg border p-3 text-left",
+                    field.value === mode && "border-primary bg-primary/5"
+                  )}
+                >
+                  <p className="text-sm font-medium">{MODE_LABELS[mode].label}</p>
+                  <p className="text-xs text-muted-foreground">{MODE_LABELS[mode].description}</p>
+                </button>
+              ))}
+            </div>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {targetingMode === "selected_users" && (
+        <FormField
+          control={form.control}
+          name="user_ids"
+          render={({ field }) => (
+            <FormItem>
+              <CheckboxList
+                items={usersQuery.data ?? []}
+                selected={field.value ?? []}
+                onToggle={(id, checked) =>
+                  field.onChange(checked ? [...(field.value ?? []), id] : (field.value ?? []).filter((v) => v !== id))
+                }
+                renderLabel={(user) => (
+                  <span>
+                    {user.name} <span className="text-muted-foreground">({user.email})</span>
+                  </span>
+                )}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {targetingMode === "selected_groups" && (
+        <FormField
+          control={form.control}
+          name="group_ids"
+          render={({ field }) => (
+            <FormItem>
+              <CheckboxList
+                items={groupsQuery.data ?? []}
+                selected={field.value ?? []}
+                onToggle={(id, checked) =>
+                  field.onChange(checked ? [...(field.value ?? []), id] : (field.value ?? []).filter((v) => v !== id))
+                }
+                renderLabel={(group) => group.name}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {targetingMode === "selected_channels" && (
+        <FormField
+          control={form.control}
+          name="channel_ids"
+          render={({ field }) => (
+            <FormItem>
+              <CheckboxList
+                items={channelsQuery.data ?? []}
+                selected={field.value ?? []}
+                onToggle={(id, checked) =>
+                  field.onChange(checked ? [...(field.value ?? []), id] : (field.value ?? []).filter((v) => v !== id))
+                }
+                renderLabel={(channel) => (
+                  <span className="flex items-center gap-2">
+                    <PlatformBadge platform={channel.platform} />
+                    {channel.name}
+                  </span>
+                )}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {targetingMode === "selected_platforms" && (
+        <FormField
+          control={form.control}
+          name="platform_names"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex flex-wrap gap-3 rounded-md border p-3">
+                {PLATFORMS.map((platform) => {
+                  const checked = field.value?.includes(platform) ?? false;
+                  return (
+                    <label key={platform} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(value) => {
+                          const current = field.value ?? [];
+                          field.onChange(value ? [...current, platform] : current.filter((p) => p !== platform));
+                        }}
+                      />
+                      <PlatformBadge platform={platform} />
+                    </label>
+                  );
+                })}
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+    </div>
+  );
+}
