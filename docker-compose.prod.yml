@@ -109,8 +109,23 @@ services:
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - media_storage_prod:/storage:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_conf:/etc/letsencrypt:ro
+
+  # Not a long-running service: invoked on demand via
+  # `docker compose -f docker-compose.prod.yml run --rm certbot ...`
+  # by scripts/setup-https.sh (initial issuance and renewal). See docs/DEPLOYMENT.md section 9.
+  certbot:
+    image: certbot/certbot:latest
+    container_name: social_publisher_certbot_prod
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    entrypoint: ["true"]
 
 volumes:
   postgres_data_prod:
   redis_data_prod:
   media_storage_prod:
+  certbot_www:
+  certbot_conf:

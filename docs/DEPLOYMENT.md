@@ -266,20 +266,45 @@ Poi apri il browser su `http://IP_DEL_SERVER:3000/login` (o il tuo dominio) e pr
 
 ---
 
-## 9. Dominio e HTTPS (opzionale, consigliato)
+## 9. Dominio e HTTPS (consigliato, richiesto per pubblicare foto/video su Buffer)
 
-Se hai un dominio, punta questi sottodomini all'IP del server (record DNS di tipo A):
+HTTPS non è più opzionale se vuoi pubblicare foto/video: Buffer scarica il media dall'URL quando il post va in coda e rifiuta URL non-HTTPS (vedi problema noto #4 nella sezione 12). Le campagne di solo testo funzionano anche senza.
+
+### Se hai già un dominio tuo
+
+Punta questi sottodomini all'IP del server (record DNS di tipo A):
 
 - `app.tuodominio.com` → dashboard
 - `api.tuodominio.com` → backend
+- `media.tuodominio.com` → file media
 
-Poi modifica `infrastructure/nginx/nginx.conf`, sostituendo `app.example.com` e `api.example.com` con i tuoi domini reali, e aggiorna nel `.env`:
+Poi modifica `infrastructure/nginx/nginx.conf` sostituendo i tre hostname `*.162-55-187-18.sslip.io` con i tuoi domini reali, e ripeti la procedura sotto passando i tuoi domini invece del valore sslip.io.
 
+### Se non hai un dominio: sslip.io (nessun costo, nessuna registrazione)
+
+[sslip.io](https://sslip.io) è un servizio DNS pubblico reale (non un dominio "interno" o finto) che fa risolvere hostname come `162-55-187-18.sslip.io` direttamente all'IP incorporato nel nome — senza possedere né configurare nulla. Essendo un dominio pubblico realmente risolvibile, **Let's Encrypt può emettere certificati HTTPS validi** per questi hostname tramite la normale challenge HTTP-01 (non serve un certificato wildcard).
+
+`infrastructure/nginx/nginx.conf` in questo repo è già configurato per l'IP di questo server (`162.55.187.18` → `app.162-55-187-18.sslip.io`, `api.162-55-187-18.sslip.io`, `media.162-55-187-18.sslip.io`). Per ottenere i certificati reali:
+
+```bash
+docker compose down   # ferma lo stack dev, libera la porta 80
+./scripts/setup-https.sh 162-55-187-18.sslip.io tuaemail@esempio.com
 ```
-NEXT_PUBLIC_API_URL=https://api.tuodominio.com
-```
 
-Per HTTPS gratuito, la via più semplice è **Certbot** con Nginx installato *fuori* da Docker come reverse proxy davanti al container Nginx, oppure usare un servizio come Cloudflare davanti al server. Questo passaggio non è ancora automatizzato in questo progetto: se ti serve, chiedi e prepariamo la configurazione insieme (richiede di sapere già qual è il dominio).
+Lo script (vedi commenti in testa al file per i dettagli):
+1. avvia uno stack temporaneo con Nginx in solo HTTP per rispondere alla verifica di Let's Encrypt;
+2. richiede un certificato Let's Encrypt valido per tutti e tre gli hostname in un solo comando (Certbot, container ufficiale, nessuna installazione sull'host);
+3. ripristina la configurazione Nginx finale con HTTPS attivo e la ricarica.
+
+Da questo momento la piattaforma gira sullo **stack produzione** (`docker-compose.prod.yml`): solo Nginx espone le porte 80/443 verso l'esterno, tutto il resto (Postgres, Redis, API, dashboard) resta interno a Docker. **Nota**: questo stack usa un volume Postgres diverso da quello di sviluppo (`postgres_data_prod`), quindi al primo avvio va **ripetuta la sezione 5** (`alembic upgrade head`) e la **sezione 6** (creare l'amministratore) su questo volume.
+
+Rinnovo automatico: i certificati Let's Encrypt durano 90 giorni. Una volta ottenuto il primo certificato, la configurazione Nginx finale (quella già nel repo) risponde già da sola alla verifica ACME su porta 80, quindi il rinnovo **non richiede più lo script**: basta `certbot renew` seguito da un reload di Nginx. Aggiungi in crontab (stesso schema del backup, sezione 10):
+
+```bash
+crontab -e
+# Rinnovo certificato ogni notte alle 4:00 (no-op se non vicino a scadenza)
+0 4 * * * cd ~/social-publisher && docker compose -f docker-compose.prod.yml run --rm certbot renew --quiet && docker compose -f docker-compose.prod.yml exec nginx nginx -s reload >> backups/certbot-renew.log 2>&1
+```
 
 ---
 
@@ -335,9 +360,9 @@ docker compose up -d
 Trasparenza su alcune cose che **non funzioneranno ancora perfettamente** su un server reale, così non perdi tempo a capire perché:
 
 1. ~~Il collegamento OAuth con Buffer reindirizza sempre a `localhost:3000`~~ — **risolto**: il collegamento non usa più OAuth. Verificato su developers.buffer.com (luglio 2026) che Buffer non accetta più registrazioni OAuth di nuove app di terze parti (né sulla vecchia REST API, né — non ancora — sulla nuova API GraphQL). Ogni utente genera una **chiave API personale** dal proprio account Buffer (Settings → API) e la incolla nella dashboard (pulsante "Collega account" in Connessioni Buffer); il backend la valida e la salva cifrata. Nessun redirect, nessun problema di dominio/localhost.
-2. **CORS nel backend** (`apps/api/app/main.py`) accetta solo richieste da `http://localhost:3000` e `http://app.example.com`. Se usi un dominio diverso, aggiorna quella lista. Nota: il collegamento Buffer e la maggior parte delle chiamate della dashboard passano dal proxy interno same-origin, quindi non sono influenzate da questo; riguarda solo eventuali chiamate dirette al backend dal browser.
+2. **CORS nel backend** (`apps/api/app/main.py`) accetta richieste da `http://localhost:3000`, `http://app.example.com` e dal dominio sslip.io configurato per questo server (`https://app.162-55-187-18.sslip.io`). Se usi un dominio diverso, aggiorna quella lista. Nota: il collegamento Buffer e la maggior parte delle chiamate della dashboard passano dal proxy interno same-origin, quindi non sono influenzate da questo; riguarda solo eventuali chiamate dirette al backend dal browser.
 3. **`BUFFER_INTEGRATION_MODE=mock`** nel `.env`: finché resta così, la piattaforma non parla col vero Buffer, usa dati finti generati dal backend stesso (utile per collaudare tutto senza account Buffer reali). Quando un utente fornisce la propria chiave API Buffer reale, va cambiato `BUFFER_INTEGRATION_MODE=production` — non serve più nessuna credenziale a livello di piattaforma (niente `BUFFER_CLIENT_ID`/`BUFFER_CLIENT_SECRET`, rimossi).
-4. **Pubblicazione di foto/video su Buffer richiede hosting media in HTTPS pubblico** (Buffer scarica il file dall'URL quando il post va in coda). Questo server non ha ancora un dominio/HTTPS configurato (sezione 9), quindi le campagne con media in `BUFFER_INTEGRATION_MODE=production` falliscono in modo esplicito e tracciato (Publication con stato "failed", categoria "configuration_error") invece di essere inviate a Buffer con un URL irraggiungibile. Le campagne di solo testo funzionano normalmente. Da sistemare quando configuri un dominio.
+4. ~~Pubblicazione di foto/video su Buffer richiede hosting media in HTTPS pubblico~~ — **risolvibile**: segui la sezione 9 (`./scripts/setup-https.sh`) per attivare HTTPS reale con un dominio sslip.io. `PUBLIC_MEDIA_BASE_URL` nel `.env` deve puntare all'origine `https://media.<tuo-dominio>` risultante; il guardrail in `apps/api/app/tasks/publication.py` continuerà a rifiutare esplicitamente (Publication "failed", categoria "configuration_error") solo se questa variabile non è ancora configurata in HTTPS. Le campagne di solo testo funzionano comunque anche senza.
 5. **Media caricati**: i file finiscono in un volume Docker (`media_storage`), servito da Nginx. Se cambi server, i file media non si spostano da soli — vanno copiati a parte (non sono nel dump del database).
 
 Nessuno di questi blocca l'avvio della dashboard, degli utenti, delle campagne o del resto: riguardano solo l'integrazione reale con Buffer.

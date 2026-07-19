@@ -74,9 +74,9 @@ class MediaService:
         # 5. Calculate checksum
         checksum = cls.calculate_checksum(storage_key)
         
-        # 6. Generate public URL mapping
-        # E.g. http://media.example.com/{stored_filename} or routed via CDN
-        public_url = f"http://localhost:8080/uploads/{stored_filename}"
+        # 6. Generate public URL mapping (served by the "media" nginx vhost,
+        # see infrastructure/nginx/nginx.conf)
+        public_url = f"{settings.PUBLIC_MEDIA_BASE_URL}/uploads/{stored_filename}"
 
         media_file = MediaFile(
             original_filename=original_filename,
@@ -228,7 +228,7 @@ class MediaService:
                 media.metadata_json = {
                     **(media.metadata_json or {}),
                     "thumbnail_path": thumb_path,
-                    "thumbnail_url": f"http://localhost:8080/thumbnails/{thumb_name}"
+                    "thumbnail_url": f"{settings.PUBLIC_MEDIA_BASE_URL}/thumbnails/{thumb_name}"
                 }
 
         media.processing_status = "ready"

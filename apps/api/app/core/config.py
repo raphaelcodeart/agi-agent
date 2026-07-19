@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     UPLOAD_MAX_SIZE_BYTES: int = 104857600  # 100MB
     MEDIA_STORAGE_DIR: str = "/storage/uploads"
     THUMBNAIL_STORAGE_DIR: str = "/storage/thumbnails"
+    # Public origin the "media" nginx vhost is reachable at (see
+    # infrastructure/nginx/nginx.conf). Must be HTTPS in production - Buffer
+    # fetches media by URL and requires it to be public HTTPS.
+    PUBLIC_MEDIA_BASE_URL: str = "http://localhost:8080"
     TEMPORARY_STORAGE_DIR: str = "/storage/temporary"
 
     # Concurrency & Policies
