@@ -22,11 +22,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(default="postgresql+psycopg://postgres:postgres_secure_pass_123@db:5432/social_publisher")
     REDIS_URL: str = Field(default="redis://redis:6379/0")
 
-    # Buffer API
+    # Buffer API - connections authenticate with a per-user personal API key
+    # pasted into the dashboard, not OAuth (see app/integrations/buffer/client.py)
     BUFFER_INTEGRATION_MODE: str = "mock"  # "mock" or "production"
-    BUFFER_CLIENT_ID: str = "mock_buffer_client_id_123"
-    BUFFER_CLIENT_SECRET: str = "mock_buffer_client_secret_xyz"
-    BUFFER_REDIRECT_URI: str = "http://localhost:8000/api/v1/buffer/callback"
 
     # Media Storage
     UPLOAD_MAX_SIZE_BYTES: int = 104857600  # 100MB

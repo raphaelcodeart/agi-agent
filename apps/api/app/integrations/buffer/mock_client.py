@@ -1,6 +1,5 @@
 import uuid
-import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from app.integrations.buffer.client import BaseBufferClient
 from app.integrations.buffer.exceptions import (
@@ -11,40 +10,18 @@ from app.integrations.buffer.exceptions import (
 )
 
 class MockBufferClient(BaseBufferClient):
-    def get_auth_url(self) -> str:
-        return "https://publish.buffer.com/oauth2/authorize?client_id=mock_id&redirect_uri=mock_uri&response_type=code"
-
-    def exchange_code(self, code: str) -> Dict[str, Any]:
-        if code == "invalid_code":
-            raise BufferAuthError("Invalid authorization code", status_code=400)
-        return {
-            "access_token": f"mock_access_token_{uuid.uuid4().hex[:12]}",
-            "refresh_token": f"mock_refresh_token_{uuid.uuid4().hex[:12]}",
-            "expires_in": 3600,
-            "scope": "profile:read profile:write",
-        }
-
-    def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
-        if "invalid" in refresh_token:
-            raise BufferAuthError("Invalid refresh token", status_code=400)
-        return {
-            "access_token": f"mock_refreshed_access_{uuid.uuid4().hex[:12]}",
-            "refresh_token": f"mock_refreshed_refresh_{uuid.uuid4().hex[:12]}",
-            "expires_in": 3600,
-        }
-
-    def get_user_info(self, access_token: str) -> Dict[str, Any]:
-        if "invalid" in access_token:
-            raise BufferAuthError("Invalid access token", status_code=401)
+    def get_user_info(self, api_key: str) -> Dict[str, Any]:
+        if "invalid" in api_key:
+            raise BufferAuthError("Invalid API key", status_code=401)
         return {
             "id": "mock_buffer_user_123",
             "name": "Mock Administrator",
             "email": "mock_admin@buffer.com",
         }
 
-    def sync_organizations(self, access_token: str) -> List[Dict[str, Any]]:
-        if "invalid" in access_token:
-            raise BufferAuthError("Invalid access token", status_code=401)
+    def sync_organizations(self, api_key: str) -> List[Dict[str, Any]]:
+        if "invalid" in api_key:
+            raise BufferAuthError("Invalid API key", status_code=401)
         return [
             {
                 "id": "org_mock_1",
@@ -58,10 +35,10 @@ class MockBufferClient(BaseBufferClient):
             }
         ]
 
-    def sync_channels(self, access_token: str, organization_id: str) -> List[Dict[str, Any]]:
-        if "invalid" in access_token:
-            raise BufferAuthError("Invalid access token", status_code=401)
-        
+    def sync_channels(self, api_key: str, organization_id: str) -> List[Dict[str, Any]]:
+        if "invalid" in api_key:
+            raise BufferAuthError("Invalid API key", status_code=401)
+
         # Depending on organization, return different channels
         if organization_id == "org_mock_1":
             return [
@@ -113,7 +90,7 @@ class MockBufferClient(BaseBufferClient):
 
     def create_post(
         self,
-        access_token: str,
+        api_key: str,
         channel_id: str,
         text: str,
         media_url: Optional[str] = None,
@@ -122,9 +99,9 @@ class MockBufferClient(BaseBufferClient):
         scheduled_at: Optional[datetime] = None,
     ) -> Dict[str, Any]:
         # Auth checks
-        if "invalid" in access_token:
-            raise BufferAuthError("Invalid access token", status_code=401)
-        
+        if "invalid" in api_key:
+            raise BufferAuthError("Invalid API key", status_code=401)
+
         # Failure simulations
         if "simulate-fail-temp-429" in text:
             raise BufferRateLimitError("Buffer API Rate Limit Exceeded", status_code=429)
@@ -138,14 +115,14 @@ class MockBufferClient(BaseBufferClient):
                 is_temporary=False,
                 category="invalid_media"
             )
-        
+
         # Simulate successful post response
         post_id = f"buffer_post_{uuid.uuid4().hex[:12]}"
-        
+
         # Calculate status
         is_scheduled = scheduled_at is not None
         status = "scheduled" if is_scheduled else "published"
-        
+
         return {
             "id": post_id,
             "status": status,
@@ -157,10 +134,10 @@ class MockBufferClient(BaseBufferClient):
             "url": f"https://buffer.com/post/{post_id}",
         }
 
-    def get_post_status(self, access_token: str, external_post_id: str) -> Dict[str, Any]:
-        if "invalid" in access_token:
-            raise BufferAuthError("Invalid access token", status_code=401)
-        
+    def get_post_status(self, api_key: str, external_post_id: str) -> Dict[str, Any]:
+        if "invalid" in api_key:
+            raise BufferAuthError("Invalid API key", status_code=401)
+
         return {
             "id": external_post_id,
             "status": "published",

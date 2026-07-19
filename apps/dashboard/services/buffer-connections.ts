@@ -8,9 +8,9 @@ export function listConnections(): Promise<BufferConnectionResponse[]> {
   return apiClient.get<BufferConnectionResponse[]>("/buffer/connections");
 }
 
-export function getOAuthUrl(userId: string): Promise<{ url: string }> {
-  if (isMockApiEnabled()) return mock.getOAuthUrl(userId);
-  return apiClient.get<{ url: string }>(`/buffer/connections/oauth-url?user_id=${userId}`);
+export function createConnection(userId: string, apiKey: string): Promise<BufferConnectionResponse> {
+  if (isMockApiEnabled()) return mock.createConnection(userId, apiKey);
+  return apiClient.post<BufferConnectionResponse>("/buffer/connections", { user_id: userId, api_key: apiKey });
 }
 
 export function syncConnection(connectionId: string): Promise<{ message: string }> {

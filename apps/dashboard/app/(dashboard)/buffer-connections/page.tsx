@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { LinkIcon, RefreshCwIcon, Unlink2Icon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -16,7 +16,6 @@ import {
 import { useUsers } from "@/hooks/use-users";
 import {
   useBufferConnections,
-  useConnectOAuthUrl,
   useDisconnectConnection,
   useSyncConnection,
 } from "@/hooks/use-buffer-connections";
@@ -26,16 +25,15 @@ import { toast } from "sonner";
 import type { BufferConnectionResponse } from "@/types/api";
 import { ChannelCountCell } from "./_components/channel-count-cell";
 import { ConnectUserDialog } from "./_components/connect-user-dialog";
-import { OAuthCallbackNotice } from "./_components/oauth-callback-notice";
 
 export default function BufferConnectionsPage() {
   const connectionsQuery = useBufferConnections();
   const usersQuery = useUsers({ limit: 100 });
   const syncConnection = useSyncConnection();
   const disconnectConnection = useDisconnectConnection();
-  const reconnectOAuth = useConnectOAuthUrl();
 
   const [connectOpen, setConnectOpen] = useState(false);
+  const [reconnectUserId, setReconnectUserId] = useState<string | undefined>(undefined);
   const [disconnectTarget, setDisconnectTarget] = useState<BufferConnectionResponse | null>(null);
 
   const usersById = useMemo(() => {
@@ -45,14 +43,8 @@ export default function BufferConnectionsPage() {
   }, [usersQuery.data]);
 
   function handleReconnect(connection: BufferConnectionResponse) {
-    reconnectOAuth.mutate(connection.user_id, {
-      onSuccess: (data) => {
-        window.location.href = data.url;
-      },
-      onError: (error) => {
-        toast.error(error instanceof ApiError ? error.detail : "Impossibile avviare il ricollegamento");
-      },
-    });
+    setReconnectUserId(connection.user_id);
+    setConnectOpen(true);
   }
 
   function handleSync(connection: BufferConnectionResponse) {
@@ -130,14 +122,16 @@ export default function BufferConnectionsPage() {
 
   return (
     <div className="space-y-4">
-      <Suspense fallback={null}>
-        <OAuthCallbackNotice />
-      </Suspense>
       <PageHeader
         title="Connessioni Buffer"
         description="Account Buffer collegati per la pubblicazione sui canali social"
         actions={
-          <Button onClick={() => setConnectOpen(true)}>
+          <Button
+            onClick={() => {
+              setReconnectUserId(undefined);
+              setConnectOpen(true);
+            }}
+          >
             <LinkIcon className="size-4" />
             Collega account
           </Button>
@@ -155,7 +149,7 @@ export default function BufferConnectionsPage() {
         emptyDescription="Collega un account Buffer per iniziare a pubblicare sui canali social."
       />
 
-      <ConnectUserDialog open={connectOpen} onOpenChange={setConnectOpen} />
+      <ConnectUserDialog open={connectOpen} onOpenChange={setConnectOpen} preselectedUserId={reconnectUserId} />
 
       <ConfirmDialog
         open={!!disconnectTarget}

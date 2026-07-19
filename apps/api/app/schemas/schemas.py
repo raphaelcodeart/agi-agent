@@ -75,6 +75,10 @@ class UserResponse(BaseModel):
 # ==============================================================================
 # Buffer Connection & Channel Schemas
 # ==============================================================================
+class BufferConnectionCreateRequest(BaseModel):
+    user_id: uuid.UUID
+    api_key: str = Field(min_length=1)
+
 class BufferConnectionResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID

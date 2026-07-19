@@ -82,7 +82,7 @@ def process_publication_task(self, publication_id_str: str) -> None:
             media_url = None
             thumbnail_url = None
             media_type = None
-            
+
             campaign = pub.campaign
             if campaign.media_file_id:
                 media_file = db.query(MediaFile).filter(MediaFile.id == campaign.media_file_id).first()
@@ -92,13 +92,23 @@ def process_publication_task(self, publication_id_str: str) -> None:
                     if media_type == "video" and media_file.metadata_json:
                         thumbnail_url = media_file.metadata_json.get("thumbnail_url")
 
+            # Buffer fetches media by URL when the post goes out, so it must be public
+            # HTTPS - see https://developers.buffer.com/guides/hosting-media.html. This
+            # server has no HTTPS media hosting configured yet, so refuse rather than
+            # send Buffer a URL we already know it can never reach.
+            if media_url and settings.BUFFER_INTEGRATION_MODE.lower() == "production" and not media_url.startswith("https://"):
+                raise BufferApiError(
+                    "Pubblicazione con media non disponibile: richiede hosting media HTTPS, non ancora configurato sul server.",
+                    category="configuration_error",
+                )
+
             # 3. Resolve target text
             resolved_text = pub.campaign_target.resolved_text
 
             # 4. Dispatch API request
             client = get_buffer_client()
             res = client.create_post(
-                access_token=access_token,
+                api_key=access_token,
                 channel_id=pub.social_channel.external_channel_id,
                 text=resolved_text,
                 media_url=media_url,
@@ -106,7 +116,7 @@ def process_publication_task(self, publication_id_str: str) -> None:
                 media_type=media_type,
                 scheduled_at=pub.scheduled_at
             )
-            
+
             external_post_id = res.get("id")
             external_post_url = res.get("url")
             response_data = res

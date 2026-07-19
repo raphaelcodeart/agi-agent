@@ -1,8 +1,7 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
@@ -10,8 +9,10 @@ from app.models.administrator import Administrator
 from app.models.buffer import BufferConnection, BufferOrganization, SocialChannel
 from app.core.security import EncryptionService
 from app.integrations.buffer.service import get_buffer_client
+from app.integrations.buffer.exceptions import BufferAuthError
 from app.tasks.sync import sync_buffer_connection
 from app.schemas.schemas import (
+    BufferConnectionCreateRequest,
     BufferConnectionResponse,
     BufferOrganizationResponse,
     SocialChannelResponse,
@@ -28,102 +29,59 @@ def list_connections(
     return db.query(BufferConnection).all()
 
 
-@router.get("/connections/oauth-url")
-def get_oauth_url(
-    user_id: uuid.UUID,
+@router.post("/connections", response_model=BufferConnectionResponse, status_code=status.HTTP_201_CREATED)
+def create_or_update_connection(
+    payload: BufferConnectionCreateRequest,
     db: Session = Depends(get_db),
     admin: Administrator = Depends(get_current_admin)
 ):
-    """Generate state parameter and compile Buffer OAuth authorization URL."""
-    # We check if user exists
+    """
+    Collega (o ricollega) l'account Buffer personale di un utente usando la
+    chiave API personale che l'utente genera dal proprio account Buffer
+    (Settings -> API). Buffer non offre OAuth per app di terze parti al
+    momento (verificato su developers.buffer.com, luglio 2026), quindi questo
+    è l'unico meccanismo di collegamento supportato.
+    """
     from app.models.user import User
-    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    user = db.query(User).filter(User.id == payload.user_id, User.deleted_at.is_(None)).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-        
-    client = get_buffer_client()
-    auth_url = client.get_auth_url()
-    
-    # Append state to track which user_id is connecting
-    # In production, we sign or state-cache this to prevent CSRF.
-    # For Version 1, we pass the user_id plain in state.
-    state_url = f"{auth_url}&state={user_id}"
-    return {"url": state_url}
 
-
-@router.get("/callback")
-def oauth_callback(
-    code: str,
-    state: str, # this contains user_id
-    db: Session = Depends(get_db)
-):
-    """
-    Handle Buffer OAuth redirect callback.
-    Exchanges authorization code, encrypts access/refresh tokens,
-    creates connection database record, and queues initial synchronization.
-    """
-    try:
-        user_id = uuid.UUID(state)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid state parameter (must be User ID)")
-        
     client = get_buffer_client()
     try:
-        tokens = client.exchange_code(code)
-        
-        # Check user info to get account ID
-        access_token = tokens["access_token"]
-        user_info = client.get_user_info(access_token)
-        ext_account_id = user_info.get("id")
-        
-        # Check if connection already exists
-        existing_conn = db.query(BufferConnection).filter(
-            BufferConnection.user_id == user_id,
-            BufferConnection.external_account_id == ext_account_id
-        ).first()
-        
-        # Encrypt tokens
-        enc_access = EncryptionService.encrypt(access_token)
-        enc_refresh = EncryptionService.encrypt(tokens.get("refresh_token", ""))
-        
-        # Expiry time calculation
-        expires_in = tokens.get("expires_in", 3600)
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-        
-        if existing_conn:
-            existing_conn.access_token_encrypted = enc_access
-            existing_conn.refresh_token_encrypted = enc_refresh
-            existing_conn.token_expires_at = expires_at
-            existing_conn.scopes = tokens.get("scope")
-            existing_conn.status = "connected"
-            existing_conn.last_error = None
-            connection = existing_conn
-        else:
-            connection = BufferConnection(
-                user_id=user_id,
-                authentication_type="oauth2",
-                external_account_id=ext_account_id,
-                access_token_encrypted=enc_access,
-                refresh_token_encrypted=enc_refresh,
-                token_expires_at=expires_at,
-                scopes=tokens.get("scope"),
-                status="connected",
-            )
-            db.add(connection)
-        
-        db.commit()
-        db.refresh(connection)
-        
-        # Dispatch background sync task for organizations/channels
-        sync_buffer_connection.delay(str(connection.id))
-        
-        # Redirect to Dashboard connected view
-        # Redirect domain would be settings based in prod. E.g. app.example.com
-        return RedirectResponse(url="http://localhost:3000/admin/connections?success=true")
-        
-    except Exception as e:
-        # Redirect with error state
-        return RedirectResponse(url=f"http://localhost:3000/admin/connections?error={str(e)}")
+        account_info = client.get_user_info(payload.api_key)
+    except BufferAuthError:
+        raise HTTPException(status_code=400, detail="Chiave API Buffer non valida")
+
+    ext_account_id = account_info.get("id")
+    enc_key = EncryptionService.encrypt(payload.api_key)
+
+    connection = db.query(BufferConnection).filter(BufferConnection.user_id == payload.user_id).first()
+    if connection:
+        connection.authentication_type = "personal_api_key"
+        connection.external_account_id = ext_account_id
+        connection.access_token_encrypted = enc_key
+        connection.refresh_token_encrypted = None
+        connection.token_expires_at = None
+        connection.status = "connected"
+        connection.last_error = None
+    else:
+        connection = BufferConnection(
+            user_id=payload.user_id,
+            authentication_type="personal_api_key",
+            external_account_id=ext_account_id,
+            access_token_encrypted=enc_key,
+            status="connected",
+        )
+        db.add(connection)
+
+    db.commit()
+    db.refresh(connection)
+
+    # Dispatch background sync task for organizations/channels
+    sync_buffer_connection.delay(str(connection.id))
+
+    return connection
 
 
 @router.post("/connections/{connection_id}/sync", status_code=status.HTTP_202_ACCEPTED)

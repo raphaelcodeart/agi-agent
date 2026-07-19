@@ -1,8 +1,6 @@
-import urllib.parse
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import httpx
-from app.core.config import settings
 from app.integrations.buffer.client import BaseBufferClient
 from app.integrations.buffer.exceptions import (
     BufferApiError,
@@ -14,141 +12,122 @@ from app.integrations.buffer.exceptions import (
 
 class ProductionBufferClient(BaseBufferClient):
     """
-    Production client for the Buffer Publish API (v1).
-    Documentation Reference: https://buffer.com/developers/api
+    Production client for Buffer's GraphQL API (https://api.buffer.com).
+    Documentation reference: https://developers.buffer.com/
+    Auth: single personal API key per account, sent as `Authorization: Bearer <key>`
+    (verified against developers.buffer.com/guides/authentication.html, July 2026).
     """
-    def __init__(self):
-        self.base_url = "https://api.bufferapp.com/1"
-        self.client_id = settings.BUFFER_CLIENT_ID
-        self.client_secret = settings.BUFFER_CLIENT_SECRET
-        self.redirect_uri = settings.BUFFER_REDIRECT_URI
 
-    def _request(
-        self,
-        method: str,
-        path: str,
-        token: Optional[str] = None,
-        params: Optional[Dict[str, Any]] = None,
-        json_data: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        url = f"{self.base_url}/{path.lstrip('/')}"
-        headers = {}
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+    BASE_URL = "https://api.buffer.com"
+
+    def _request(self, api_key: str, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        payload = {"query": query, "variables": variables or {}}
 
         try:
             with httpx.Client(timeout=15.0) as client:
-                response = client.request(
-                    method=method,
-                    url=url,
-                    headers=headers,
-                    params=params,
-                    json=json_data,
-                )
-                
-                # Check status
-                if response.status_code == 401:
-                    raise BufferAuthError("Unauthorized access to Buffer API", status_code=401)
-                elif response.status_code == 429:
-                    raise BufferRateLimitError("Buffer API Rate limit exceeded", status_code=429)
-                elif response.status_code >= 500:
-                    raise BufferServerError(f"Buffer API server error: {response.text}", status_code=response.status_code)
-                elif response.status_code >= 400:
-                    raise BufferApiError(
-                        message=f"Buffer API request failed: {response.text}",
-                        status_code=response.status_code,
-                        category="bad_request"
-                    )
-                
-                return response.json()
+                response = client.post(self.BASE_URL, headers=headers, json=payload)
         except httpx.RequestError as exc:
             raise BufferNetworkError(f"HTTP communication failure: {str(exc)}")
 
-    def get_auth_url(self) -> str:
-        params = {
-            "client_id": self.client_id,
-            "redirect_uri": self.redirect_uri,
-            "response_type": "code",
+        if response.status_code == 401:
+            raise BufferAuthError("Invalid or revoked Buffer API key", status_code=401)
+        elif response.status_code == 429:
+            raise BufferRateLimitError("Buffer API rate limit exceeded", status_code=429)
+        elif response.status_code >= 500:
+            raise BufferServerError(f"Buffer API server error: {response.text}", status_code=response.status_code)
+        elif response.status_code >= 400:
+            raise BufferApiError(
+                message=f"Buffer API request failed: {response.text}",
+                status_code=response.status_code,
+                category="bad_request",
+            )
+
+        body = response.json()
+        errors = body.get("errors")
+        if errors:
+            message = "; ".join(e.get("message", "Unknown GraphQL error") for e in errors)
+            raise BufferApiError(message=message, status_code=response.status_code, category="graphql_error")
+
+        return body.get("data", {})
+
+    def _run_mutation(self, api_key: str, query: str, variables: Dict[str, Any], field_name: str) -> Dict[str, Any]:
+        """Runs a mutation returning a union type (e.g. PostActionSuccess | MutationError) and unwraps it."""
+        data = self._request(api_key, query, variables)
+        result = data.get(field_name) or {}
+        if "message" in result and "post" not in result:
+            # Shape matches the MutationError branch of the response union.
+            raise BufferApiError(message=result["message"], category="validation_failed")
+        return result
+
+    def get_user_info(self, api_key: str) -> Dict[str, Any]:
+        query = """
+        query GetAccount {
+          account {
+            id
+            email
+            name
+          }
         }
-        return f"https://bufferapp.com/oauth2/authorize?{urllib.parse.urlencode(params)}"
-
-    def exchange_code(self, code: str) -> Dict[str, Any]:
-        # BUFFER_API_TODO: Verify parameters for production token exchange
-        url = "https://api.bufferapp.com/1/oauth2/token.json"
-        data = {
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "redirect_uri": self.redirect_uri,
-            "code": code,
-            "grant_type": "authorization_code",
+        """
+        data = self._request(api_key, query)
+        account = data.get("account") or {}
+        return {
+            "id": account.get("id"),
+            "name": account.get("name"),
+            "email": account.get("email"),
         }
-        try:
-            with httpx.Client() as client:
-                res = client.post(url, data=data, timeout=10.0)
-                if res.status_code != 200:
-                    raise BufferAuthError(f"OAuth code exchange failed: {res.text}", status_code=res.status_code)
-                return res.json()
-        except httpx.RequestError as exc:
-            raise BufferNetworkError(f"OAuth token exchange communication failed: {str(exc)}")
 
-    def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
-        # BUFFER_API_TODO: Verify if standard oauth2/token refresh endpoint applies
-        url = "https://api.bufferapp.com/1/oauth2/token.json"
-        data = {
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "refresh_token": refresh_token,
-            "grant_type": "refresh_token",
-        }
-        try:
-            with httpx.Client() as client:
-                res = client.post(url, data=data, timeout=10.0)
-                if res.status_code != 200:
-                    raise BufferAuthError(f"OAuth token refresh failed: {res.text}", status_code=res.status_code)
-                return res.json()
-        except httpx.RequestError as exc:
-            raise BufferNetworkError(f"OAuth token refresh communication failed: {str(exc)}")
-
-    def get_user_info(self, access_token: str) -> Dict[str, Any]:
-        # Get authenticated user info
-        return self._request("GET", "user.json", token=access_token)
-
-    def sync_organizations(self, access_token: str) -> List[Dict[str, Any]]:
-        # BUFFER_API_TODO: Map organizations retrieve.
-        # Note: If Buffer v1 API only lists user accounts, we might mock organization groupings.
-        # This implementation expects standard user.json profiles.
-        res = self._request("GET", "profiles.json", token=access_token)
-        # Parse organizations from profile metadata if applicable, or group in one default organization
-        # We return a synthetic list containing a default organization mapping to user details
-        user_info = self.get_user_info(access_token)
-        user_name = user_info.get("name", "Buffer Organization")
-        return [
-            {
-                "id": f"org_{user_info.get('id', 'default')}",
-                "name": f"{user_name}'s Workspace",
-                "is_active": True,
+    def sync_organizations(self, api_key: str) -> List[Dict[str, Any]]:
+        query = """
+        query GetOrganizations {
+          account {
+            organizations {
+              id
+              name
             }
+          }
+        }
+        """
+        data = self._request(api_key, query)
+        organizations = (data.get("account") or {}).get("organizations") or []
+        return [
+            {"id": org.get("id"), "name": org.get("name"), "is_active": True}
+            for org in organizations
         ]
 
-    def sync_channels(self, access_token: str, organization_id: str) -> List[Dict[str, Any]]:
-        # Get profiles from Buffer API
-        profiles = self._request("GET", "profiles.json", token=access_token)
-        
-        channels = []
-        for profile in profiles:
-            channels.append({
-                "id": profile.get("id"),
-                "platform": profile.get("service", "unknown").lower(),
-                "name": profile.get("formatted_username", profile.get("service_username", "Unknown")),
-                "username": profile.get("service_username"),
-                "avatar_url": profile.get("avatar"),
-                "channel_type": profile.get("service_type"),
-            })
-        return channels
+    def sync_channels(self, api_key: str, organization_id: str) -> List[Dict[str, Any]]:
+        query = """
+        query GetChannels($organizationId: OrganizationId!) {
+          channels(input: { organizationId: $organizationId }) {
+            id
+            service
+            name
+            avatar
+            descriptor
+            isDisconnected
+            type
+          }
+        }
+        """
+        data = self._request(api_key, query, {"organizationId": organization_id})
+        channels = data.get("channels") or []
+        return [
+            {
+                "id": chan.get("id"),
+                "platform": str(chan.get("service", "unknown")).lower(),
+                "name": chan.get("descriptor") or chan.get("name", "Unknown"),
+                "username": chan.get("name"),
+                "avatar_url": chan.get("avatar"),
+                "channel_type": chan.get("type"),
+                "is_active": not chan.get("isDisconnected", False),
+            }
+            for chan in channels
+        ]
 
     def create_post(
         self,
-        access_token: str,
+        api_key: str,
         channel_id: str,
         text: str,
         media_url: Optional[str] = None,
@@ -156,56 +135,67 @@ class ProductionBufferClient(BaseBufferClient):
         media_type: Optional[str] = None,
         scheduled_at: Optional[datetime] = None,
     ) -> Dict[str, Any]:
-        # BUFFER_API_TODO: Align with real Buffer POST request payload
-        # POST /1/updates/create.json
-        payload = {
+        post_input: Dict[str, Any] = {
+            "channelId": channel_id,
             "text": text,
-            "profile_ids[]": [channel_id],
-            "shorten": False,
         }
 
-        # Handle scheduling parameters
         if scheduled_at:
-            payload["scheduled_at"] = scheduled_at.isoformat()
-            # If buffer queue is chosen, the api has a "top" or "now" or custom parameter.
-        
-        # Attach media if available
-        if media_url:
-            media = {"link": media_url}
-            if media_type == "image":
-                media["photo"] = media_url
-            elif media_type == "video":
-                media["video"] = media_url
-                if thumbnail_url:
-                    media["thumbnail"] = thumbnail_url
-            payload["media"] = media
+            post_input["schedulingType"] = "automatic"
+            post_input["mode"] = "customScheduled"
+            post_input["dueAt"] = scheduled_at.isoformat()
+        else:
+            # Adds the post to the channel's next available queue slot, i.e. the
+            # user's Buffer posting schedule ("palinsesto") - this is the default
+            # and desired behavior for this platform.
+            post_input["schedulingType"] = "automatic"
+            post_input["mode"] = "addToQueue"
 
-        res = self._request("POST", "updates/create.json", token=access_token, json_data=payload)
-        
-        # Buffer API returns updates array: {"updates": [ { "id": "...", "status": "..." } ] }
-        updates = res.get("updates", [])
-        if not updates:
-            raise BufferApiError("Buffer returned success status, but no update payload was found.")
-            
-        update = updates[0]
+        if media_url:
+            if media_type == "video":
+                video_asset: Dict[str, Any] = {"url": media_url}
+                if thumbnail_url:
+                    video_asset["metadata"] = {"thumbnailUrl": thumbnail_url}
+                post_input["assets"] = [{"video": video_asset}]
+            else:
+                post_input["assets"] = [{"image": {"url": media_url}}]
+
+        query = """
+        mutation CreatePost($input: CreatePostInput!) {
+          createPost(input: $input) {
+            ... on PostActionSuccess {
+              post {
+                id
+                dueAt
+              }
+            }
+            ... on MutationError {
+              message
+            }
+          }
+        }
+        """
+        result = self._run_mutation(api_key, query, {"input": post_input}, "createPost")
+        post = result.get("post") or result
+
+        is_scheduled = scheduled_at is not None
         return {
-            "id": update.get("id"),
-            "status": update.get("status", "published"),
+            "id": post.get("id"),
+            "status": "scheduled" if is_scheduled else "queued",
             "channel_id": channel_id,
             "text": text,
             "media_url": media_url,
-            "scheduled_at": update.get("scheduled_at"),
-            "published_at": update.get("sent_at"),
-            "url": f"https://publish.buffer.com/updates/{update.get('id')}",
+            "scheduled_at": post.get("dueAt"),
+            "published_at": None,
+            "url": None,
         }
 
-    def get_post_status(self, access_token: str, external_post_id: str) -> Dict[str, Any]:
-        # GET /1/updates/<id>.json
-        res = self._request("GET", f"updates/{external_post_id}.json", token=access_token)
-        return {
-            "id": res.get("id"),
-            "status": res.get("status"),
-            "published_at": res.get("sent_at"),
-            "url": f"https://publish.buffer.com/updates/{res.get('id')}",
-        }
-DefinitionName = "ProductionBufferClient"
+    def get_post_status(self, api_key: str, external_post_id: str) -> Dict[str, Any]:
+        # BUFFER_API_TODO: Not verified against developers.buffer.com - reconciliation
+        # of a single post's status isn't in this platform's active publication path
+        # yet. Implement once needed, using the documented posts/pagination queries
+        # (see https://developers.buffer.com/examples/get-posts-for-channels.html)
+        # instead of guessing a field name.
+        raise NotImplementedError(
+            "get_post_status is not yet implemented for the Buffer GraphQL API client"
+        )

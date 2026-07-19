@@ -12,9 +12,14 @@ export function useBufferConnections() {
   });
 }
 
-export function useConnectOAuthUrl() {
+export function useCreateConnection() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (userId: string) => connectionsService.getOAuthUrl(userId),
+    mutationFn: ({ userId, apiKey }: { userId: string; apiKey: string }) =>
+      connectionsService.createConnection(userId, apiKey),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.bufferConnections.list() });
+    },
   });
 }
 

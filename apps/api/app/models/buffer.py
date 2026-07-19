@@ -14,7 +14,7 @@ class BufferConnection(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    authentication_type: Mapped[str] = mapped_column(String(50), default="oauth2", nullable=False)
+    authentication_type: Mapped[str] = mapped_column(String(50), default="personal_api_key", nullable=False) # personal_api_key (only supported mechanism; Buffer has no working third-party OAuth as of July 2026)
     external_account_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     access_token_encrypted: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     refresh_token_encrypted: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)

@@ -135,8 +135,29 @@ export function listConnections(): Promise<BufferConnectionResponse[]> {
   return delay(mockConnections);
 }
 
-export function getOAuthUrl(userId: string): Promise<{ url: string }> {
-  return delay({ url: `https://publish.buffer.com/oauth2/authorize?client_id=mock&state=${userId}` });
+export function createConnection(userId: string, apiKey: string): Promise<BufferConnectionResponse> {
+  if (!apiKey.trim()) {
+    return Promise.reject(new Error("Chiave API Buffer non valida"));
+  }
+  const existing = mockConnections.find((c) => c.user_id === userId);
+  if (existing) {
+    existing.status = "connected";
+    existing.last_error = null;
+    existing.last_sync_at = nowIso();
+    return delay(existing);
+  }
+  const connection: BufferConnectionResponse = {
+    id: `conn-${crypto.randomUUID()}`,
+    user_id: userId,
+    authentication_type: "personal_api_key",
+    external_account_id: `buffer-acc-${crypto.randomUUID().slice(0, 8)}`,
+    status: "connected",
+    last_sync_at: nowIso(),
+    last_error: null,
+    created_at: nowIso(),
+  };
+  mockConnections.push(connection);
+  return delay(connection);
 }
 
 export function syncConnection(connectionId: string): Promise<{ message: string }> {
