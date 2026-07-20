@@ -153,10 +153,15 @@ class ProductionBufferClient(BaseBufferClient):
 
         if media_url:
             if media_type == "video":
-                video_asset: Dict[str, Any] = {"url": media_url}
-                if thumbnail_url:
-                    video_asset["metadata"] = {"thumbnailUrl": thumbnail_url}
-                post_input["assets"] = [{"video": video_asset}]
+                # thumbnail_url is intentionally not sent here: Buffer's real schema
+                # (VideoAssetInput.thumbnailUrl, see developers.buffer.com/reference.html)
+                # documents that field as rejected by the API - social networks don't
+                # accept custom video thumbnail images. The only supported thumbnail
+                # control is metadata.thumbnailOffset (a frame offset within the video
+                # itself, in ms, and only honored by Instagram/TikTok/Pinterest), which
+                # isn't equivalent to our server-generated thumbnail image and isn't
+                # implemented here.
+                post_input["assets"] = [{"video": {"url": media_url}}]
             else:
                 post_input["assets"] = [{"image": {"url": media_url}}]
 
