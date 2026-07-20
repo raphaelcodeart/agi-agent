@@ -16,7 +16,7 @@ Se sei Claude Code e stai leggendo questo file per eseguire un deploy: vai alla 
 6. [Creare l'utente amministratore](#6-creare-lutente-amministratore)
 7. [Avviare backend e frontend](#7-avviare-backend-e-frontend)
 8. [Verificare che tutto funzioni](#8-verificare-che-tutto-funzioni)
-9. [Dominio e HTTPS (opzionale, consigliato)](#9-dominio-e-https-opzionale-consigliato)
+9. [Dominio e HTTPS (consigliato, richiesto per pubblicare foto/video su Buffer)](#9-dominio-e-https-consigliato-richiesto-per-pubblicare-fotovideo-su-buffer)
 10. [Backup e ripristino del database (il "dump")](#10-backup-e-ripristino-del-database-il-dump)
 11. [Aggiornare il progetto in futuro](#11-aggiornare-il-progetto-in-futuro)
 12. [Problemi noti e cose da sistemare](#12-problemi-noti-e-cose-da-sistemare)
@@ -153,9 +153,7 @@ Salva con `Ctrl+O`, esci con `Ctrl+X`.
 
 Qui rispondo alla tua domanda "il database, le tabelle che servono come le creiamo?".
 
-Il progetto usa **Alembic** (lo strumento standard di FastAPI/SQLAlchemy per gestire le tabelle del database in modo tracciato e ripetibile, invece di crearle a mano con SQL). In pratica: le tabelle non esistono finché non esegui una "migration".
-
-**Nota tecnica importante**: questo progetto non ha ancora nessuna migration salvata (la cartella `apps/api/alembic/versions/` è vuota). Il primo che esegue questi comandi genera il file che crea davvero tutte le tabelle — dopo, quel file va **salvato nel progetto** (con `git add`/`git commit`, o riportato indietro sul tuo PC) così non dovrai mai più rigenerarlo, in nessun altro ambiente.
+Il progetto usa **Alembic** (lo strumento standard di FastAPI/SQLAlchemy per gestire le tabelle del database in modo tracciato e ripetibile, invece di crearle a mano con SQL). Le migration che descrivono **tutte** le tabelle sono già scritte e salvate nel repository, in `apps/api/alembic/versions/` — non devi generarle tu, ti basta applicarle. Per la spiegazione di cosa contiene ogni tabella e come sono collegate tra loro, vedi **[docs/DATABASE.md](./DATABASE.md)**.
 
 Passo per passo, dalla cartella del progetto sul server:
 
@@ -170,32 +168,29 @@ docker compose ps
 # 3) Costruisci l'immagine del backend (serve per eseguire i comandi Python/Alembic)
 docker compose build api
 
-# 4) Genera la migration iniziale (crea il file che descrive tutte le tabelle)
-#    IMPORTANTE: usa sempre "docker compose" semplice (senza -f docker-compose.prod.yml)
-#    per QUESTO comando, anche se il tuo obiettivo finale è la produzione. Solo il file
-#    di sviluppo collega la cartella apps/api al container, quindi solo così il file
-#    generato appare davvero sul disco (in apps/api/alembic/versions/) invece di sparire
-#    con il container. Una volta generato e salvato con git, tutti gli altri ambienti
-#    (incluso docker-compose.prod.yml) lo trovano già pronto e devono solo applicarlo.
-docker compose run --rm api alembic revision --autogenerate -m "initial schema"
-
-# 5) Applica la migration: QUESTO è il comando che crea davvero le tabelle nel database
+# 4) Applica tutte le migration esistenti: QUESTO è il comando che crea davvero le
+#    tabelle nel database, leggendo i file già presenti in apps/api/alembic/versions/
 docker compose run --rm api alembic upgrade head
 ```
 
-Se tutto va bene, l'output del comando 4 elenca le tabelle create (`users`, `user_groups`, `buffer_connections`, `social_channels`, `media_files`, `campaigns`, `campaign_targets`, `publications`, `publication_attempts`, `administrators`, `audit_log`, ecc.) e il comando 5 termina senza errori.
+Se tutto va bene, il comando termina senza errori e ti ritrovi con tutte le tabelle create (`users`, `user_groups`, `user_group_association`, `administrators`, `buffer_connections`, `buffer_organizations`, `social_channels`, `media_files`, `campaigns`, `campaign_targets`, `publications`, `publication_attempts`, `audit_logs`, oltre alla tabella tecnica `alembic_version` che Alembic usa per sapere a che punto è arrivato).
 
-**Salva la migration generata**, altrimenti la perdi se il server viene ricreato:
+Questo è tutto quello che serve per un nuovo server: le migration sono già pronte e versionate insieme al codice, quindi installare su un server nuovo, uno staging, o il tuo PC è sempre lo stesso identico comando (`alembic upgrade head`), senza bisogno di rigenerare nulla.
+
+**Solo se in futuro modifichi i modelli del backend** (aggiungi/togli colonne o tabelle in `apps/api/app/models/`) serve generare una **nuova** migration che descriva quella differenza, poi salvarla su git come qualunque altro file di codice:
 
 ```bash
+# genera il file che descrive solo la differenza rispetto all'ultima migration applicata
+# (serve "docker compose" semplice, non quello di prod, perché solo il file di sviluppo
+# collega la cartella apps/api al container - altrimenti il file generato sparisce col container)
+docker compose run --rm api alembic revision --autogenerate -m "descrizione della modifica"
+
 git add apps/api/alembic/versions/
-git commit -m "Add initial database migration"
+git commit -m "Add migration: descrizione della modifica"
 git push
 ```
 
-(se usi la copia diretta invece di Git, scarica quel file sul tuo PC con `scp` e conservalo).
-
-Da questo momento in poi, per creare il database su qualsiasi altro ambiente (staging, un altro server, il tuo PC) basta il comando 5 (`alembic upgrade head`), **non rigenerare mai più il comando 4** a meno che tu non modifichi i modelli del backend (in quel caso è normale farne una nuova, si chiama `make revision name="descrizione modifica"`).
+Da quel momento, `alembic upgrade head` su qualunque ambiente applicherà anche la nuova migration insieme a tutte le precedenti.
 
 ---
 
