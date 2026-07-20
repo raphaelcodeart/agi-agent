@@ -37,6 +37,8 @@ class BaseBufferClient(abc.ABC):
         thumbnail_url: Optional[str] = None,
         media_type: Optional[str] = None, # "image" or "video"
         scheduled_at: Optional[datetime] = None,
+        platform: Optional[str] = None,
+        youtube_title: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a post (immediate/queued or scheduled)."""
         pass

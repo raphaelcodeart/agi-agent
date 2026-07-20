@@ -134,11 +134,27 @@ class ProductionBufferClient(BaseBufferClient):
         thumbnail_url: Optional[str] = None,
         media_type: Optional[str] = None,
         scheduled_at: Optional[datetime] = None,
+        platform: Optional[str] = None,
+        youtube_title: Optional[str] = None,
     ) -> Dict[str, Any]:
         post_input: Dict[str, Any] = {
             "channelId": channel_id,
             "text": text,
         }
+
+        if platform == "youtube":
+            # YoutubePostMetadataInput.title and .categoryId are both required on
+            # create (see developers.buffer.com/types/YoutubePostMetadataInput.html).
+            # categoryId is a string form of YouTube's own numeric category taxonomy
+            # (1-29); the platform has no per-campaign category setting yet, so this
+            # defaults to "22" (People & Blogs), YouTube's own catch-all default for
+            # uncategorized uploads - not a Buffer-specific value.
+            post_input["metadata"] = {
+                "youtube": {
+                    "title": youtube_title or text[:100],
+                    "categoryId": "22",
+                }
+            }
 
         if scheduled_at:
             post_input["schedulingType"] = "automatic"

@@ -97,11 +97,11 @@ class CampaignResolver:
         elif platform == "threads" and campaign.threads_text:
             return campaign.threads_text
         
-        # Youtube title/desc handled separately or parsed as default
+        # YouTube's title is sent as structured metadata (YoutubePostMetadataInput.title,
+        # resolved separately in the publication task from campaign.youtube_title), not
+        # folded into the post text - this is just the video description body.
         if platform == "youtube":
-            title = campaign.youtube_title or campaign.title
-            desc = campaign.youtube_description or campaign.default_text
-            return f"TITLE: {title}\n\nDESCRIPTION:\n{desc}"
+            return campaign.youtube_description or campaign.default_text
 
         return campaign.default_text
 

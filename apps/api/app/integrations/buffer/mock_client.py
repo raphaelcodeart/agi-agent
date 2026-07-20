@@ -97,6 +97,8 @@ class MockBufferClient(BaseBufferClient):
         thumbnail_url: Optional[str] = None,
         media_type: Optional[str] = None,
         scheduled_at: Optional[datetime] = None,
+        platform: Optional[str] = None,
+        youtube_title: Optional[str] = None,
     ) -> Dict[str, Any]:
         # Auth checks
         if "invalid" in api_key:

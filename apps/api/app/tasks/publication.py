@@ -104,6 +104,8 @@ def process_publication_task(self, publication_id_str: str) -> None:
 
             # 3. Resolve target text
             resolved_text = pub.campaign_target.resolved_text
+            platform = pub.social_channel.platform
+            youtube_title = (campaign.youtube_title or campaign.title) if platform == "youtube" else None
 
             # 4. Dispatch API request
             client = get_buffer_client()
@@ -114,7 +116,9 @@ def process_publication_task(self, publication_id_str: str) -> None:
                 media_url=media_url,
                 thumbnail_url=thumbnail_url,
                 media_type=media_type,
-                scheduled_at=pub.scheduled_at
+                scheduled_at=pub.scheduled_at,
+                platform=platform,
+                youtube_title=youtube_title,
             )
 
             external_post_id = res.get("id")
