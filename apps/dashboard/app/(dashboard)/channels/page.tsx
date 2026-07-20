@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
+import { RefreshCwIcon } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { PlatformBadge } from "@/components/shared/platform-badge";
@@ -10,6 +12,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { SearchInput } from "@/components/shared/search-input";
 import { FilterBar, FilterSelect } from "@/components/shared/filter-bar";
 import { Pagination } from "@/components/shared/pagination";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -18,7 +21,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useChannels, useUpdateChannelMode } from "@/hooks/use-channels";
+import { useBufferConnections } from "@/hooks/use-buffer-connections";
 import { useDebounce } from "@/hooks/use-debounce";
+import { syncConnection } from "@/services/buffer-connections";
+import { queryKeys } from "@/lib/query/keys";
 import { formatDateTime } from "@/lib/format";
 import { ApiError } from "@/lib/api/errors";
 import type { PublicationMode, SocialChannelResponse } from "@/types/api";
@@ -47,13 +53,45 @@ export default function ChannelsPage() {
   const [publicationMode, setPublicationMode] = useState("");
   const [search, setSearch] = useState("");
   const [skip, setSkip] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const queryClient = useQueryClient();
   const debouncedSearch = useDebounce(search, 300);
   const channelsQuery = useChannels({
     platform: platform || undefined,
     publication_mode: (publicationMode as PublicationMode) || undefined,
   });
   const updateMode = useUpdateChannelMode();
+  const connectionsQuery = useBufferConnections();
+
+  // Buffer only tells us about a newly-added social profile once we ask it to
+  // (POST /connections/{id}/sync per connection) - there's no push/webhook, so
+  // "refresh channels" here means fanning that out across every connected account.
+  async function handleRefreshAll() {
+    const connections = connectionsQuery.data ?? [];
+    if (connections.length === 0) {
+      toast.info("Nessuna connessione Buffer da sincronizzare");
+      return;
+    }
+
+    setIsRefreshing(true);
+    const results = await Promise.allSettled(connections.map((conn) => syncConnection(conn.id)));
+    const failed = results.filter((r) => r.status === "rejected").length;
+
+    // Sync runs in the background worker, not synchronously in this request, so
+    // give it a moment before refetching or the list would still show stale data.
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ["channels", "list"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.bufferConnections.list() });
+      setIsRefreshing(false);
+    }, 2500);
+
+    if (failed > 0) {
+      toast.warning(`Sincronizzazione avviata: ${failed} connessione/i non ha risposto subito`);
+    } else {
+      toast.success(`Sincronizzazione avviata su ${connections.length} connessione/i, i nuovi canali appariranno a breve`);
+    }
+  }
 
   // The /buffer/channels endpoint has no server-side pagination, so filtering by
   // name/username and paging through results happens client-side over the full set.
@@ -140,6 +178,12 @@ export default function ChannelsPage() {
       <PageHeader
         title="Canali social"
         description="Profili social collegati tramite Buffer e modalità di pubblicazione"
+        actions={
+          <Button variant="outline" onClick={handleRefreshAll} disabled={isRefreshing}>
+            <RefreshCwIcon className={isRefreshing ? "size-4 animate-spin" : "size-4"} />
+            Aggiorna canali
+          </Button>
+        }
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
