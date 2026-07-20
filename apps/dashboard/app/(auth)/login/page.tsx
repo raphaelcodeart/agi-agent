@@ -52,12 +52,12 @@ function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm animate-in fade-in zoom-in-95 border-white/20 bg-card/80 shadow-2xl shadow-primary/10 backdrop-blur-xl duration-700">
       <CardHeader className="items-center text-center">
-        <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+        <div className="glow-primary animate-float mb-1 flex size-10 items-center justify-center rounded-lg bg-brand-gradient text-primary-foreground">
           <RssIcon className="size-5" />
         </div>
-        <CardTitle className="text-xl">Social Publisher</CardTitle>
+        <CardTitle className="gradient-text text-xl">Social Publisher</CardTitle>
         <CardDescription>Accedi alla dashboard amministrativa</CardDescription>
       </CardHeader>
       <CardContent>
@@ -107,10 +107,20 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Suspense>
-        <LoginForm />
-      </Suspense>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+      <div
+        aria-hidden
+        className="animate-float pointer-events-none absolute -top-32 -left-32 size-96 rounded-full bg-brand-from/30 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="animate-float pointer-events-none absolute -right-32 -bottom-32 size-96 rounded-full bg-brand-to/30 blur-3xl [animation-delay:-3s]"
+      />
+      <div className="relative">
+        <Suspense>
+          <LoginForm />
+        </Suspense>
+      </div>
     </div>
   );
 }

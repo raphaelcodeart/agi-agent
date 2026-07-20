@@ -10,9 +10,9 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16 text-center">
+    <div className="animate-in fade-in flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16 text-center duration-500">
       {Icon && (
-        <div className="rounded-full bg-muted p-3 text-muted-foreground">
+        <div className="animate-float rounded-full bg-primary/10 p-3 text-primary">
           <Icon className="size-5" />
         </div>
       )}

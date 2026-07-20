@@ -93,6 +93,15 @@ const STATUS_LABELS: Record<string, string> = {
   unknown: "Sconosciuto",
 };
 
+const LIVE_STATUSES = new Set([
+  "processing",
+  "running",
+  "queued",
+  "preparing",
+  "retry_wait",
+  "inspecting",
+]);
+
 interface StatusBadgeProps {
   status: string;
   className?: string;
@@ -101,9 +110,11 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const tone = STATUS_TONE[status] ?? "neutral";
   const label = STATUS_LABELS[status] ?? status;
+  const isLive = LIVE_STATUSES.has(status);
 
   return (
-    <Badge variant="outline" className={cn(TONE_CLASSES[tone], className)}>
+    <Badge variant="outline" className={cn("gap-1.5", TONE_CLASSES[tone], className)}>
+      {isLive && <span className="status-dot-live size-1.5 shrink-0 rounded-full bg-current" />}
       {label}
     </Badge>
   );

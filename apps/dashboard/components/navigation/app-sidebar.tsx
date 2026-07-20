@@ -22,11 +22,11 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1.5">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+          <div className="glow-primary flex size-7 shrink-0 items-center justify-center rounded-md bg-brand-gradient text-primary-foreground">
             <Rss className="size-4" />
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-sm font-semibold text-foreground">Social Publisher</p>
+            <p className="gradient-text truncate text-sm font-semibold">Social Publisher</p>
             <p className="truncate text-xs text-muted-foreground">Admin Console</p>
           </div>
         </div>

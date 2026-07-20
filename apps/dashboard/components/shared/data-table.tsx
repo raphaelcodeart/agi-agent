@@ -63,7 +63,7 @@ export function DataTable<TData>({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
+    <div className="animate-in fade-in overflow-x-auto rounded-lg border duration-500">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -83,7 +83,11 @@ export function DataTable<TData>({
             <TableRow
               key={row.id}
               onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-              className={cn(onRowClick && "cursor-pointer", rowClassName?.(row.original))}
+              className={cn(
+                "transition-colors hover:bg-primary/[0.04]",
+                onRowClick && "cursor-pointer",
+                rowClassName?.(row.original)
+              )}
             >
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id} className="whitespace-nowrap">

@@ -19,7 +19,7 @@ export function PlatformDistributionChart({ distribution }: PlatformDistribution
           <PlatformBadge platform={platform} className="w-28 shrink-0 justify-start" />
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-primary"
+              className="h-full rounded-full bg-brand-gradient transition-[width] duration-500 ease-out"
               style={{ width: `${Math.max(4, (count / max) * 100)}%` }}
             />
           </div>
