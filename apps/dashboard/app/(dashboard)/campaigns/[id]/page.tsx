@@ -2,9 +2,10 @@
 
 import { use, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { PauseIcon, PlayIcon, XIcon, RotateCcwIcon } from "lucide-react";
+import { PauseIcon, PlayIcon, XIcon, RotateCcwIcon, CopyIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { CampaignProgress } from "@/components/shared/campaign-progress";
@@ -31,6 +32,7 @@ const LIMIT = 20;
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const [skip, setSkip] = useState(0);
 
   const isTerminal = (status?: string) =>
@@ -130,6 +132,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         description={`Modalità: ${campaign.publishing_mode} · Destinatari: ${campaign.targeting_mode}`}
         actions={
           <>
+            <Button variant="outline" onClick={() => router.push(`/campaigns/new?duplicate=${campaign.id}`)}>
+              <CopyIcon className="size-4" />
+              Duplica
+            </Button>
             {campaign.status === "running" && (
               <Button
                 variant="outline"

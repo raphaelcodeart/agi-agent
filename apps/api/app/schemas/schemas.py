@@ -169,10 +169,21 @@ class CampaignResponse(BaseModel):
     id: uuid.UUID
     title: str
     default_text: str
+    instagram_text: Optional[str] = None
+    facebook_text: Optional[str] = None
+    linkedin_text: Optional[str] = None
+    tiktok_text: Optional[str] = None
+    youtube_title: Optional[str] = None
+    youtube_description: Optional[str] = None
+    x_text: Optional[str] = None
+    threads_text: Optional[str] = None
     publishing_mode: str
     scheduled_at: Optional[datetime]
     timezone: str
     targeting_mode: str
+    # Targeting params used at launch (e.g. {"channel_ids": [...]}), needed to
+    # reproduce the same recipient selection when duplicating a campaign.
+    metadata_json: Optional[Dict[str, Any]] = None
     status: str
     media_file_id: Optional[uuid.UUID]
     started_at: Optional[datetime]

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -15,10 +15,11 @@ import {
   WIZARD_STEP_FIELDS,
   WIZARD_STEPS,
   buildTargetingParams,
+  campaignToWizardDefaults,
   toCampaignCreatePayload,
   type CampaignWizardValues,
 } from "@/lib/validation/campaigns";
-import { useCreateCampaign, useLaunchCampaign } from "@/hooks/use-campaigns";
+import { useCreateCampaign, useLaunchCampaign, useCampaignDetail } from "@/hooks/use-campaigns";
 import { ApiError } from "@/lib/api/errors";
 import { WizardStepper } from "./_components/wizard-stepper";
 import { StepInfo } from "./_components/step-info";
@@ -28,10 +29,14 @@ import { StepRecipients } from "./_components/step-recipients";
 import { StepScheduling } from "./_components/step-scheduling";
 import { StepSummary } from "./_components/step-summary";
 
-export default function NewCampaignPage() {
+function NewCampaignForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const duplicateId = searchParams.get("duplicate");
   const [step, setStep] = useState(1);
   const createCampaign = useCreateCampaign();
+  const duplicateSource = useCampaignDetail(duplicateId ?? undefined);
+  const hasPrefilled = useRef(false);
 
   const form = useForm<CampaignWizardValues>({
     resolver: zodResolver(campaignWizardSchema),
@@ -59,6 +64,15 @@ export default function NewCampaignPage() {
   });
 
   const launchCampaign = useLaunchCampaign();
+
+  useEffect(() => {
+    if (duplicateSource.data && !hasPrefilled.current) {
+      hasPrefilled.current = true;
+      form.reset(campaignToWizardDefaults(duplicateSource.data.campaign));
+      toast.info("Campagna precompilata: rivedi testo, media e scelte di pubblicazione prima di lanciarla.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duplicateSource.data]);
 
   async function goNext() {
     const fields = WIZARD_STEP_FIELDS[step - 1];
@@ -94,7 +108,14 @@ export default function NewCampaignPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Nuova campagna" description="Crea una campagna di pubblicazione multi-piattaforma" />
+      <PageHeader
+        title={duplicateId ? "Duplica campagna" : "Nuova campagna"}
+        description={
+          duplicateId
+            ? "Testo, media e destinatari precompilati dalla campagna originale: correggi ciò che serve e scegli come pubblicare."
+            : "Crea una campagna di pubblicazione multi-piattaforma"
+        }
+      />
 
       <WizardStepper currentStep={step} />
 
@@ -131,5 +152,13 @@ export default function NewCampaignPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function NewCampaignPage() {
+  return (
+    <Suspense>
+      <NewCampaignForm />
+    </Suspense>
   );
 }

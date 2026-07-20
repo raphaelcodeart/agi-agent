@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { CampaignCreatePayload } from "@/types/api";
+import type { CampaignCreatePayload, CampaignResponse } from "@/types/api";
 
 export const publishingModeValues = [
   "immediate",
@@ -124,6 +124,37 @@ export function toCampaignCreatePayload(values: CampaignWizardValues): CampaignC
     timezone: values.timezone,
     targeting_mode: values.targeting_mode,
     targeting_params: buildTargetingParams(values),
+  };
+}
+
+// Prefills the wizard from an existing campaign ("Duplica campagna"). Text,
+// media and recipient selection are copied as-is; publishing mode and
+// scheduled_at are deliberately reset so the admin has to actively re-pick
+// them rather than silently reusing a possibly past/one-off schedule.
+export function campaignToWizardDefaults(campaign: CampaignResponse): Partial<CampaignWizardValues> {
+  const params = (campaign.metadata_json ?? {}) as Record<string, unknown>;
+  const asStringArray = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []);
+
+  return {
+    title: `${campaign.title} (copia)`,
+    default_text: campaign.default_text,
+    instagram_text: campaign.instagram_text ?? "",
+    facebook_text: campaign.facebook_text ?? "",
+    linkedin_text: campaign.linkedin_text ?? "",
+    tiktok_text: campaign.tiktok_text ?? "",
+    youtube_title: campaign.youtube_title ?? "",
+    youtube_description: campaign.youtube_description ?? "",
+    x_text: campaign.x_text ?? "",
+    threads_text: campaign.threads_text ?? "",
+    media_file_id: campaign.media_file_id,
+    targeting_mode: campaign.targeting_mode,
+    user_ids: asStringArray(params.user_ids),
+    group_ids: asStringArray(params.group_ids),
+    channel_ids: asStringArray(params.channel_ids),
+    platform_names: asStringArray(params.platform_names),
+    publishing_mode: "immediate",
+    scheduled_at: null,
+    timezone: campaign.timezone,
   };
 }
 

@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, CopyIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -47,6 +48,7 @@ function DestinationsCell({ campaignId }: { campaignId: string }) {
 }
 
 export default function CampaignsPage() {
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | "">("");
   const [skip, setSkip] = useState(0);
 
@@ -87,12 +89,23 @@ export default function CampaignsPage() {
         id: "actions",
         header: "",
         cell: ({ row }) => (
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`/campaigns/${row.original.id}`}>Apri</Link>
-          </Button>
+          <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Duplica campagna"
+              onClick={() => router.push(`/campaigns/new?duplicate=${row.original.id}`)}
+            >
+              <CopyIcon className="size-3.5" />
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={`/campaigns/${row.original.id}`}>Apri</Link>
+            </Button>
+          </div>
         ),
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
