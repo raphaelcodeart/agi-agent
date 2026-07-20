@@ -10,7 +10,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useGroups } from "@/hooks/use-users";
 import { formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { GroupFormDialog } from "./_components/group-form-dialog";
+
+const GROUP_TONES = [
+  "bg-chart-1/12 text-chart-1",
+  "bg-chart-2/12 text-chart-2",
+  "bg-chart-3/12 text-chart-3",
+  "bg-chart-4/12 text-chart-4",
+  "bg-chart-5/12 text-chart-5",
+];
 
 export default function GroupsPage() {
   const groupsQuery = useGroups();
@@ -43,9 +52,17 @@ export default function GroupsPage() {
 
       {groupsQuery.data && groupsQuery.data.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {groupsQuery.data.map((group) => (
-            <Card key={group.id}>
+          {groupsQuery.data.map((group, index) => (
+            <Card key={group.id} className="animate-in fade-in slide-in-from-bottom-1 duration-500">
               <CardHeader>
+                <div
+                  className={cn(
+                    "mb-1 flex size-10 items-center justify-center rounded-xl",
+                    GROUP_TONES[index % GROUP_TONES.length]
+                  )}
+                >
+                  <UsersRoundIcon className="size-5" />
+                </div>
                 <CardTitle className="text-base">{group.name}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">

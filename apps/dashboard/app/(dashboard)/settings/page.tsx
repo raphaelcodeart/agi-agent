@@ -12,6 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -53,6 +55,20 @@ const FIELDS: {
     description: "Numero massimo di tentativi automatici per una pubblicazione prima del fallimento definitivo.",
   },
 ];
+
+function HealthTile({ icon: Icon, label, ok, statusOverride }: { icon: LucideIcon; label: string; ok: boolean; statusOverride?: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-primary/[0.03]">
+      <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", ok ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive")}>
+        <Icon className="size-4" />
+      </div>
+      <div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <StatusBadge status={statusOverride ?? (ok ? "connected" : "error")} />
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const settingsQuery = useSystemSettings();
@@ -100,27 +116,14 @@ export default function SettingsPage() {
             <Skeleton className="h-16" />
           ) : healthQuery.data ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="flex items-center gap-2 rounded-lg border p-3">
-                <DatabaseIcon className="size-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Database</p>
-                  <StatusBadge status={healthQuery.data.database === "ok" ? "connected" : "error"} />
-                </div>
-              </div>
-              <div className="flex items-center gap-2 rounded-lg border p-3">
-                <ServerIcon className="size-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Redis</p>
-                  <StatusBadge status={healthQuery.data.redis === "ok" ? "connected" : "error"} />
-                </div>
-              </div>
-              <div className="flex items-center gap-2 rounded-lg border p-3">
-                <ActivityIcon className="size-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Celery worker</p>
-                  <StatusBadge status={healthQuery.data.celery_worker === "ok" ? "connected" : healthQuery.data.celery_worker} />
-                </div>
-              </div>
+              <HealthTile icon={DatabaseIcon} label="Database" ok={healthQuery.data.database === "ok"} />
+              <HealthTile icon={ServerIcon} label="Redis" ok={healthQuery.data.redis === "ok"} />
+              <HealthTile
+                icon={ActivityIcon}
+                label="Celery worker"
+                ok={healthQuery.data.celery_worker === "ok"}
+                statusOverride={healthQuery.data.celery_worker === "ok" ? "connected" : healthQuery.data.celery_worker}
+              />
               <p className="col-span-full text-xs text-muted-foreground">
                 Ultimo controllo: {formatDateTime(healthQuery.data.timestamp)}
               </p>
