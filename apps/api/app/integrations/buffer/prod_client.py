@@ -155,6 +155,18 @@ class ProductionBufferClient(BaseBufferClient):
                     "categoryId": "22",
                 }
             }
+        elif platform == "instagram":
+            # InstagramPostMetadataInput.type and .shouldShareToFeed are both required
+            # on create (see developers.buffer.com/types/InstagramPostMetadataInput.html).
+            # type selects post/story/reel (PostType enum); the platform has no
+            # per-campaign post-type setting yet, so this defaults to a standard feed
+            # "post" (also implying shouldShareToFeed=true) rather than story/reel.
+            post_input["metadata"] = {
+                "instagram": {
+                    "type": "post",
+                    "shouldShareToFeed": True,
+                }
+            }
 
         if scheduled_at:
             post_input["schedulingType"] = "automatic"
