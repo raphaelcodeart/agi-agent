@@ -3,13 +3,18 @@
 import Link from "next/link";
 import {
   UsersIcon,
+  UsersRoundIcon,
   LinkIcon,
   Share2Icon,
+  ImagesIcon,
   MegaphoneIcon,
   SendIcon,
+  AlertOctagonIcon,
+  SettingsIcon,
   XCircleIcon,
   RotateCcwIcon,
   TrendingUpIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -23,8 +28,57 @@ import { useChannels } from "@/hooks/use-channels";
 import { useCampaigns } from "@/hooks/use-campaigns";
 import { usePublications } from "@/hooks/use-publications";
 import { formatCappedCount, formatDateTime, formatPercentage } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 const LIST_CAP = 100;
+
+interface QuickAction {
+  href: string;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  toneClass: string;
+}
+
+const QUICK_ACTIONS: QuickAction[] = [
+  { href: "/campaigns", label: "Campagne", description: "Crea e monitora", icon: MegaphoneIcon, toneClass: "bg-chart-1/12 text-chart-1" },
+  { href: "/publications", label: "Pubblicazioni", description: "Stato invii", icon: SendIcon, toneClass: "bg-chart-2/12 text-chart-2" },
+  { href: "/media", label: "Media", description: "Foto e video", icon: ImagesIcon, toneClass: "bg-chart-3/12 text-chart-3" },
+  { href: "/channels", label: "Canali social", description: "Profili collegati", icon: Share2Icon, toneClass: "bg-chart-4/12 text-chart-4" },
+  { href: "/buffer-connections", label: "Connessioni Buffer", description: "Account collegati", icon: LinkIcon, toneClass: "bg-chart-5/12 text-chart-5" },
+  { href: "/users", label: "Utenti", description: "Clienti e amici", icon: UsersIcon, toneClass: "bg-chart-1/12 text-chart-1" },
+  { href: "/groups", label: "Gruppi", description: "Segmenti utenti", icon: UsersRoundIcon, toneClass: "bg-chart-2/12 text-chart-2" },
+  { href: "/errors", label: "Centro errori", description: "Problemi da risolvere", icon: AlertOctagonIcon, toneClass: "bg-chart-3/12 text-chart-3" },
+  { href: "/settings", label: "Impostazioni", description: "Configurazione", icon: SettingsIcon, toneClass: "bg-chart-4/12 text-chart-4" },
+];
+
+function QuickActionsGrid() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      {QUICK_ACTIONS.map((action, index) => (
+        <Link
+          key={action.href}
+          href={action.href}
+          style={{ animationDelay: `${index * 40}ms` }}
+          className="group animate-in fade-in slide-in-from-bottom-2 fill-mode-both flex flex-col items-center gap-2.5 rounded-xl border bg-card p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:border-transparent hover:shadow-lg hover:shadow-primary/10"
+        >
+          <div
+            className={cn(
+              "flex size-12 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110",
+              action.toneClass
+            )}
+          >
+            <action.icon className="size-6" />
+          </div>
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-foreground">{action.label}</p>
+            <p className="text-xs text-muted-foreground">{action.description}</p>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 export default function DashboardOverviewPage() {
   const activeUsers = useUsers({ status_filter: "active", limit: LIST_CAP });
@@ -58,6 +112,8 @@ export default function DashboardOverviewPage() {
           </Button>
         }
       />
+
+      <QuickActionsGrid />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
