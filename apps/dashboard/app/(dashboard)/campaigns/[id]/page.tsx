@@ -45,6 +45,7 @@ import {
 } from "@/hooks/use-campaigns";
 import { usePublications, useRetryPublication, useRetryCampaignFailures } from "@/hooks/use-publications";
 import { useChannels } from "@/hooks/use-channels";
+import { useUsers } from "@/hooks/use-users";
 import { formatDateTime } from "@/lib/format";
 import { ApiError } from "@/lib/api/errors";
 import type { PublicationResponse } from "@/types/api";
@@ -93,12 +94,19 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const publicationsQuery = usePublications({ campaign_id: id, skip, limit: LIMIT });
   const metricsQuery = useCampaignMetrics(id);
   const channelsQuery = useChannels({});
+  const usersQuery = useUsers({ limit: 100 });
 
   const channelInfo = useMemo(() => {
     const map = new Map<string, { name: string; platform: string }>();
     channelsQuery.data?.forEach((c) => map.set(c.id, { name: c.name, platform: c.platform }));
     return map;
   }, [channelsQuery.data]);
+
+  const userNames = useMemo(() => {
+    const map = new Map<string, string>();
+    usersQuery.data?.forEach((u) => map.set(u.id, u.name));
+    return map;
+  }, [usersQuery.data]);
 
   const pauseCampaign = usePauseCampaign(id);
   const resumeCampaign = useResumeCampaign(id);
@@ -121,18 +129,20 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         cell: ({ row }) => {
           const info = channelInfo.get(row.original.social_channel_id);
           return (
-            <Link href={`/publications/${row.original.id}`} className="flex items-center gap-2 hover:underline">
-              {info ? (
-                <>
-                  <PlatformBadge platform={info.platform} />
-                  <span>{info.name}</span>
-                </>
-              ) : (
-                row.original.external_channel_id
-              )}
+            <Link href={`/publications/${row.original.id}`} className="block hover:underline">
+              <div className="flex items-center gap-2">
+                {info && <PlatformBadge platform={info.platform} />}
+                <span>{info?.name ?? "Canale sconosciuto"}</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">{row.original.external_channel_id}</span>
             </Link>
           );
         },
+      },
+      {
+        id: "user",
+        header: "Utente",
+        cell: ({ row }) => userNames.get(row.original.user_id) ?? "—",
       },
       {
         accessorKey: "status",
@@ -175,7 +185,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [retryPublication.isPending, channelInfo]
+    [retryPublication.isPending, channelInfo, userNames]
   );
 
   if (campaignQuery.isLoading) {
