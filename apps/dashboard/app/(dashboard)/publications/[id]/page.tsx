@@ -105,6 +105,10 @@ export default function PublicationDetailPage({ params }: { params: Promise<{ id
               <PlatformBadge platform={channel_platform} />
             </div>
             <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">ID Buffer canale</span>
+              <span className="text-xs">{pub.external_channel_id}</span>
+            </div>
+            <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Tentativi</span>
               <span>
                 {pub.attempt_count}/{pub.max_attempts}

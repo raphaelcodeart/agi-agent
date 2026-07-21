@@ -134,7 +134,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 {info && <PlatformBadge platform={info.platform} />}
                 <span>{info?.name ?? "Canale sconosciuto"}</span>
               </div>
-              <span className="text-[10px] text-muted-foreground">{row.original.external_channel_id}</span>
+              <span className="text-[10px] text-muted-foreground">ID Buffer: {row.original.external_channel_id}</span>
             </Link>
           );
         },

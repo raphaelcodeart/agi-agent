@@ -119,13 +119,18 @@ export default function PublicationsPage() {
         header: "Canale",
         cell: ({ row }) => {
           const info = channelInfo.get(row.original.social_channel_id);
-          return info ? (
-            <div className="flex items-center gap-2">
-              <PlatformBadge platform={info.platform} />
-              <span>{info.name}</span>
+          return (
+            <div>
+              {info ? (
+                <div className="flex items-center gap-2">
+                  <PlatformBadge platform={info.platform} />
+                  <span>{info.name}</span>
+                </div>
+              ) : (
+                "—"
+              )}
+              <span className="text-[10px] text-muted-foreground">ID Buffer: {row.original.external_channel_id}</span>
             </div>
-          ) : (
-            "—"
           );
         },
       },
