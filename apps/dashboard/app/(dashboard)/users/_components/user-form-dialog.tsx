@@ -152,7 +152,15 @@ export function UserFormDialog({ open, onOpenChange, user }: UserFormDialogProps
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Stato</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    items={[
+                      { value: "active", label: "Attivo" },
+                      { value: "inactive", label: "Inattivo" },
+                      { value: "suspended", label: "Sospeso" },
+                    ]}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
                     <FormControl>
                       <SelectTrigger className="w-full">
                         <SelectValue />

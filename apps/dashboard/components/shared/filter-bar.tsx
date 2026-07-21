@@ -29,8 +29,14 @@ interface FilterSelectProps {
 }
 
 export function FilterSelect({ value, onChange, options, placeholder, allLabel = "Tutti" }: FilterSelectProps) {
+  // Base UI's <Select.Value> shows the raw value in the trigger unless the
+  // Root is given an items map - without it, it doesn't know "__all__" means
+  // "Tutti" or that a status slug like "draft" means "Bozza".
+  const items = [{ value: FILTER_ALL_VALUE, label: allLabel }, ...options];
+
   return (
     <Select
+      items={items}
       value={value || FILTER_ALL_VALUE}
       onValueChange={(next) => onChange(!next || next === FILTER_ALL_VALUE ? "" : next)}
     >

@@ -78,7 +78,12 @@ export function ConnectUserDialog({ open, onOpenChange, preselectedUserId }: Con
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Utente</Label>
-            <Select value={userId} onValueChange={(value) => setUserId(value ?? "")} disabled={!!preselectedUserId}>
+            <Select
+              items={availableUsers.map((user) => ({ value: user.id, label: user.name }))}
+              value={userId}
+              onValueChange={(value) => setUserId(value ?? "")}
+              disabled={!!preselectedUserId}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Seleziona utente" />
               </SelectTrigger>

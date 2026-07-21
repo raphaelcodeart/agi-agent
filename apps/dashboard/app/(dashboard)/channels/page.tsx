@@ -147,6 +147,7 @@ export default function ChannelsPage() {
         header: "Modalità pubblicazione",
         cell: ({ row }) => (
           <Select
+            items={MODE_OPTIONS}
             value={row.original.publication_mode}
             onValueChange={(value) => handleModeChange(row.original.id, value as PublicationMode)}
           >
