@@ -16,15 +16,25 @@ class CampaignResolver:
         """
         Resolves the target social channels based on the campaign's targeting mode
         and criteria parameters.
-        
+
         targeting_params may contain:
         - user_ids: List[str]
         - group_ids: List[str]
         - platform_names: List[str]
         - channel_ids: List[str]
+
+        For "all_active_channels", "selected_users" and "selected_groups", an
+        optional "platform_names" list narrows the resolved channels down to just
+        those platforms for the matched users (e.g. group "Clienti VIP" but only
+        their Instagram/Facebook channels, skipping any TikTok/YouTube they also
+        have connected) - it's a filter layered on top of who is targeted, not a
+        separate mode. Absent or empty means "every platform they have", same as
+        before this was added. "selected_channels" ignores it (channels are
+        already explicit) and "selected_platforms" already *is* the platform
+        filter, so there's nothing to layer it on top of.
         """
         mode = campaign.targeting_mode
-        
+
         # Base query to fetch active channels with active connections & users
         query = db.query(SocialChannel).join(
             BufferOrganization, SocialChannel.buffer_organization_id == BufferOrganization.id
@@ -44,33 +54,42 @@ class CampaignResolver:
         )
 
         if mode == "all_active_channels":
-            return query.all()
-            
+            pass
+
         elif mode == "selected_users":
             user_ids = [uuid.UUID(uid) for uid in targeting_params.get("user_ids", [])]
             if not user_ids:
                 return []
-            return query.filter(User.id.in_(user_ids)).all()
-            
+            query = query.filter(User.id.in_(user_ids))
+
         elif mode == "selected_groups":
             group_ids = [uuid.UUID(gid) for gid in targeting_params.get("group_ids", [])]
             if not group_ids:
                 return []
-            return query.filter(User.groups.any(UserGroup.id.in_(group_ids))).all()
-            
+            query = query.filter(User.groups.any(UserGroup.id.in_(group_ids)))
+
         elif mode == "selected_channels":
             channel_ids = [uuid.UUID(cid) for cid in targeting_params.get("channel_ids", [])]
             if not channel_ids:
                 return []
             return query.filter(SocialChannel.id.in_(channel_ids)).all()
-            
+
         elif mode == "selected_platforms":
             platforms = [p.lower().strip() for p in targeting_params.get("platform_names", [])]
             if not platforms:
                 return []
             return query.filter(SocialChannel.platform.in_(platforms)).all()
-            
-        return []
+
+        else:
+            return []
+
+        # Optional secondary platform narrowing for the three "who" based modes above.
+        platform_names = targeting_params.get("platform_names")
+        if platform_names:
+            platforms = [p.lower().strip() for p in platform_names]
+            query = query.filter(SocialChannel.platform.in_(platforms))
+
+        return query.all()
 
     @staticmethod
     def resolve_text_for_channel(campaign: Campaign, channel: SocialChannel, channel_override_text: str = None) -> str:

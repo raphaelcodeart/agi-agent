@@ -20,6 +20,25 @@ const MODE_LABELS: Record<(typeof targetingModeValues)[number], { label: string;
 
 const PLATFORMS = ["instagram", "facebook", "linkedin", "tiktok", "youtube", "x", "threads"];
 
+function PlatformCheckboxList({
+  selected,
+  onToggle,
+}: {
+  selected: string[];
+  onToggle: (platform: string, checked: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-3 rounded-md border p-3">
+      {PLATFORMS.map((platform) => (
+        <label key={platform} className="flex items-center gap-2 text-sm">
+          <Checkbox checked={selected.includes(platform)} onCheckedChange={(value) => onToggle(platform, !!value)} />
+          <PlatformBadge platform={platform} />
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function CheckboxList<T extends { id: string }>({
   items,
   selected,
@@ -46,6 +65,12 @@ function CheckboxList<T extends { id: string }>({
     </div>
   );
 }
+
+// These three modes select *who* is targeted; the platform filter below then
+// optionally narrows *which* of their channels get included. The other two
+// modes don't combine with it: "selected_channels" is already an explicit
+// channel-by-channel pick, and "selected_platforms" already is the filter.
+const PLATFORM_FILTER_COMPATIBLE_MODES = new Set(["all_active_channels", "selected_users", "selected_groups"]);
 
 export function StepRecipients({ form }: { form: UseFormReturn<CampaignWizardValues> }) {
   const targetingMode = form.watch("targeting_mode");
@@ -156,23 +181,39 @@ export function StepRecipients({ form }: { form: UseFormReturn<CampaignWizardVal
           name="platform_names"
           render={({ field }) => (
             <FormItem>
-              <div className="flex flex-wrap gap-3 rounded-md border p-3">
-                {PLATFORMS.map((platform) => {
-                  const checked = field.value?.includes(platform) ?? false;
-                  return (
-                    <label key={platform} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(value) => {
-                          const current = field.value ?? [];
-                          field.onChange(value ? [...current, platform] : current.filter((p) => p !== platform));
-                        }}
-                      />
-                      <PlatformBadge platform={platform} />
-                    </label>
-                  );
-                })}
+              <PlatformCheckboxList
+                selected={field.value ?? []}
+                onToggle={(platform, checked) => {
+                  const current = field.value ?? [];
+                  field.onChange(checked ? [...current, platform] : current.filter((p) => p !== platform));
+                }}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {PLATFORM_FILTER_COMPATIBLE_MODES.has(targetingMode) && (
+        <FormField
+          control={form.control}
+          name="platform_names"
+          render={({ field }) => (
+            <FormItem>
+              <div>
+                <p className="text-sm font-medium">Filtra per piattaforma (opzionale)</p>
+                <p className="text-xs text-muted-foreground">
+                  Lascia tutto deselezionato per pubblicare su tutti i canali collegati. Seleziona una o più
+                  piattaforme per pubblicare solo su quelle, anche se l&apos;utente/gruppo ne ha altre collegate.
+                </p>
               </div>
+              <PlatformCheckboxList
+                selected={field.value ?? []}
+                onToggle={(platform, checked) => {
+                  const current = field.value ?? [];
+                  field.onChange(checked ? [...current, platform] : current.filter((p) => p !== platform));
+                }}
+              />
               <FormMessage />
             </FormItem>
           )}

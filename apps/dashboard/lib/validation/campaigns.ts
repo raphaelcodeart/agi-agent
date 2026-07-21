@@ -159,16 +159,23 @@ export function campaignToWizardDefaults(campaign: CampaignResponse): Partial<Ca
 }
 
 export function buildTargetingParams(values: CampaignWizardValues): Record<string, unknown> {
+  // "all_active_channels" / "selected_users" / "selected_groups" can optionally
+  // be narrowed to specific platforms on top of who's targeted (e.g. a group,
+  // but only their Instagram+Facebook channels) - "selected_channels" is already
+  // explicit and "selected_platforms" already *is* the platform filter, so
+  // neither combines with it.
+  const platformFilter = values.platform_names?.length ? { platform_names: values.platform_names } : {};
+
   switch (values.targeting_mode) {
     case "selected_users":
-      return { user_ids: values.user_ids ?? [] };
+      return { user_ids: values.user_ids ?? [], ...platformFilter };
     case "selected_groups":
-      return { group_ids: values.group_ids ?? [] };
+      return { group_ids: values.group_ids ?? [], ...platformFilter };
     case "selected_channels":
       return { channel_ids: values.channel_ids ?? [] };
     case "selected_platforms":
       return { platform_names: values.platform_names ?? [] };
     default:
-      return {};
+      return { ...platformFilter };
   }
 }
