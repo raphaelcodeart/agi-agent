@@ -32,6 +32,10 @@ class GroupCreate(BaseModel):
     name: str = Field(..., max_length=100)
     description: Optional[str] = Field(None, max_length=500)
 
+class GroupUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+
 class GroupResponse(BaseModel):
     id: uuid.UUID
     name: str

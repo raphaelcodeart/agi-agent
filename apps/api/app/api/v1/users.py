@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
 from app.models.administrator import Administrator
 from app.models.user import User, UserGroup
-from app.schemas.schemas import UserCreate, UserUpdate, UserResponse, GroupCreate, GroupResponse
+from app.schemas.schemas import UserCreate, UserUpdate, UserResponse, GroupCreate, GroupUpdate, GroupResponse
 
 router = APIRouter()
 
@@ -158,6 +158,31 @@ def create_group(
         description=payload.description
     )
     db.add(group)
+    db.commit()
+    db.refresh(group)
+    return group
+
+
+@router.put("/groups/{group_id}", response_model=GroupResponse)
+def update_group(
+    group_id: uuid.UUID,
+    payload: GroupUpdate,
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin)
+):
+    """Update a targeting user group's name/description."""
+    group = db.query(UserGroup).filter(UserGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if payload.name and payload.name != group.name:
+        existing = db.query(UserGroup).filter(UserGroup.name == payload.name).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Group with this name already exists.")
+
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(group, k, v)
+
     db.commit()
     db.refresh(group)
     return group

@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { PlusIcon, UsersRoundIcon } from "lucide-react";
+import { PlusIcon, PencilIcon, UsersRoundIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { CardGridSkeleton } from "@/components/shared/loading-skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useGroups } from "@/hooks/use-users";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { GroupResponse } from "@/types/api";
 import { GroupFormDialog } from "./_components/group-form-dialog";
 
 const GROUP_TONES = [
@@ -24,6 +25,17 @@ const GROUP_TONES = [
 export default function GroupsPage() {
   const groupsQuery = useGroups();
   const [formOpen, setFormOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<GroupResponse | undefined>(undefined);
+
+  function openCreate() {
+    setEditingGroup(undefined);
+    setFormOpen(true);
+  }
+
+  function openEdit(group: GroupResponse) {
+    setEditingGroup(group);
+    setFormOpen(true);
+  }
 
   return (
     <div className="space-y-4">
@@ -31,7 +43,7 @@ export default function GroupsPage() {
         title="Gruppi"
         description="Organizza gli utenti in gruppi per indirizzare le campagne"
         actions={
-          <Button onClick={() => setFormOpen(true)}>
+          <Button onClick={openCreate}>
             <PlusIcon className="size-4" />
             Nuovo gruppo
           </Button>
@@ -64,6 +76,11 @@ export default function GroupsPage() {
                   <UsersRoundIcon className="size-5" />
                 </div>
                 <CardTitle className="text-base">{group.name}</CardTitle>
+                <CardAction>
+                  <Button variant="ghost" size="icon-sm" aria-label="Modifica gruppo" onClick={() => openEdit(group)}>
+                    <PencilIcon className="size-3.5" />
+                  </Button>
+                </CardAction>
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-sm text-muted-foreground">{group.description || "Nessuna descrizione"}</p>
@@ -74,7 +91,7 @@ export default function GroupsPage() {
         </div>
       )}
 
-      <GroupFormDialog open={formOpen} onOpenChange={setFormOpen} />
+      <GroupFormDialog open={formOpen} onOpenChange={setFormOpen} group={editingGroup} />
     </div>
   );
 }

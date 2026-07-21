@@ -68,3 +68,14 @@ export function useCreateGroup() {
     },
   });
 }
+
+export function useUpdateGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, payload }: { groupId: string; payload: usersService.GroupPayload }) =>
+      usersService.updateGroup(groupId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups.list() });
+    },
+  });
+}

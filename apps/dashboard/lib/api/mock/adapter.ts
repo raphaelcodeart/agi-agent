@@ -129,6 +129,14 @@ export function createGroup(payload: GroupPayload): Promise<GroupResponse> {
   return delay(group);
 }
 
+export function updateGroup(groupId: string, payload: GroupPayload): Promise<GroupResponse> {
+  const group = mockGroups.find((g) => g.id === groupId);
+  if (!group) notFound("Group");
+  if (payload.name !== undefined) group.name = payload.name;
+  if (payload.description !== undefined) group.description = payload.description ?? null;
+  return delay(group);
+}
+
 // ---------------------------------------------------------------------------
 // Buffer connections & channels
 // ---------------------------------------------------------------------------

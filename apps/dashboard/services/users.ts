@@ -59,3 +59,8 @@ export function createGroup(payload: GroupPayload): Promise<GroupResponse> {
   if (isMockApiEnabled()) return mock.createGroup(payload);
   return apiClient.post<GroupResponse>("/users/groups", payload);
 }
+
+export function updateGroup(groupId: string, payload: GroupPayload): Promise<GroupResponse> {
+  if (isMockApiEnabled()) return mock.updateGroup(groupId, payload);
+  return apiClient.put<GroupResponse>(`/users/groups/${groupId}`, payload);
+}
