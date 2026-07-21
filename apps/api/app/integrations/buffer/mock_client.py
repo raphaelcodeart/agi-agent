@@ -1,3 +1,4 @@
+import random
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
@@ -145,4 +146,24 @@ class MockBufferClient(BaseBufferClient):
             "status": "published",
             "published_at": datetime.now(timezone.utc).isoformat(),
             "url": f"https://buffer.com/post/{external_post_id}",
+        }
+
+    def get_post_metrics(self, api_key: str, external_post_id: str) -> Dict[str, Any]:
+        if "invalid" in api_key:
+            raise BufferAuthError("Invalid API key", status_code=401)
+
+        # Deterministic per post_id so repeated calls in a demo look stable, not
+        # randomly flickering on every refresh.
+        rng = random.Random(external_post_id)
+        reactions = rng.randint(5, 250)
+        views = rng.randint(reactions * 3, reactions * 20 + 100)
+        return {
+            "metrics": [
+                {"type": "reactions", "name": "Reactions", "value": float(reactions), "unit": "count"},
+                {"type": "comments", "name": "Comments", "value": float(rng.randint(0, reactions // 4 + 1)), "unit": "count"},
+                {"type": "shares", "name": "Shares", "value": float(rng.randint(0, reactions // 5 + 1)), "unit": "count"},
+                {"type": "views", "name": "Views", "value": float(views), "unit": "count"},
+                {"type": "follows", "name": "New follows", "value": float(rng.randint(0, 8)), "unit": "count"},
+            ],
+            "metrics_updated_at": datetime.now(timezone.utc).isoformat(),
         }

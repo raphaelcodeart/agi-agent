@@ -232,3 +232,42 @@ class ProductionBufferClient(BaseBufferClient):
         raise NotImplementedError(
             "get_post_status is not yet implemented for the Buffer GraphQL API client"
         )
+
+    def get_post_metrics(self, api_key: str, external_post_id: str) -> Dict[str, Any]:
+        # Verified against developers.buffer.com/types/Post.html,
+        # developers.buffer.com/types/PostMetric.html and the "Post Metrics" guide
+        # (July 2026): `post(input: PostInput!)` returns `metrics: [PostMetric]` +
+        # `metricsUpdatedAt`. Metrics are refreshed once a day by Buffer itself, so a
+        # freshly-sent post can take up to ~24h before any metric appears here -
+        # a missing/empty list does not necessarily mean the post has 0 engagement.
+        query = """
+        query GetPostMetrics($input: PostInput!) {
+          post(input: $input) {
+            id
+            metrics {
+              type
+              name
+              value
+              unit
+            }
+            metricsUpdatedAt
+          }
+        }
+        """
+        data = self._request(api_key, query, {"input": {"id": external_post_id}})
+        post = data.get("post")
+        if not post:
+            return {"metrics": [], "metrics_updated_at": None}
+
+        return {
+            "metrics": [
+                {
+                    "type": m.get("type"),
+                    "name": m.get("name"),
+                    "value": m.get("value"),
+                    "unit": m.get("unit"),
+                }
+                for m in (post.get("metrics") or [])
+            ],
+            "metrics_updated_at": post.get("metricsUpdatedAt"),
+        }

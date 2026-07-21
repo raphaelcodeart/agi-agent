@@ -5,6 +5,7 @@ import * as mock from "@/lib/api/mock/adapter";
 import type {
   CampaignCreatePayload,
   CampaignDetailResponse,
+  CampaignMetricsResponse,
   CampaignPreviewResponse,
   CampaignResponse,
   CampaignStatus,
@@ -50,6 +51,11 @@ export function launchCampaign(
 export function getCampaignDetail(campaignId: string): Promise<CampaignDetailResponse> {
   if (isMockApiEnabled()) return mock.getCampaignDetail(campaignId);
   return apiClient.get<CampaignDetailResponse>(`/campaigns/${campaignId}`);
+}
+
+export function getCampaignMetrics(campaignId: string): Promise<CampaignMetricsResponse> {
+  if (isMockApiEnabled()) return mock.getCampaignMetrics(campaignId);
+  return apiClient.get<CampaignMetricsResponse>(`/campaigns/${campaignId}/metrics`);
 }
 
 export function pauseCampaign(campaignId: string): Promise<CampaignResponse> {

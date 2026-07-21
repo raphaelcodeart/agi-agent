@@ -19,6 +19,7 @@ import type {
   BufferConnectionResponse,
   CampaignCreatePayload,
   CampaignDetailResponse,
+  CampaignMetricsResponse,
   CampaignPreviewResponse,
   CampaignResponse,
   GroupResponse,
@@ -315,6 +316,37 @@ export function getCampaignDetail(campaignId: string): Promise<CampaignDetailRes
     stats,
     progress_percentage: total > 0 ? Math.round((resolved / total) * 10000) / 100 : 0,
   });
+}
+
+export function getCampaignMetrics(campaignId: string): Promise<CampaignMetricsResponse> {
+  const published = mockPublications.filter((p) => p.campaign_id === campaignId && p.status === "published");
+  const totals: Record<string, number> = {};
+  const channels = published.map((pub) => {
+    const channel = mockChannels.find((c) => c.id === pub.social_channel_id);
+    const seed = pub.id.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+    const reactions = 5 + (seed % 200);
+    const views = reactions * 4 + (seed % 300);
+    const follows = seed % 6;
+    const metrics = [
+      { type: "reactions", name: "Reactions", value: reactions, unit: "count" },
+      { type: "views", name: "Views", value: views, unit: "count" },
+      { type: "follows", name: "New follows", value: follows, unit: "count" },
+    ];
+    metrics.forEach((m) => {
+      totals[m.type] = (totals[m.type] ?? 0) + m.value;
+    });
+    return {
+      publication_id: pub.id,
+      social_channel_id: pub.social_channel_id,
+      channel_name: channel?.name ?? "—",
+      platform: channel?.platform ?? "unknown",
+      external_post_url: pub.external_post_url ?? null,
+      metrics,
+      metrics_updated_at: nowIso(),
+      error: null,
+    };
+  });
+  return delay({ totals, channels });
 }
 
 function updateCampaignStatus(campaignId: string, status: CampaignResponse["status"]): Promise<CampaignResponse> {

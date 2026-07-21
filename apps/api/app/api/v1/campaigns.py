@@ -9,12 +9,18 @@ from app.models.administrator import Administrator
 from app.models.campaign import Campaign, CampaignTarget
 from app.models.publication import Publication
 from app.models.media import MediaFile
+from app.core.security import EncryptionService
+from app.integrations.buffer.service import get_buffer_client
+from app.integrations.buffer.exceptions import BufferApiError
 from app.services.campaign_resolver import CampaignResolver
 from app.schemas.schemas import (
     CampaignCreate,
     CampaignResponse,
     CampaignPreviewResponse,
     CampaignDetailResponse,
+    CampaignMetricsResponse,
+    ChannelMetrics,
+    PostMetricValue,
 )
 
 router = APIRouter()
@@ -174,6 +180,69 @@ def get_campaign_detail(
         "stats": stats,
         "progress_percentage": round(progress, 2)
     }
+
+
+@router.get("/{campaign_id}/metrics", response_model=CampaignMetricsResponse)
+def get_campaign_metrics(
+    campaign_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin)
+):
+    """
+    Fetches engagement metrics (reactions, views, follows gained, etc.) for every
+    published destination of this campaign, live from Buffer's Post.metrics API.
+    Called on demand (not polled) - Buffer only refreshes these once a day, and a
+    freshly-sent post can take up to ~24h before any metric appears.
+    """
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    publications = (
+        db.query(Publication)
+        .filter(
+            Publication.campaign_id == campaign_id,
+            Publication.status == "published",
+            Publication.external_post_id.isnot(None),
+        )
+        .all()
+    )
+
+    client = get_buffer_client()
+    totals: Dict[str, float] = {}
+    channels: List[ChannelMetrics] = []
+
+    for pub in publications:
+        channel = pub.social_channel
+        connection = pub.buffer_connection
+        entry = ChannelMetrics(
+            publication_id=pub.id,
+            social_channel_id=pub.social_channel_id,
+            channel_name=channel.name if channel else "—",
+            platform=channel.platform if channel else "unknown",
+            external_post_url=pub.external_post_url,
+        )
+
+        try:
+            token = EncryptionService.decrypt(connection.access_token_encrypted) if connection else None
+            if not token:
+                raise BufferApiError("Connessione Buffer non disponibile", category="auth_error")
+
+            result = client.get_post_metrics(token, pub.external_post_id)
+            entry.metrics = [PostMetricValue(**m) for m in result.get("metrics", [])]
+            entry.metrics_updated_at = result.get("metrics_updated_at")
+
+            for metric in entry.metrics:
+                totals[metric.type] = totals.get(metric.type, 0.0) + metric.value
+
+        except BufferApiError as e:
+            entry.error = e.message
+        except Exception as e:
+            entry.error = str(e)
+
+        channels.append(entry)
+
+    return CampaignMetricsResponse(totals=totals, channels=channels)
 
 
 @router.post("/{campaign_id}/pause", response_model=CampaignResponse)

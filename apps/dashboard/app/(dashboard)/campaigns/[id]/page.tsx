@@ -5,20 +5,35 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { PauseIcon, PlayIcon, XIcon, RotateCcwIcon, CopyIcon } from "lucide-react";
+import {
+  PauseIcon,
+  PlayIcon,
+  XIcon,
+  RotateCcwIcon,
+  CopyIcon,
+  BarChart3Icon,
+  HeartIcon,
+  EyeIcon,
+  UserPlusIcon,
+  Loader2Icon,
+} from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { PlatformBadge } from "@/components/shared/platform-badge";
 import { CampaignProgress } from "@/components/shared/campaign-progress";
 import { MediaPreview } from "@/components/shared/media-preview";
 import { DataTable } from "@/components/shared/data-table";
 import { Pagination } from "@/components/shared/pagination";
 import { RetryButton } from "@/components/shared/retry-button";
 import { ErrorState } from "@/components/shared/error-state";
+import { EmptyState } from "@/components/shared/empty-state";
+import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCampaignDetail,
+  useCampaignMetrics,
   usePauseCampaign,
   useResumeCampaign,
   useCancelCampaign,
@@ -27,6 +42,21 @@ import { usePublications, useRetryPublication, useRetryCampaignFailures } from "
 import { formatDateTime } from "@/lib/format";
 import { ApiError } from "@/lib/api/errors";
 import type { PublicationResponse } from "@/types/api";
+
+// Each metric type is shown as its own tile (never summed across different
+// types like views+impressions+reach - those measure different things and
+// blending them would misrepresent what Buffer actually reported). Ordered so
+// the ones the admin cares about most (reactions, views, new follows) lead.
+const METRIC_TILE_CONFIG: { type: string; label: string; icon: typeof HeartIcon }[] = [
+  { type: "reactions", label: "Mi piace / Reazioni", icon: HeartIcon },
+  { type: "likes", label: "Mi piace (Facebook)", icon: HeartIcon },
+  { type: "views", label: "Visualizzazioni", icon: EyeIcon },
+  { type: "impressions", label: "Impression", icon: EyeIcon },
+  { type: "reach", label: "Copertura (persone raggiunte)", icon: EyeIcon },
+  { type: "follows", label: "Nuovi iscritti", icon: UserPlusIcon },
+  { type: "comments", label: "Commenti", icon: BarChart3Icon },
+  { type: "shares", label: "Condivisioni", icon: BarChart3Icon },
+];
 
 const LIMIT = 20;
 
@@ -42,6 +72,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     refetchInterval: (query) => (isTerminal(query.state.data?.campaign.status) ? false : 5000),
   });
   const publicationsQuery = usePublications({ campaign_id: id, skip, limit: LIMIT });
+  const metricsQuery = useCampaignMetrics(id);
 
   const pauseCampaign = usePauseCampaign(id);
   const resumeCampaign = useResumeCampaign(id);
@@ -240,6 +271,78 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           />
           {publicationsQuery.data && (
             <Pagination skip={skip} limit={LIMIT} count={publicationsQuery.data.length} onSkipChange={setSkip} />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+          <div>
+            <CardTitle className="text-base">Statistiche</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Mi piace, visualizzazioni e nuovi iscritti da Buffer. Aggiornate una volta al giorno da Buffer stesso:
+              un post appena pubblicato può impiegare fino a ~24h prima che compaiano i primi dati.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={metricsQuery.isFetching}
+            onClick={() => metricsQuery.refetch()}
+          >
+            {metricsQuery.isFetching && <Loader2Icon className="size-4 animate-spin" />}
+            <BarChart3Icon className="size-4" />
+            {metricsQuery.data ? "Aggiorna statistiche" : "Carica statistiche"}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {metricsQuery.isError && (
+            <ErrorState error={metricsQuery.error} onRetry={() => metricsQuery.refetch()} />
+          )}
+
+          {metricsQuery.data && metricsQuery.data.channels.length === 0 && (
+            <EmptyState
+              icon={BarChart3Icon}
+              title="Nessuna pubblicazione completata"
+              description="Le statistiche saranno disponibili non appena almeno un canale avrà pubblicato con successo."
+            />
+          )}
+
+          {metricsQuery.data && metricsQuery.data.channels.length > 0 && (
+            <>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {METRIC_TILE_CONFIG.filter((m) => metricsQuery.data!.totals[m.type] !== undefined).map((m) => (
+                  <StatCard
+                    key={m.type}
+                    label={m.label}
+                    value={Math.round(metricsQuery.data!.totals[m.type]).toLocaleString("it-IT")}
+                    icon={m.icon}
+                  />
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                {metricsQuery.data.channels.map((ch) => (
+                  <div key={ch.publication_id} className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm">
+                    <PlatformBadge platform={ch.platform} className="shrink-0" />
+                    <span className="min-w-0 flex-1 truncate font-medium">{ch.channel_name}</span>
+                    {ch.error ? (
+                      <span className="text-xs text-destructive">{ch.error}</span>
+                    ) : ch.metrics.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">Ancora nessun dato (attendi fino a 24h)</span>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {ch.metrics.map((m) => (
+                          <span key={m.type}>
+                            <span className="font-medium text-foreground">{Math.round(m.value).toLocaleString("it-IT")}</span> {m.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -221,6 +221,29 @@ export interface CampaignDetailResponse {
   progress_percentage: number;
 }
 
+export interface PostMetricValue {
+  type: string;
+  name: string;
+  value: number;
+  unit: string;
+}
+
+export interface ChannelMetrics {
+  publication_id: string;
+  social_channel_id: string;
+  channel_name: string;
+  platform: string;
+  external_post_url: string | null;
+  metrics: PostMetricValue[];
+  metrics_updated_at: string | null;
+  error: string | null;
+}
+
+export interface CampaignMetricsResponse {
+  totals: Record<string, number>;
+  channels: ChannelMetrics[];
+}
+
 // ==============================================================================
 // Publications
 // ==============================================================================

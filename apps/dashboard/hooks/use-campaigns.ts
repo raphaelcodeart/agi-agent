@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@ta
 import * as campaignsService from "@/services/campaigns";
 import { queryKeys } from "@/lib/query/keys";
 import type { ListCampaignsParams } from "@/services/campaigns";
-import type { CampaignCreatePayload, CampaignDetailResponse } from "@/types/api";
+import type { CampaignCreatePayload, CampaignDetailResponse, CampaignMetricsResponse } from "@/types/api";
 
 export function useCampaigns(params: ListCampaignsParams = {}) {
   return useQuery({
@@ -23,6 +23,18 @@ export function useCampaignDetail(
     queryFn: () => campaignsService.getCampaignDetail(id as string),
     enabled: !!id,
     refetchInterval: options?.refetchInterval,
+  });
+}
+
+// On-demand only (never polled): Buffer refreshes post metrics once a day, so
+// there's no point re-fetching automatically like the rest of the campaign
+// detail page does. The admin explicitly asks for it via a button.
+export function useCampaignMetrics(campaignId: string) {
+  return useQuery<CampaignMetricsResponse>({
+    queryKey: queryKeys.campaigns.metrics(campaignId),
+    queryFn: () => campaignsService.getCampaignMetrics(campaignId),
+    enabled: false,
+    retry: false,
   });
 }
 

@@ -47,3 +47,12 @@ class BaseBufferClient(abc.ABC):
     def get_post_status(self, api_key: str, external_post_id: str) -> Dict[str, Any]:
         """Check the status of a specific post on Buffer."""
         pass
+
+    @abc.abstractmethod
+    def get_post_metrics(self, api_key: str, external_post_id: str) -> Dict[str, Any]:
+        """
+        Fetch engagement metrics (reactions, views, follows gained, etc.) for a
+        single sent post. Buffer refreshes these once a day - a post can take up
+        to ~24h after sending before metrics first appear.
+        """
+        pass

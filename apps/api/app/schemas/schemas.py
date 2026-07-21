@@ -211,6 +211,32 @@ class CampaignDetailResponse(BaseModel):
         from_attributes = True
 
 
+class PostMetricValue(BaseModel):
+    type: str
+    name: str
+    value: float
+    unit: str
+
+
+class ChannelMetrics(BaseModel):
+    publication_id: uuid.UUID
+    social_channel_id: uuid.UUID
+    channel_name: str
+    platform: str
+    external_post_url: Optional[str] = None
+    metrics: List[PostMetricValue] = []
+    metrics_updated_at: Optional[datetime] = None
+    error: Optional[str] = None
+
+
+class CampaignMetricsResponse(BaseModel):
+    # Sum of each metric type across every channel that returned data (e.g.
+    # {"reactions": 45, "views": 900, "follows": 3}). A metric type absent here
+    # means no channel in this campaign reported it, not that it was zero.
+    totals: Dict[str, float]
+    channels: List[ChannelMetrics]
+
+
 # ==============================================================================
 # Publication Schemas
 # ==============================================================================
