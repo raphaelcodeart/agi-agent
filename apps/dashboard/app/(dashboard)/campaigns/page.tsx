@@ -4,16 +4,19 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PlusIcon, CopyIcon } from "lucide-react";
+import { toast } from "sonner";
+import { PlusIcon, CopyIcon, Trash2Icon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { FilterBar, FilterSelect } from "@/components/shared/filter-bar";
 import { Pagination } from "@/components/shared/pagination";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { useCampaigns } from "@/hooks/use-campaigns";
+import { useCampaigns, useDeleteCampaign } from "@/hooks/use-campaigns";
 import { useCampaignDetail } from "@/hooks/use-campaigns";
 import { formatDateTime } from "@/lib/format";
+import { ApiError } from "@/lib/api/errors";
 import type { CampaignResponse, CampaignStatus } from "@/types/api";
 
 const STATUS_OPTIONS: { value: CampaignStatus; label: string }[] = [
@@ -51,8 +54,10 @@ export default function CampaignsPage() {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | "">("");
   const [skip, setSkip] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<CampaignResponse | null>(null);
 
   const campaignsQuery = useCampaigns({ status_filter: statusFilter || undefined, skip, limit: LIMIT });
+  const deleteCampaign = useDeleteCampaign();
 
   const columns = useMemo<ColumnDef<CampaignResponse, unknown>[]>(
     () => [
@@ -100,6 +105,15 @@ export default function CampaignsPage() {
             </Button>
             <Button variant="ghost" size="sm" asChild>
               <Link href={`/campaigns/${row.original.id}`}>Apri</Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Elimina campagna"
+              className="text-destructive"
+              onClick={() => setDeleteTarget(row.original)}
+            >
+              <Trash2Icon className="size-3.5" />
             </Button>
           </div>
         ),
@@ -150,6 +164,29 @@ export default function CampaignsPage() {
       {campaignsQuery.data && (
         <Pagination skip={skip} limit={LIMIT} count={campaignsQuery.data.length} onSkipChange={setSkip} />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={`Eliminare "${deleteTarget?.title}"?`}
+        description="Elimina definitivamente la campagna e tutti i suoi dati: destinatari risolti, pubblicazioni e relativi tentativi - anche se è già stata pubblicata su alcuni canali. Questa azione non può essere annullata."
+        confirmLabel="Elimina definitivamente"
+        destructive
+        loading={deleteCampaign.isPending}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+          deleteCampaign.mutate(deleteTarget.id, {
+            onSuccess: () => {
+              toast.success("Campagna eliminata");
+              setDeleteTarget(null);
+            },
+            onError: (error) => {
+              toast.error(error instanceof ApiError ? error.detail : "Eliminazione non riuscita");
+              setDeleteTarget(null);
+            },
+          });
+        }}
+      />
     </div>
   );
 }

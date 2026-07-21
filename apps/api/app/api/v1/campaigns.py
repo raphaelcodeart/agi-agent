@@ -9,6 +9,7 @@ from app.models.administrator import Administrator
 from app.models.campaign import Campaign, CampaignTarget
 from app.models.publication import Publication
 from app.models.media import MediaFile
+from app.models.audit import AuditLog
 from app.core.security import EncryptionService
 from app.integrations.buffer.service import get_buffer_client
 from app.integrations.buffer.exceptions import BufferApiError
@@ -330,6 +331,45 @@ def cancel_campaign(
         Publication.campaign_id == campaign_id,
         Publication.status.in_(["pending", "queued", "retry_wait"])
     ).update({"status": "cancelled"}, synchronize_session=False)
-    
+
     db.commit()
     return campaign
+
+
+@router.delete("/{campaign_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_campaign(
+    campaign_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin)
+):
+    """
+    Permanently deletes a campaign and everything tied to it - campaign_targets,
+    publications and their publication_attempts - even if it was already
+    published. Allowed regardless of status: this is an explicit, confirmed
+    administrator action (per AGENTS.md, deleting historical records is
+    distinct from silently re-publishing them), not an automatic cleanup.
+
+    Nothing is orphaned: CampaignTarget/Publication both have
+    ondelete="CASCADE" on campaign_id (and PublicationAttempt likewise on
+    publication_id), mirrored by cascade="all, delete-orphan" on the Campaign/
+    Publication relationships, so a single delete of the Campaign row cascades
+    all the way down at the database level. The linked MediaFile (if any) is
+    deliberately NOT deleted - it's a reusable asset independent of any one
+    campaign, not campaign-owned data.
+    """
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    audit = AuditLog(
+        administrator_id=admin.id,
+        action="campaign_delete",
+        entity_type="campaign",
+        entity_id=campaign.id,
+        metadata_json={"title": campaign.title, "status": campaign.status},
+    )
+    db.add(audit)
+
+    db.delete(campaign)
+    db.commit()
+    return

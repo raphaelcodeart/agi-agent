@@ -376,6 +376,16 @@ export const pauseCampaign = (campaignId: string) => updateCampaignStatus(campai
 export const resumeCampaign = (campaignId: string) => updateCampaignStatus(campaignId, "running");
 export const cancelCampaign = (campaignId: string) => updateCampaignStatus(campaignId, "cancelled");
 
+export function deleteCampaign(campaignId: string): Promise<void> {
+  const campaignIndex = mockCampaigns.findIndex((c) => c.id === campaignId);
+  if (campaignIndex === -1) notFound("Campaign");
+  mockCampaigns.splice(campaignIndex, 1);
+  for (let i = mockPublications.length - 1; i >= 0; i--) {
+    if (mockPublications[i].campaign_id === campaignId) mockPublications.splice(i, 1);
+  }
+  return delay(undefined);
+}
+
 // ---------------------------------------------------------------------------
 // Publications
 // ---------------------------------------------------------------------------

@@ -88,6 +88,18 @@ function useCampaignAction(
   });
 }
 
+export function useDeleteCampaign() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (campaignId: string) => campaignsService.deleteCampaign(campaignId),
+    onSuccess: (_data, campaignId) => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns", "list"] });
+      queryClient.removeQueries({ queryKey: queryKeys.campaigns.detail(campaignId) });
+      queryClient.invalidateQueries({ queryKey: ["publications", "list"] });
+    },
+  });
+}
+
 export function usePauseCampaign(campaignId: string) {
   return useCampaignAction(campaignsService.pauseCampaign, campaignId);
 }

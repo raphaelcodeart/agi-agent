@@ -11,6 +11,7 @@ import {
   XIcon,
   RotateCcwIcon,
   CopyIcon,
+  Trash2Icon,
   BarChart3Icon,
   HeartIcon,
   EyeIcon,
@@ -30,6 +31,7 @@ import { RetryButton } from "@/components/shared/retry-button";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatCard } from "@/components/shared/stat-card";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,6 +41,7 @@ import {
   usePauseCampaign,
   useResumeCampaign,
   useCancelCampaign,
+  useDeleteCampaign,
 } from "@/hooks/use-campaigns";
 import { usePublications, useRetryPublication, useRetryCampaignFailures } from "@/hooks/use-publications";
 import { formatDateTime } from "@/lib/format";
@@ -78,6 +81,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const router = useRouter();
   const [skip, setSkip] = useState(0);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const isTerminal = (status?: string) =>
     status === "completed" || status === "cancelled" || status === "failed";
@@ -91,6 +95,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const pauseCampaign = usePauseCampaign(id);
   const resumeCampaign = useResumeCampaign(id);
   const cancelCampaign = useCancelCampaign(id);
+  const deleteCampaign = useDeleteCampaign();
   const retryPublication = useRetryPublication();
   const retryCampaignFailures = useRetryCampaignFailures();
 
@@ -224,6 +229,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 Annulla
               </Button>
             )}
+            <Button variant="outline" className="text-destructive" onClick={() => setDeleteConfirmOpen(true)}>
+              <Trash2Icon className="size-4" />
+              Elimina
+            </Button>
           </>
         }
       />
@@ -360,6 +369,28 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title={`Eliminare "${campaign.title}"?`}
+        description="Elimina definitivamente la campagna e tutti i suoi dati: destinatari risolti, pubblicazioni e relativi tentativi - anche se è già stata pubblicata su alcuni canali. Questa azione non può essere annullata."
+        confirmLabel="Elimina definitivamente"
+        destructive
+        loading={deleteCampaign.isPending}
+        onConfirm={() => {
+          deleteCampaign.mutate(id, {
+            onSuccess: () => {
+              toast.success("Campagna eliminata");
+              router.push("/campaigns");
+            },
+            onError: (error) => {
+              toast.error(error instanceof ApiError ? error.detail : "Eliminazione non riuscita");
+              setDeleteConfirmOpen(false);
+            },
+          });
+        }}
+      />
     </div>
   );
 }

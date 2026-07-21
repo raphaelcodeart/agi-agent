@@ -72,3 +72,8 @@ export function cancelCampaign(campaignId: string): Promise<CampaignResponse> {
   if (isMockApiEnabled()) return mock.cancelCampaign(campaignId);
   return apiClient.post<CampaignResponse>(`/campaigns/${campaignId}/cancel`);
 }
+
+export function deleteCampaign(campaignId: string): Promise<void> {
+  if (isMockApiEnabled()) return mock.deleteCampaign(campaignId);
+  return apiClient.delete<void>(`/campaigns/${campaignId}`);
+}
