@@ -44,6 +44,7 @@ import {
   useDeleteCampaign,
 } from "@/hooks/use-campaigns";
 import { usePublications, useRetryPublication, useRetryCampaignFailures } from "@/hooks/use-publications";
+import { useChannels } from "@/hooks/use-channels";
 import { formatDateTime } from "@/lib/format";
 import { ApiError } from "@/lib/api/errors";
 import type { PublicationResponse } from "@/types/api";
@@ -91,6 +92,13 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   });
   const publicationsQuery = usePublications({ campaign_id: id, skip, limit: LIMIT });
   const metricsQuery = useCampaignMetrics(id);
+  const channelsQuery = useChannels({});
+
+  const channelInfo = useMemo(() => {
+    const map = new Map<string, { name: string; platform: string }>();
+    channelsQuery.data?.forEach((c) => map.set(c.id, { name: c.name, platform: c.platform }));
+    return map;
+  }, [channelsQuery.data]);
 
   const pauseCampaign = usePauseCampaign(id);
   const resumeCampaign = useResumeCampaign(id);
@@ -110,11 +118,21 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       {
         id: "channel",
         header: "Canale",
-        cell: ({ row }) => (
-          <Link href={`/publications/${row.original.id}`} className="hover:underline">
-            {row.original.external_channel_id}
-          </Link>
-        ),
+        cell: ({ row }) => {
+          const info = channelInfo.get(row.original.social_channel_id);
+          return (
+            <Link href={`/publications/${row.original.id}`} className="flex items-center gap-2 hover:underline">
+              {info ? (
+                <>
+                  <PlatformBadge platform={info.platform} />
+                  <span>{info.name}</span>
+                </>
+              ) : (
+                row.original.external_channel_id
+              )}
+            </Link>
+          );
+        },
       },
       {
         accessorKey: "status",
@@ -157,7 +175,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [retryPublication.isPending]
+    [retryPublication.isPending, channelInfo]
   );
 
   if (campaignQuery.isLoading) {
