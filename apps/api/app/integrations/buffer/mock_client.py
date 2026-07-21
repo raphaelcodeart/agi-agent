@@ -157,13 +157,22 @@ class MockBufferClient(BaseBufferClient):
         rng = random.Random(external_post_id)
         reactions = rng.randint(5, 250)
         views = rng.randint(reactions * 3, reactions * 20 + 100)
+        clicks = rng.randint(0, views // 10 + 1)
+        follows = rng.randint(0, 8)
         return {
             "metrics": [
                 {"type": "reactions", "name": "Reactions", "value": float(reactions), "unit": "count"},
                 {"type": "comments", "name": "Comments", "value": float(rng.randint(0, reactions // 4 + 1)), "unit": "count"},
                 {"type": "shares", "name": "Shares", "value": float(rng.randint(0, reactions // 5 + 1)), "unit": "count"},
                 {"type": "views", "name": "Views", "value": float(views), "unit": "count"},
-                {"type": "follows", "name": "New follows", "value": float(rng.randint(0, 8)), "unit": "count"},
+                {"type": "clicks", "name": "Clicks", "value": float(clicks), "unit": "count"},
+                {"type": "follows", "name": "New follows", "value": float(follows), "unit": "count"},
+                {
+                    "type": "engagementRate",
+                    "name": "Eng. Rate",
+                    "value": round(min(100.0, (reactions + clicks + follows) / max(views, 1) * 100), 2),
+                    "unit": "percentage",
+                },
             ],
             "metrics_updated_at": datetime.now(timezone.utc).isoformat(),
         }

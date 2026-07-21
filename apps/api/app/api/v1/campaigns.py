@@ -210,6 +210,10 @@ def get_campaign_metrics(
 
     client = get_buffer_client()
     totals: Dict[str, float] = {}
+    # Per developers.buffer.com/types/PostMetricUnit.html, "percentage" metrics
+    # (currently only engagementRate) are already a 0-100 rate, not a count - they
+    # must be averaged across channels, never summed, or the total is nonsense.
+    percentage_metric_counts: Dict[str, int] = {}
     channels: List[ChannelMetrics] = []
 
     for pub in publications:
@@ -234,6 +238,8 @@ def get_campaign_metrics(
 
             for metric in entry.metrics:
                 totals[metric.type] = totals.get(metric.type, 0.0) + metric.value
+                if metric.unit == "percentage":
+                    percentage_metric_counts[metric.type] = percentage_metric_counts.get(metric.type, 0) + 1
 
         except BufferApiError as e:
             entry.error = e.message
@@ -241,6 +247,9 @@ def get_campaign_metrics(
             entry.error = str(e)
 
         channels.append(entry)
+
+    for metric_type, count in percentage_metric_counts.items():
+        totals[metric_type] = totals[metric_type] / count
 
     return CampaignMetricsResponse(totals=totals, channels=channels)
 

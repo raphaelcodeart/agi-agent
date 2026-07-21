@@ -327,10 +327,18 @@ export function getCampaignMetrics(campaignId: string): Promise<CampaignMetricsR
     const reactions = 5 + (seed % 200);
     const views = reactions * 4 + (seed % 300);
     const follows = seed % 6;
+    const clicks = seed % 40;
     const metrics = [
       { type: "reactions", name: "Reactions", value: reactions, unit: "count" },
       { type: "views", name: "Views", value: views, unit: "count" },
+      { type: "clicks", name: "Clicks", value: clicks, unit: "count" },
       { type: "follows", name: "New follows", value: follows, unit: "count" },
+      {
+        type: "engagementRate",
+        name: "Eng. Rate",
+        value: Math.round(Math.min(100, ((reactions + clicks + follows) / Math.max(views, 1)) * 100) * 100) / 100,
+        unit: "percentage",
+      },
     ];
     metrics.forEach((m) => {
       totals[m.type] = (totals[m.type] ?? 0) + m.value;

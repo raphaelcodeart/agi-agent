@@ -15,6 +15,8 @@ import {
   HeartIcon,
   EyeIcon,
   UserPlusIcon,
+  MousePointerClickIcon,
+  PercentIcon,
   Loader2Icon,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -54,9 +56,21 @@ const METRIC_TILE_CONFIG: { type: string; label: string; icon: typeof HeartIcon 
   { type: "impressions", label: "Impression", icon: EyeIcon },
   { type: "reach", label: "Copertura (persone raggiunte)", icon: EyeIcon },
   { type: "follows", label: "Nuovi iscritti", icon: UserPlusIcon },
+  { type: "clicks", label: "Clic", icon: MousePointerClickIcon },
+  { type: "engagementRate", label: "Tasso di coinvolgimento (Buffer)", icon: PercentIcon },
   { type: "comments", label: "Commenti", icon: BarChart3Icon },
   { type: "shares", label: "Condivisioni", icon: BarChart3Icon },
 ];
+
+// Only engagementRate is a 0-100 rate (developers.buffer.com/types/PostMetricUnit.html);
+// every other metric type is a plain count. Drives formatting, not aggregation
+// (the backend already averages percentage metrics instead of summing them).
+const PERCENTAGE_METRIC_TYPES = new Set(["engagementRate"]);
+
+function formatMetricValue(type: string, value: number): string {
+  if (PERCENTAGE_METRIC_TYPES.has(type)) return `${value.toLocaleString("it-IT", { maximumFractionDigits: 1 })}%`;
+  return Math.round(value).toLocaleString("it-IT");
+}
 
 const LIMIT = 20;
 
@@ -315,7 +329,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                   <StatCard
                     key={m.type}
                     label={m.label}
-                    value={Math.round(metricsQuery.data!.totals[m.type]).toLocaleString("it-IT")}
+                    value={formatMetricValue(m.type, metricsQuery.data!.totals[m.type])}
                     icon={m.icon}
                   />
                 ))}
@@ -334,7 +348,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         {ch.metrics.map((m) => (
                           <span key={m.type}>
-                            <span className="font-medium text-foreground">{Math.round(m.value).toLocaleString("it-IT")}</span> {m.name}
+                            <span className="font-medium text-foreground">{formatMetricValue(m.type, m.value)}</span> {m.name}
                           </span>
                         ))}
                       </div>
