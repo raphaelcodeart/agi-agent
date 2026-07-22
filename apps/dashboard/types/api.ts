@@ -233,6 +233,7 @@ export interface ChannelMetrics {
   publication_id: string;
   social_channel_id: string;
   channel_name: string;
+  user_name: string;
   platform: string;
   external_post_url: string | null;
   metrics: PostMetricValue[];

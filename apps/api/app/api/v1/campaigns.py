@@ -224,6 +224,7 @@ def get_campaign_metrics(
             publication_id=pub.id,
             social_channel_id=pub.social_channel_id,
             channel_name=channel.name if channel else "—",
+            user_name=pub.user.name if pub.user else "—",
             platform=channel.platform if channel else "unknown",
             external_post_url=pub.external_post_url,
         )

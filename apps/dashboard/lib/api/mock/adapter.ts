@@ -331,6 +331,7 @@ export function getCampaignMetrics(campaignId: string): Promise<CampaignMetricsR
   const totals: Record<string, number> = {};
   const channels = published.map((pub) => {
     const channel = mockChannels.find((c) => c.id === pub.social_channel_id);
+    const user = mockUsers.find((u) => u.id === pub.user_id);
     const seed = pub.id.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
     const reactions = 5 + (seed % 200);
     const views = reactions * 4 + (seed % 300);
@@ -355,6 +356,7 @@ export function getCampaignMetrics(campaignId: string): Promise<CampaignMetricsR
       publication_id: pub.id,
       social_channel_id: pub.social_channel_id,
       channel_name: channel?.name ?? "—",
+      user_name: user?.name ?? "—",
       platform: channel?.platform ?? "unknown",
       external_post_url: pub.external_post_url ?? null,
       metrics,

@@ -227,6 +227,7 @@ class ChannelMetrics(BaseModel):
     publication_id: uuid.UUID
     social_channel_id: uuid.UUID
     channel_name: str
+    user_name: str
     platform: str
     external_post_url: Optional[str] = None
     metrics: List[PostMetricValue] = []

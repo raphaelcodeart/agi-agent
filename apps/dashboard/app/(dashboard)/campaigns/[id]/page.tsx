@@ -376,7 +376,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 {metricsQuery.data.channels.map((ch) => (
                   <div key={ch.publication_id} className="flex flex-wrap items-center gap-3 rounded-lg border p-3 text-sm">
                     <PlatformBadge platform={ch.platform} className="shrink-0" />
-                    <span className="min-w-0 flex-1 truncate font-medium">{ch.channel_name}</span>
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="font-medium">{ch.channel_name}</span>
+                      <span className="ml-1 text-xs text-muted-foreground">({ch.user_name})</span>
+                    </span>
                     {ch.error ? (
                       <span className="text-xs text-destructive">{ch.error}</span>
                     ) : ch.metrics.length === 0 ? (
