@@ -96,6 +96,7 @@ export const mockConnections: BufferConnectionResponse[] = [
 export const mockChannels: SocialChannelResponse[] = [
   {
     id: "chn-algarve-ig",
+    user_id: "usr-algarve",
     external_channel_id: "ext-ig-1",
     platform: "instagram",
     name: "Algarve Beach Resort",
@@ -109,6 +110,7 @@ export const mockChannels: SocialChannelResponse[] = [
   },
   {
     id: "chn-algarve-fb",
+    user_id: "usr-algarve",
     external_channel_id: "ext-fb-1",
     platform: "facebook",
     name: "Algarve Beach Resort",
@@ -122,6 +124,7 @@ export const mockChannels: SocialChannelResponse[] = [
   },
   {
     id: "chn-sintra-ig",
+    user_id: "usr-sintra",
     external_channel_id: "ext-ig-2",
     platform: "instagram",
     name: "Sintra Castle B&B",
