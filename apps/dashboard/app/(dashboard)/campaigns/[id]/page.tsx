@@ -170,7 +170,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         id: "actions",
         header: "",
         cell: ({ row }) =>
-          ["failed", "cancelled", "retry_wait"].includes(row.original.status) ? (
+          ["failed", "cancelled", "retry_wait", "queued"].includes(row.original.status) ? (
             <RetryButton
               loading={retryPublication.isPending}
               onRetry={() =>

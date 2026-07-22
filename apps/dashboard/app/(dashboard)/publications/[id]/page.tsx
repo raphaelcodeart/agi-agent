@@ -43,7 +43,7 @@ export default function PublicationDetailPage({ params }: { params: Promise<{ id
   }
 
   const { publication: pub, attempts, resolved_text, channel_name, channel_platform, user_name } = detailQuery.data;
-  const canRetry = ["failed", "cancelled", "retry_wait"].includes(pub.status);
+  const canRetry = ["failed", "cancelled", "retry_wait", "queued"].includes(pub.status);
   const canCancel = ["pending", "queued", "retry_wait"].includes(pub.status);
   const canSkip = ["pending", "queued", "retry_wait", "failed"].includes(pub.status);
 

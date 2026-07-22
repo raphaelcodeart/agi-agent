@@ -93,7 +93,7 @@ export default function PublicationsPage() {
         id: "select",
         header: "",
         cell: ({ row }) =>
-          ["failed", "cancelled", "retry_wait"].includes(row.original.status) ? (
+          ["failed", "cancelled", "retry_wait", "queued"].includes(row.original.status) ? (
             <Checkbox
               checked={selected.has(row.original.id)}
               onCheckedChange={(checked) => toggleSelected(row.original.id, !!checked)}
@@ -161,7 +161,7 @@ export default function PublicationsPage() {
         header: "",
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
-            {["failed", "cancelled", "retry_wait"].includes(row.original.status) && (
+            {["failed", "cancelled", "retry_wait", "queued"].includes(row.original.status) && (
               <RetryButton
                 loading={retryPublication.isPending}
                 onRetry={() =>

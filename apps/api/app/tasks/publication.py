@@ -323,13 +323,20 @@ def poll_and_queue_scheduled_publications() -> None:
 
         if pending_pubs:
             logger.info(f"Found {len(pending_pubs)} publications ready to be queued for processing.")
+            pub_ids = [str(pub.id) for pub in pending_pubs]
             for pub in pending_pubs:
-                # Update status to queued
                 pub.status = "queued"
-                db.flush()
-                # Enqueue to Celery
-                process_publication_task.delay(str(pub.id))
+            # Commit BEFORE dispatching: process_publication_task acquires its row
+            # lock with SELECT ... FOR UPDATE SKIP LOCKED. If a worker picks up a
+            # .delay() call while this UPDATE is still uncommitted (and thus still
+            # holding the row lock), SKIP LOCKED makes it silently skip that row and
+            # return - and since "queued" isn't re-scanned by this task's own query
+            # above (only "pending"/"retry_wait" are), the publication would then
+            # stay "queued" forever with no automatic recovery. Committing first
+            # guarantees the lock is released before any worker can race it.
             db.commit()
+            for pub_id in pub_ids:
+                process_publication_task.delay(pub_id)
 
     finally:
         db.close()

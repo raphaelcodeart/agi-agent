@@ -68,13 +68,16 @@ def retry_publication(
     db: Session = Depends(get_db),
     admin: Administrator = Depends(get_current_admin)
 ):
-    """Retries a specific failed or cancelled publication."""
+    """Retries a specific failed, cancelled, retry_wait, or stuck queued publication."""
     pub = db.query(Publication).filter(Publication.id == pub_id).first()
     if not pub:
         raise HTTPException(status_code=404, detail="Publication not found")
-        
-    if pub.status not in ("failed", "cancelled", "retry_wait"):
-        raise HTTPException(status_code=400, detail="Only failed or cancelled publications can be manually retried.")
+
+    # "queued" is included so an admin can manually unstick a publication whose
+    # background job was lost (its own automatic recovery only kicks in after 15
+    # minutes, see tasks/cleanup.py recover_stale_publications) without waiting.
+    if pub.status not in ("failed", "cancelled", "retry_wait", "queued"):
+        raise HTTPException(status_code=400, detail="Only failed, cancelled, retry_wait, or stuck queued publications can be manually retried.")
         
     # Reset status
     pub.status = "pending"
@@ -104,7 +107,7 @@ def retry_selected_publications(
     """Bulk retries a list of selected publications."""
     pubs = db.query(Publication).filter(
         Publication.id.in_(pub_ids),
-        Publication.status.in_(["failed", "cancelled", "retry_wait"])
+        Publication.status.in_(["failed", "cancelled", "retry_wait", "queued"])
     ).all()
     
     for pub in pubs:

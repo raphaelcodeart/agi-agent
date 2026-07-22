@@ -147,7 +147,7 @@ Nessuna pubblicazione **riuscita** viene mai ritentata (AGENTS.md, regola 2): gl
 
 **`published` vs `scheduled` sono entrambi esiti di successo**, non uno "in attesa" dell'altro: `scheduled` significa che Buffer ha accettato ed accodato il post per la data futura richiesta (`Campaign.publishing_mode == "scheduled"`), `published` che è già stato pubblicato live. La distinzione immediato/programmato è un dettaglio di *quando*, non un esito diverso — per l'amministratore conta solo che Buffer l'abbia accettato. Il backend li tratta già come equivalenti nel calcolo di `Campaign.status`/`progress_percentage` (`_recalculate_campaign_status`, `campaigns.py`); qualunque contatore lato dashboard che mostri "quante pubblicazioni sono andate a buon fine" deve sommare entrambi in un unico numero ("Riuscite"), altrimenti una campagna programmata risulta erroneamente "a zero successi" pur avendo funzionato — vedi `campaign-progress.tsx` e la lista campagne.
 
-Se un worker crash lascia una pubblicazione bloccata in `processing` per più di 15 minuti, il task periodico `recover_stale_publications` la rimette in `retry_wait` o `failed` a seconda dei tentativi già fatti.
+Se un worker crash lascia una pubblicazione bloccata in `processing` per più di 15 minuti, il task periodico `recover_stale_publications` la rimette in `retry_wait` o `failed` a seconda dei tentativi già fatti. Lo stesso task recupera anche pubblicazioni bloccate in `queued` da più di 15 minuti (job Celery perso, mai eseguito) rimettendole in `pending`. Un admin può anche forzare subito un retry manuale su una riga `queued` bloccata da dashboard/endpoint, senza aspettare i 15 minuti.
 
 ---
 
@@ -173,7 +173,7 @@ Questi limiti sono **modificabili a caldo** senza riavviare i worker: vedi [§12
 | `sync_buffer_connection` | on-demand (collegamento/ricollegamento, sync manuale) | Sincronizza organizzazioni e canali Buffer per una connessione; disattiva i canali non più presenti |
 | `refresh_expired_tokens` | periodico, ogni ora | **Codice legacy inattivo**, vedi [§13](#13-cose-note-come-non-finite-o-legacy) |
 | `inspect_media` | on-demand (dopo ogni upload media) | ffprobe + generazione miniatura |
-| `recover_stale_publications` | periodico, ogni 5 minuti | Recupera pubblicazioni bloccate in `processing` da un worker crashato |
+| `recover_stale_publications` | periodico, ogni 5 minuti | Recupera pubblicazioni bloccate in `processing` (worker crashato) o in `queued` (job Celery perso) da più di 15 minuti |
 | `media_retention_cleanup` | periodico, giornaliero alle 02:00 UTC | Cancella fisicamente file/miniature dei media soft-eliminati |
 
 ---
