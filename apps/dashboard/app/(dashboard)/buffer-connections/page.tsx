@@ -59,7 +59,14 @@ export default function BufferConnectionsPage() {
       {
         id: "user",
         header: "Utente",
-        cell: ({ row }) => usersById.get(row.original.user_id) ?? row.original.user_id,
+        cell: ({ row }) => (
+          <div>
+            <span>{usersById.get(row.original.user_id) ?? row.original.user_id}</span>
+            <span className="block text-[10px] text-muted-foreground">
+              ID Buffer: {row.original.external_account_id ?? "—"}
+            </span>
+          </div>
+        ),
       },
       {
         accessorKey: "status",

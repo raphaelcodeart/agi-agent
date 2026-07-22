@@ -108,20 +108,24 @@ def list_channels(
     admin: Administrator = Depends(get_current_admin)
 ):
     """List social channels with filters."""
-    query = db.query(SocialChannel).join(
+    query = db.query(SocialChannel, BufferConnection.user_id).join(
         BufferOrganization, SocialChannel.buffer_organization_id == BufferOrganization.id
     ).join(
         BufferConnection, BufferOrganization.buffer_connection_id == BufferConnection.id
     )
-    
+
     if user_id:
         query = query.filter(BufferConnection.user_id == user_id)
     if platform:
         query = query.filter(SocialChannel.platform == platform.lower().strip())
     if publication_mode:
         query = query.filter(SocialChannel.publication_mode == publication_mode)
-        
-    return query.all()
+
+    channels = []
+    for channel, owner_user_id in query.all():
+        channel.user_id = owner_user_id
+        channels.append(channel)
+    return channels
 
 
 @router.put("/channels/{channel_id}/publication-mode", response_model=SocialChannelResponse)
@@ -138,11 +142,16 @@ def update_channel_mode(
     channel = db.query(SocialChannel).filter(SocialChannel.id == channel_id).first()
     if not channel:
         raise HTTPException(status_code=404, detail="Channel not found")
-        
+
     channel.publication_mode = mode
     channel.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(channel)
+
+    owner_user_id = db.query(BufferConnection.user_id).join(
+        BufferOrganization, BufferOrganization.buffer_connection_id == BufferConnection.id
+    ).filter(BufferOrganization.id == channel.buffer_organization_id).scalar()
+    channel.user_id = owner_user_id
     return channel
 
 

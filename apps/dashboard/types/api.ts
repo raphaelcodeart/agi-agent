@@ -80,6 +80,7 @@ export type SocialPlatform =
 
 export interface SocialChannelResponse {
   id: string;
+  user_id: string;
   external_channel_id: string;
   platform: string;
   name: string;

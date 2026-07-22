@@ -78,6 +78,8 @@ export function StepRecipients({ form }: { form: UseFormReturn<CampaignWizardVal
   const groupsQuery = useGroups();
   const channelsQuery = useChannels({});
 
+  const userNames = new Map((usersQuery.data ?? []).map((user) => [user.id, user.name]));
+
   return (
     <div className="space-y-4">
       <FormField
@@ -166,6 +168,9 @@ export function StepRecipients({ form }: { form: UseFormReturn<CampaignWizardVal
                   <span className="flex items-center gap-2">
                     <PlatformBadge platform={channel.platform} />
                     {channel.name}
+                    <span className="text-muted-foreground">
+                      ({userNames.get(channel.user_id) ?? "utente sconosciuto"})
+                    </span>
                   </span>
                 )}
               />

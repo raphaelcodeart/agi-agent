@@ -107,6 +107,7 @@ class BufferOrganizationResponse(BaseModel):
 
 class SocialChannelResponse(BaseModel):
     id: uuid.UUID
+    user_id: uuid.UUID
     external_channel_id: str
     platform: str
     name: str
