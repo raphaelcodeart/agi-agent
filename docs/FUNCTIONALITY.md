@@ -75,6 +75,7 @@ Ogni implementazione rispetta la stessa interfaccia astratta `BaseBufferClient` 
 Cose specifiche del client production, da non "correggere" per errore:
 - YouTube richiede metadati strutturati separati (`metadata.youtube.title`/`categoryId`), non il solo testo del post.
 - Instagram richiede `metadata.instagram.type`/`shouldShareToFeed`.
+- Facebook richiede `metadata.facebook.type` (`post`/`story`/`reel`) e `metadata.facebook.annotations` (lista, inviata vuota perché il progetto non calcola menzioni/link annotati) — senza questi campi Buffer rifiuta il post con "Facebook posts require a type (post, story, or reel)".
 - Le miniature video personalizzate **non vengono mai inviate a Buffer**: l'API reale rifiuta `VideoAssetInput.thumbnailUrl`. Le miniature generate da questo progetto (via ffmpeg) servono solo per l'anteprima interna nella dashboard.
 
 ---
@@ -103,6 +104,8 @@ Risolte da `CampaignResolver.resolve_targets` (`apps/api/app/services/campaign_r
 3. `default_text`
 
 YouTube è un caso a parte: `youtube_title` e `youtube_description` sono campi strutturati separati, risolti indipendentemente dal testo generico (Buffer richiede un titolo per i video YouTube, non solo una didascalia).
+
+**Limite caratteri per piattaforma**: se non è impostato un testo specifico per una piattaforma, il fallback è `default_text` (fino a 5000 caratteri) — ma X/Twitter e Threads hanno limiti reali molto più bassi (280 e 500). `launch_campaign` (`campaign_resolver.py`, `PLATFORM_TEXT_LIMITS`) verifica la lunghezza del testo **risolto** per questi due casi *prima* di contattare Buffer: se supera il limite, quel target/`Publication` viene creato direttamente in stato `failed` con `error_category="validation_failed"` e un messaggio esplicativo, senza sprecare una chiamata reale e senza consumare un tentativo. Gli altri canali della stessa campagna non sono influenzati (ogni destinazione resta indipendente, regola 1 di AGENTS.md).
 
 ### Modalità di pubblicazione (`Campaign.publishing_mode`)
 

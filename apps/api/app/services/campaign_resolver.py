@@ -10,6 +10,14 @@ from app.models.buffer import BufferConnection, BufferOrganization, SocialChanne
 from app.models.publication import Publication
 from app.models.audit import AuditLog
 
+# Hard per-platform text limits enforced by Buffer itself. Mirrors the max_length
+# already validated on CampaignCreateRequest.x_text/threads_text (schemas.py) - but
+# that only bounds the *override* field. When no override is set, resolve_text_for_channel
+# falls back to default_text (max 5000 chars, no platform cap), which would otherwise
+# only be caught after a real, wasted Buffer API call. Platforms not listed here have
+# no separately documented limit in this codebase, so none is invented (AGENTS.md rule 14).
+PLATFORM_TEXT_LIMITS = {"x": 280, "threads": 500}
+
 class CampaignResolver:
     @staticmethod
     def resolve_targets(db: Session, campaign: Campaign, targeting_params: Dict[str, Any]) -> List[SocialChannel]:
@@ -208,24 +216,34 @@ class CampaignResolver:
             # Resolve text
             override_text = channel_overrides.get(str(chan.id))
             resolved_text = cls.resolve_text_for_channel(campaign, chan, override_text)
-            
+
+            # Catch platform text-length violations here instead of letting them reach
+            # Buffer as a wasted, confusing API call - see PLATFORM_TEXT_LIMITS above.
+            text_limit = PLATFORM_TEXT_LIMITS.get(chan.platform.lower().strip())
+            validation_error = None
+            if text_limit is not None and len(resolved_text) > text_limit:
+                validation_error = (
+                    f"Testo di {len(resolved_text)} caratteri supera il limite di {text_limit} "
+                    f"per {chan.platform}. Imposta un testo specifico per questa piattaforma piu breve."
+                )
+
             # Check unique constraint to avoid duplicating targets on retry launch
             existing_target = db.query(CampaignTarget).filter(
                 CampaignTarget.campaign_id == campaign.id,
                 CampaignTarget.social_channel_id == chan.id
             ).first()
-            
+
             if existing_target:
                 target = existing_target
                 target.resolved_text = resolved_text
-                target.status = "created"
+                target.status = "failed" if validation_error else "created"
             else:
                 target = CampaignTarget(
                     campaign_id=campaign.id,
                     user_id=user_id,
                     social_channel_id=chan.id,
                     resolved_text=resolved_text,
-                    status="created"
+                    status="failed" if validation_error else "created"
                 )
                 db.add(target)
             db.flush() # get target ID
@@ -249,6 +267,9 @@ class CampaignResolver:
             elif campaign.publishing_mode == "buffer_queue":
                 initial_pub_status = "pending" # will queue on buffer
                 
+            if validation_error:
+                initial_pub_status = "failed"
+
             if not existing_pub:
                 publication = Publication(
                     campaign_id=campaign.id,
@@ -262,9 +283,19 @@ class CampaignResolver:
                     max_attempts=settings.MAX_PUBLICATION_ATTEMPTS,
                     idempotency_key=idempotency_key,
                     scheduled_at=scheduled_time,
+                    error_category="validation_failed" if validation_error else None,
+                    error_message=validation_error,
                 )
                 db.add(publication)
                 publications_created.append(publication)
+            elif validation_error:
+                # Never dispatch a text known to violate the platform's limit, even
+                # if a previous launch had left this target pending/retry_wait/failed.
+                existing_pub.status = "failed"
+                existing_pub.error_category = "validation_failed"
+                existing_pub.error_code = None
+                existing_pub.error_message = validation_error
+                publications_created.append(existing_pub)
             else:
                 # If publication already failed or retry-wait, we reset it to pending
                 if existing_pub.status in ("failed", "cancelled", "retry_wait"):

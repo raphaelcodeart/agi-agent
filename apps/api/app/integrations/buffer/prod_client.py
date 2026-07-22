@@ -167,6 +167,22 @@ class ProductionBufferClient(BaseBufferClient):
                     "shouldShareToFeed": True,
                 }
             }
+        elif platform == "facebook":
+            # FacebookPostMetadataInput.type is required on create (see
+            # developers.buffer.com/types/FacebookPostMetadataInput.html); values are
+            # post/story/reel (PostTypeFacebook enum, developers.buffer.com/types/PostTypeFacebook.html).
+            # The platform has no per-campaign post-type setting yet, so this defaults
+            # to a standard feed "post", mirroring Instagram's default above.
+            # .annotations is also a required (non-nullable) list field on the same
+            # input type, tagging detected mentions/links inside the text; none are
+            # computed by this project, so an empty list is sent to satisfy the
+            # required-list constraint with zero entries.
+            post_input["metadata"] = {
+                "facebook": {
+                    "type": "post",
+                    "annotations": [],
+                }
+            }
 
         if scheduled_at:
             post_input["schedulingType"] = "automatic"
