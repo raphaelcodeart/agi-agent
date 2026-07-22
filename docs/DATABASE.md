@@ -1,6 +1,6 @@
 # Schema del database
 
-Spiegazione di tutte le tabelle del progetto, cosa rappresentano e come sono collegate tra loro. Utile per capire il modello dati senza dover leggere il codice, e per chiunque (persona o Claude Code) debba installare o modificare il progetto su un nuovo server.
+Spiegazione di tutte le tabelle del progetto, cosa rappresentano e come sono collegate tra loro. Utile per capire il modello dati senza dover leggere il codice, e per chiunque (persona o Claude Code) debba installare o modificare il progetto su un nuovo server. Per il *comportamento* reale del sistema (targeting, stati pubblicazione, task, endpoint) vedi [FUNCTIONALITY.md](./FUNCTIONALITY.md).
 
 Le tabelle sono create dalle migration Alembic in `apps/api/alembic/versions/` (vedi [DEPLOYMENT.md §5](./DEPLOYMENT.md#5-creare-il-database-e-le-tabelle)) a partire dai modelli SQLAlchemy in `apps/api/app/models/`. Questo file descrive lo stato attuale dello schema; se modifichi i modelli, aggiorna anche questo documento (vedi AGENTS.md, regola 20: "Document architectural changes").
 
@@ -123,6 +123,8 @@ Una per utente: la sua **chiave API Buffer personale** (cifrata), non un account
 | `access_token_encrypted` | string | la chiave API, cifrata a riposo |
 | `status` | string | `pending`, `connected`, `expired`, `revoked`, `error`, `disconnected` |
 | `external_account_id` | string | ID account restituito da Buffer |
+
+Colonne `refresh_token_encrypted`, `token_expires_at`, `scopes`: esistono ancora (retaggio della vecchia integrazione OAuth) ma restano sempre `NULL` col modello a chiave API personale — vedi [FUNCTIONALITY.md §13](./FUNCTIONALITY.md#13-cose-note-come-non-finite-o-legacy).
 
 ### `buffer_organizations`
 Workspace Buffer dentro una connessione. Un utente Buffer può averne più di uno.
