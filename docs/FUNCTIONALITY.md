@@ -145,6 +145,8 @@ Backoff dei retry (`RETRY_BACKOFF_SEQUENCE_SECONDS`, default `60,300,900,3600,21
 
 Nessuna pubblicazione **riuscita** viene mai ritentata (AGENTS.md, regola 2): gli endpoint di retry operano solo su `failed`/`cancelled`/`retry_wait`.
 
+**`published` vs `scheduled` sono entrambi esiti di successo**, non uno "in attesa" dell'altro: `scheduled` significa che Buffer ha accettato ed accodato il post per la data futura richiesta (`Campaign.publishing_mode == "scheduled"`), `published` che è già stato pubblicato live. Il backend li tratta già come equivalenti nel calcolo di `Campaign.status`/`progress_percentage` (`_recalculate_campaign_status`, `campaigns.py`); qualunque contatore lato dashboard che mostri "quante pubblicazioni sono andate a buon fine" deve sommare entrambi (o mostrarli come due tile distinte), altrimenti una campagna programmata risulta erroneamente "a zero successi" pur avendo funzionato — vedi `campaign-progress.tsx` e la lista campagne per un esempio già corretto in questo senso.
+
 Se un worker crash lascia una pubblicazione bloccata in `processing` per più di 15 minuti, il task periodico `recover_stale_publications` la rimette in `retry_wait` o `failed` a seconda dei tentativi già fatti.
 
 ---
