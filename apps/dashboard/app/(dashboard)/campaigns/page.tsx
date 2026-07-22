@@ -43,8 +43,7 @@ function DestinationsCell({ campaignId }: { campaignId: string }) {
   return (
     <div className="flex items-center gap-2 text-xs">
       <span className="text-foreground">{total} totali</span>
-      <span className="text-success">{stats.published} pubblicate</span>
-      {stats.scheduled > 0 && <span className="text-primary">{stats.scheduled} programmate</span>}
+      <span className="text-success">{stats.published + stats.scheduled} riuscite</span>
       <span className="text-destructive">{stats.failed} fallite</span>
       <span className="text-warning">{stats.retry_wait} retry</span>
     </div>
