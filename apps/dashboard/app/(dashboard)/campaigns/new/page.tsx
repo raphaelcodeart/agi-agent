@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { Progress } from "@/components/ui/progress";
 import {
   campaignWizardSchema,
   WIZARD_STEP_FIELDS,
@@ -65,6 +66,36 @@ function NewCampaignForm() {
 
   const launchCampaign = useLaunchCampaign();
 
+  // Real progress isn't available during create+launch (both are quick DB writes
+  // that just dispatch background jobs, not the actual per-channel Buffer calls -
+  // those happen later, tracked separately by the campaign detail page's own
+  // progress bar). This is a deliberately approximate "creep toward a ceiling,
+  // then snap forward on each real milestone" bar - just to make it visually
+  // obvious the click registered and nothing has frozen.
+  const [launchProgress, setLaunchProgress] = useState<{ value: number; label: string } | null>(null);
+  const creepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function stopCreep() {
+    if (creepTimer.current) {
+      clearInterval(creepTimer.current);
+      creepTimer.current = null;
+    }
+  }
+
+  function creepTo(from: number, ceiling: number, label: string) {
+    stopCreep();
+    setLaunchProgress({ value: from, label });
+    creepTimer.current = setInterval(() => {
+      setLaunchProgress((prev) => {
+        if (!prev) return prev;
+        const next = prev.value + (ceiling - prev.value) * 0.15;
+        return { value: next, label: prev.label };
+      });
+    }, 200);
+  }
+
+  useEffect(() => () => stopCreep(), []);
+
   useEffect(() => {
     if (duplicateSource.data && !hasPrefilled.current) {
       hasPrefilled.current = true;
@@ -86,19 +117,30 @@ function NewCampaignForm() {
 
   async function handleSubmit(values: CampaignWizardValues) {
     try {
+      creepTo(8, 45, "Creazione campagna...");
       const campaign = await createCampaign.mutateAsync(toCampaignCreatePayload(values));
+
       if (values.publishing_mode === "draft") {
+        stopCreep();
+        setLaunchProgress({ value: 100, label: "Bozza salvata" });
         toast.success("Campagna salvata come bozza");
         router.push(`/campaigns/${campaign.id}`);
         return;
       }
+
+      creepTo(45, 95, "Risoluzione destinatari e avvio pubblicazione...");
       await launchCampaign.mutateAsync({
         campaignId: campaign.id,
         targetingParams: buildTargetingParams(values),
       });
+      stopCreep();
+      setLaunchProgress({ value: 100, label: "Campagna lanciata" });
+
       toast.success("Campagna creata e lanciata");
       router.push(`/campaigns/${campaign.id}`);
     } catch (error) {
+      stopCreep();
+      setLaunchProgress(null);
       toast.error(error instanceof ApiError ? error.detail : "Impossibile creare la campagna");
     }
   }
@@ -121,34 +163,44 @@ function NewCampaignForm() {
 
       <Card>
         <CardContent className="p-6">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-              {step === 1 && <StepInfo form={form} />}
-              {step === 2 && <StepText form={form} />}
-              {step === 3 && <StepMedia form={form} />}
-              {step === 4 && <StepRecipients form={form} />}
-              {step === 5 && <StepScheduling form={form} />}
-              {step === 6 && <StepSummary form={form} />}
-
-              <div className="flex items-center justify-between border-t pt-4">
-                <Button type="button" variant="outline" onClick={goBack} disabled={step === 1}>
-                  <ArrowLeftIcon className="size-4" />
-                  Indietro
-                </Button>
-                {isLastStep ? (
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2Icon className="size-4 animate-spin" />}
-                    {form.watch("publishing_mode") === "draft" ? "Salva bozza" : "Crea e lancia campagna"}
-                  </Button>
-                ) : (
-                  <Button type="button" onClick={goNext}>
-                    Avanti
-                    <ArrowRightIcon className="size-4" />
-                  </Button>
-                )}
+          {launchProgress ? (
+            <div className="flex flex-col items-center gap-4 py-10 text-center">
+              <Loader2Icon className="size-6 animate-spin text-primary" />
+              <div className="w-full max-w-sm space-y-2">
+                <Progress value={launchProgress.value} />
+                <p className="text-sm text-muted-foreground">{launchProgress.label}</p>
               </div>
-            </form>
-          </Form>
+            </div>
+          ) : (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                {step === 1 && <StepInfo form={form} />}
+                {step === 2 && <StepText form={form} />}
+                {step === 3 && <StepMedia form={form} />}
+                {step === 4 && <StepRecipients form={form} />}
+                {step === 5 && <StepScheduling form={form} />}
+                {step === 6 && <StepSummary form={form} />}
+
+                <div className="flex items-center justify-between border-t pt-4">
+                  <Button type="button" variant="outline" onClick={goBack} disabled={step === 1}>
+                    <ArrowLeftIcon className="size-4" />
+                    Indietro
+                  </Button>
+                  {isLastStep ? (
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting && <Loader2Icon className="size-4 animate-spin" />}
+                      {form.watch("publishing_mode") === "draft" ? "Salva bozza" : "Crea e lancia campagna"}
+                    </Button>
+                  ) : (
+                    <Button type="button" onClick={goNext}>
+                      Avanti
+                      <ArrowRightIcon className="size-4" />
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </Form>
+          )}
         </CardContent>
       </Card>
     </div>
