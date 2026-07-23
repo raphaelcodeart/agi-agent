@@ -478,6 +478,10 @@ class BlogArticleUpdateRequest(BaseModel):
     hashtags: Optional[List[str]] = None
     meta_title: Optional[str] = Field(None, max_length=255)
     meta_description: Optional[str] = Field(None, max_length=500)
+    # Explicit sentinel: omitted = leave unchanged, empty string = detach the
+    # current media, a UUID string = attach that media. A plain Optional[UUID]
+    # can't tell "don't touch" apart from "clear it" the way this can.
+    media_file_id: Optional[str] = None
 
 
 class BlogPublicationResponse(BaseModel):
@@ -502,6 +506,7 @@ class BlogArticleResponse(BaseModel):
     slug: str
     excerpt: Optional[str]
     content: str
+    media_file_id: Optional[uuid.UUID] = None
     hashtags: Optional[List[str]]
     primary_keyword: Optional[str]
     secondary_keywords: Optional[List[str]]

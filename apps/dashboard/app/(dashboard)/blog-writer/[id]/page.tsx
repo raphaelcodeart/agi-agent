@@ -13,8 +13,10 @@ import {
   MegaphoneIcon,
   EyeIcon,
   Loader2Icon,
+  ImagesIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
+import { MediaPreview } from "@/components/shared/media-preview";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -51,6 +53,10 @@ import { ApiError } from "@/lib/api/errors";
 import { BLOG_WRITER_PREFILL_KEY, type BlogWriterCampaignPrefill } from "@/lib/blog-writer-prefill";
 import { PublishDialog } from "./_components/publish-dialog";
 import { BlogWriterSubnav } from "../_components/blog-writer-subnav";
+import { useAIGate } from "@/hooks/use-ai-gate";
+import { AIRequiredDialog } from "@/components/shared/ai-required-dialog";
+import { cn } from "@/lib/utils";
+import { useMediaList } from "@/hooks/use-media";
 
 function countWords(html: string): number {
   const text = html.replace(/<[^>]*>/g, " ");
@@ -71,11 +77,14 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ id: st
   const updateArticle = useUpdateArticle();
   const retryPublication = useRetryArticlePublication();
   const socialPreview = useSocialPreview();
+  const aiGate = useAIGate();
+  const mediaQuery = useMediaList();
 
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [socialSiteId, setSocialSiteId] = useState<string | undefined>(undefined);
+  const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
   const hasHydrated = useRef(false);
 
   const form = useForm<ArticleEditFormValues>({
@@ -96,6 +105,7 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ id: st
         meta_description: a.meta_description ?? "",
         hashtags: a.hashtags ?? [],
       });
+      setSelectedMediaId(a.media_file_id ?? null);
       setLastSavedAt(new Date(a.updated_at));
     }
   }, [detailQuery.data, form]);
@@ -156,27 +166,44 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  function handleUseForSocialCampaign() {
-    socialPreview.mutate(
-      { id, wordpressSiteId: socialSiteId },
+  function handleSelectMedia(mediaId: string | null) {
+    const next = selectedMediaId === mediaId ? null : mediaId;
+    setSelectedMediaId(next);
+    updateArticle.mutate(
+      { id, payload: { media_file_id: next ?? "" } },
       {
-        onSuccess: (result) => {
-          const prefill: BlogWriterCampaignPrefill = {
-            title: detailQuery.data?.article.title ?? "",
-            default_text: result.default_text,
-            instagram_text: result.instagram_text,
-            facebook_text: result.facebook_text,
-            linkedin_text: result.linkedin_text,
-            x_text: result.x_text,
-            threads_text: result.threads_text,
-            article_id: id,
-          };
-          sessionStorage.setItem(BLOG_WRITER_PREFILL_KEY, JSON.stringify(prefill));
-          router.push("/campaigns/new?prefillArticle=1");
+        onSuccess: () => toast.success(next ? "Media allegato" : "Media rimosso"),
+        onError: (error) => {
+          setSelectedMediaId(selectedMediaId);
+          toast.error(error instanceof ApiError ? error.detail : "Operazione non riuscita");
         },
-        onError: (error) => toast.error(error instanceof ApiError ? error.detail : "Generazione anteprima non riuscita"),
       }
     );
+  }
+
+  function handleUseForSocialCampaign() {
+    aiGate.guard(() => {
+      socialPreview.mutate(
+        { id, wordpressSiteId: socialSiteId },
+        {
+          onSuccess: (result) => {
+            const prefill: BlogWriterCampaignPrefill = {
+              title: detailQuery.data?.article.title ?? "",
+              default_text: result.default_text,
+              instagram_text: result.instagram_text,
+              facebook_text: result.facebook_text,
+              linkedin_text: result.linkedin_text,
+              x_text: result.x_text,
+              threads_text: result.threads_text,
+              article_id: id,
+            };
+            sessionStorage.setItem(BLOG_WRITER_PREFILL_KEY, JSON.stringify(prefill));
+            router.push("/campaigns/new?prefillArticle=1");
+          },
+          onError: (error) => toast.error(error instanceof ApiError ? error.detail : "Generazione anteprima non riuscita"),
+        }
+      );
+    });
   }
 
   if (detailQuery.isLoading) {
@@ -347,6 +374,49 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ id: st
       </Card>
 
       <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Media allegato</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Caricato manualmente in <Link href="/media" className="underline">Media</Link>, non generato dall&apos;AI.
+            Verrà incluso nel post quando pubblichi.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {mediaQuery.isLoading ? (
+            <Skeleton className="h-16" />
+          ) : (mediaQuery.data ?? []).length === 0 ? (
+            <EmptyState
+              icon={ImagesIcon}
+              title="Nessun media caricato"
+              description="Carica un'immagine nella sezione Media per poterla allegare qui."
+              action={
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/media">Vai a Media</Link>
+                </Button>
+              }
+            />
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {(mediaQuery.data ?? []).map((media) => (
+                <button
+                  key={media.id}
+                  type="button"
+                  onClick={() => handleSelectMedia(media.id)}
+                  title={media.original_filename}
+                  className={cn(
+                    "rounded-md ring-2 ring-transparent transition-all",
+                    selectedMediaId === media.id && "ring-primary"
+                  )}
+                >
+                  <MediaPreview media={media} className="size-16" />
+                </button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
           <CardTitle className="text-base">Pubblicazioni WordPress</CardTitle>
           <div className="flex items-center gap-2">
@@ -374,6 +444,7 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ id: st
               disabled={!canUseForSocial || socialPreview.isPending}
               onClick={handleUseForSocialCampaign}
               title={!canUseForSocial ? "Pubblica l'articolo su almeno un sito prima" : undefined}
+              className={cn(!aiGate.configured && "opacity-50")}
             >
               {socialPreview.isPending ? <Loader2Icon className="size-4 animate-spin" /> : <MegaphoneIcon className="size-4" />}
               Utilizza per campagna social
@@ -450,6 +521,8 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ id: st
         articleId={id}
         alreadyPublishedSiteIds={publishedSites.map((p) => p.wordpress_site_id)}
       />
+
+      <AIRequiredDialog open={aiGate.dialogOpen} onOpenChange={aiGate.setDialogOpen} />
     </div>
   );
 }

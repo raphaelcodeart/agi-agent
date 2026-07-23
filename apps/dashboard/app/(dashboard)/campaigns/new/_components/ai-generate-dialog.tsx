@@ -15,7 +15,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useGenerateCampaignText } from "@/hooks/use-ai";
+import { useAIGate } from "@/hooks/use-ai-gate";
+import { AIRequiredDialog } from "@/components/shared/ai-required-dialog";
 import { ApiError } from "@/lib/api/errors";
+import { cn } from "@/lib/utils";
 import type { AIGenerateTextResponse } from "@/types/api";
 
 interface AIGenerateDialogProps {
@@ -26,6 +29,7 @@ export function AIGenerateDialog({ onGenerated }: AIGenerateDialogProps) {
   const [open, setOpen] = useState(false);
   const [topic, setTopic] = useState("");
   const generate = useGenerateCampaignText();
+  const aiGate = useAIGate();
 
   function handleGenerate() {
     if (!topic.trim()) return;
@@ -43,10 +47,17 @@ export function AIGenerateDialog({ onGenerated }: AIGenerateDialogProps) {
 
   return (
     <>
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => aiGate.guard(() => setOpen(true))}
+        className={cn(!aiGate.configured && "opacity-50")}
+      >
         <Sparkles className="size-4" />
         Genera con AI
       </Button>
+      <AIRequiredDialog open={aiGate.dialogOpen} onOpenChange={aiGate.setDialogOpen} />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

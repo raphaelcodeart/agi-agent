@@ -160,6 +160,9 @@ def update_article(
 ):
     article = _get_article_or_404(db, article_id)
     data = payload.model_dump(exclude_unset=True)
+    if "media_file_id" in data:
+        raw = data.pop("media_file_id")
+        article.media_file_id = uuid.UUID(raw) if raw else None
     for key, value in data.items():
         setattr(article, key, value)
     article.last_edited_at = utc_now()
@@ -174,6 +177,18 @@ def update_article(
 def archive_article(article_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
     article = _get_article_or_404(db, article_id)
     article.status = "archived"
+    db.commit()
+    db.refresh(article)
+    return article
+
+
+@router.post("/{article_id}/restore", response_model=BlogArticleResponse)
+def restore_article(article_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """Undoes an accidental archive - sends the article back to 'draft' from the trash (Cestino) view."""
+    article = _get_article_or_404(db, article_id)
+    if article.status != "archived":
+        raise HTTPException(status_code=400, detail="Solo un articolo archiviato può essere ripristinato.")
+    article.status = "draft"
     db.commit()
     db.refresh(article)
     return article
@@ -203,7 +218,7 @@ def duplicate_article(article_id: uuid.UUID, db: Session = Depends(get_db), admi
 
     copy = BlogArticle(
         user_id=original.user_id, title=f"{original.title} (copia)", slug=slug,
-        excerpt=original.excerpt, content=original.content, hashtags=original.hashtags,
+        excerpt=original.excerpt, content=original.content, media_file_id=original.media_file_id, hashtags=original.hashtags,
         primary_keyword=original.primary_keyword, secondary_keywords=original.secondary_keywords,
         meta_title=original.meta_title, meta_description=original.meta_description,
         language=original.language, tone=original.tone, target_audience=original.target_audience,

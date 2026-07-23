@@ -82,6 +82,10 @@ export function archiveArticle(id: string): Promise<BlogArticleResponse> {
   return apiClient.post<BlogArticleResponse>(`/blog-writer/articles/${id}/archive`);
 }
 
+export function restoreArticle(id: string): Promise<BlogArticleResponse> {
+  return apiClient.post<BlogArticleResponse>(`/blog-writer/articles/${id}/restore`);
+}
+
 export function deleteArticle(id: string): Promise<void> {
   return apiClient.delete<void>(`/blog-writer/articles/${id}`);
 }

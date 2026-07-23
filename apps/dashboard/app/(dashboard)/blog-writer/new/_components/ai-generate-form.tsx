@@ -27,7 +27,10 @@ import {
 } from "@/components/ui/form";
 import { articleGenerateFormSchema, type ArticleGenerateFormValues } from "@/lib/validation/blog-writer";
 import { useGenerateArticle, useWordpressSites, useWordpressSiteCategories } from "@/hooks/use-blog-writer";
+import { useAIGate } from "@/hooks/use-ai-gate";
+import { AIRequiredDialog } from "@/components/shared/ai-required-dialog";
 import { ApiError } from "@/lib/api/errors";
+import { cn } from "@/lib/utils";
 
 const LENGTH_OPTIONS = [
   { value: "short", label: "Breve (~400-600 parole)" },
@@ -39,6 +42,7 @@ export function AIGenerateForm() {
   const router = useRouter();
   const generateArticle = useGenerateArticle();
   const sitesQuery = useWordpressSites();
+  const aiGate = useAIGate();
 
   const form = useForm<ArticleGenerateFormValues>({
     resolver: zodResolver(articleGenerateFormSchema),
@@ -65,19 +69,21 @@ export function AIGenerateForm() {
   const categoriesQuery = useWordpressSiteCategories(selectedSiteId ?? undefined);
 
   function onSubmit(values: ArticleGenerateFormValues) {
-    generateArticle.mutate(
-      {
-        ...values,
-        secondary_keywords: values.secondary_keywords,
-      },
-      {
-        onSuccess: (article) => {
-          toast.success("Articolo generato: rivedi e modifica il contenuto prima di pubblicarlo");
-          router.push(`/blog-writer/${article.id}`);
+    aiGate.guard(() => {
+      generateArticle.mutate(
+        {
+          ...values,
+          secondary_keywords: values.secondary_keywords,
         },
-        onError: (error) => toast.error(error instanceof ApiError ? error.detail : "Generazione non riuscita"),
-      }
-    );
+        {
+          onSuccess: (article) => {
+            toast.success("Articolo generato: rivedi e modifica il contenuto prima di pubblicarlo");
+            router.push(`/blog-writer/${article.id}`);
+          },
+          onError: (error) => toast.error(error instanceof ApiError ? error.detail : "Generazione non riuscita"),
+        }
+      );
+    });
   }
 
   return (
@@ -350,7 +356,11 @@ export function AIGenerateForm() {
             </div>
 
             <div className="flex justify-end border-t pt-4">
-              <Button type="submit" disabled={generateArticle.isPending}>
+              <Button
+                type="submit"
+                disabled={generateArticle.isPending}
+                className={cn(!aiGate.configured && "opacity-50")}
+              >
                 {generateArticle.isPending ? (
                   <Loader2Icon className="size-4 animate-spin" />
                 ) : (
@@ -362,6 +372,7 @@ export function AIGenerateForm() {
           </form>
         </Form>
       </CardContent>
+      <AIRequiredDialog open={aiGate.dialogOpen} onOpenChange={aiGate.setDialogOpen} />
     </Card>
   );
 }

@@ -480,6 +480,8 @@ export interface BlogArticleUpdatePayload {
   hashtags?: string[];
   meta_title?: string;
   meta_description?: string;
+  // Omit = leave unchanged, "" = detach, a media id = attach it.
+  media_file_id?: string;
 }
 
 export interface BlogArticleResponse {
@@ -489,6 +491,7 @@ export interface BlogArticleResponse {
   slug: string;
   excerpt: string | null;
   content: string;
+  media_file_id: string | null;
   hashtags: string[] | null;
   primary_keyword: string | null;
   secondary_keywords: string[] | null;

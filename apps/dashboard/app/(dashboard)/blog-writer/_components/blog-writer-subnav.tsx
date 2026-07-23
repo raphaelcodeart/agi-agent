@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboardIcon, SparklesIcon, FileTextIcon, BookOpenCheckIcon, GlobeIcon } from "lucide-react";
+import { LayoutDashboardIcon, SparklesIcon, FileTextIcon, BookOpenCheckIcon, GlobeIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Blog Writer only has one entry in the main sidebar (see app-sidebar.tsx) -
@@ -13,6 +13,7 @@ const TABS = [
   { href: "/blog-writer/drafts", label: "Bozze", icon: FileTextIcon },
   { href: "/blog-writer/articles", label: "Pubblicati", icon: BookOpenCheckIcon },
   { href: "/blog-writer/sites", label: "Siti WordPress", icon: GlobeIcon },
+  { href: "/blog-writer/trash", label: "Cestino", icon: Trash2Icon },
 ];
 
 export function BlogWriterSubnav() {

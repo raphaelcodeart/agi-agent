@@ -19,8 +19,11 @@ import {
 } from "@/hooks/use-blog-writer";
 import { formatDateTime } from "@/lib/format";
 import { ApiError } from "@/lib/api/errors";
+import { cn } from "@/lib/utils";
 import type { BlogArticleListItem } from "@/types/api";
 import { BlogWriterSubnav } from "../_components/blog-writer-subnav";
+import { useAIGate } from "@/hooks/use-ai-gate";
+import { AIRequiredDialog } from "@/components/shared/ai-required-dialog";
 
 const DRAFT_STATUSES = new Set(["generating", "draft", "ready", "publishing", "partially_published", "failed"]);
 
@@ -32,20 +35,23 @@ export default function DraftsPage() {
   const regenerateArticle = useRegenerateArticle();
   const [deleteTarget, setDeleteTarget] = useState<BlogArticleListItem | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const aiGate = useAIGate();
 
   const drafts = (articlesQuery.data ?? []).filter((a) => DRAFT_STATUSES.has(a.status));
 
   function handleRegenerate(article: BlogArticleListItem) {
-    setRegeneratingId(article.id);
-    regenerateArticle.mutate(article.id, {
-      onSuccess: () => {
-        setRegeneratingId(null);
-        toast.success("Articolo rigenerato");
-      },
-      onError: (error) => {
-        setRegeneratingId(null);
-        toast.error(error instanceof ApiError ? error.detail : "Rigenerazione non riuscita");
-      },
+    aiGate.guard(() => {
+      setRegeneratingId(article.id);
+      regenerateArticle.mutate(article.id, {
+        onSuccess: () => {
+          setRegeneratingId(null);
+          toast.success("Articolo rigenerato");
+        },
+        onError: (error) => {
+          setRegeneratingId(null);
+          toast.error(error instanceof ApiError ? error.detail : "Rigenerazione non riuscita");
+        },
+      });
     });
   }
 
@@ -86,6 +92,8 @@ export default function DraftsPage() {
               size="sm"
               onClick={() => handleRegenerate(row.original)}
               disabled={regeneratingId === row.original.id}
+              className={cn(!aiGate.configured && "opacity-50")}
+              title="Rigenera con AI"
             >
               <RotateCcwIcon className={regeneratingId === row.original.id ? "size-3.5 animate-spin" : "size-3.5"} />
             </Button>
@@ -104,7 +112,7 @@ export default function DraftsPage() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [regeneratingId]
+    [regeneratingId, aiGate.configured]
   );
 
   return (
@@ -156,6 +164,8 @@ export default function DraftsPage() {
           });
         }}
       />
+
+      <AIRequiredDialog open={aiGate.dialogOpen} onOpenChange={aiGate.setDialogOpen} />
     </div>
   );
 }

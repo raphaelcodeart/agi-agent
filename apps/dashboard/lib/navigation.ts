@@ -14,6 +14,7 @@ import {
   FileTextIcon,
   BookOpenCheckIcon,
   GlobeIcon,
+  Trash2Icon,
 } from "lucide-react";
 
 export interface NavItem {
@@ -52,6 +53,7 @@ export const BLOG_WRITER_NAV_ITEMS: NavItem[] = [
   { href: "/blog-writer/drafts", label: "Bozze", icon: FileTextIcon },
   { href: "/blog-writer/articles", label: "Pubblicati", icon: BookOpenCheckIcon },
   { href: "/blog-writer/sites", label: "Siti WordPress", icon: GlobeIcon },
+  { href: "/blog-writer/trash", label: "Cestino", icon: Trash2Icon },
 ];
 
 // Rendered in the sidebar footer, below everything else - not part of any

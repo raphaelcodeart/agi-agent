@@ -61,6 +61,12 @@ class BlogArticle(Base):
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
     excerpt: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     content: Mapped[str] = mapped_column(String, nullable=False)  # HTML body
+    # Manually uploaded via the existing Media library (apps/api/app/models/media.py)
+    # - not generated/searched by AI, see AGENTS.md rule 8/docs/BLOG_WRITER.md §8.
+    # Embedded into the post content on publish (see blog_writer_publication_service),
+    # not a native WordPress "featured image" (that would require re-uploading the
+    # file into each target site's own media library first - out of scope for now).
+    media_file_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("media_files.id", ondelete="SET NULL"), nullable=True)
 
     hashtags: Mapped[Optional[List[str]]] = mapped_column(JSONB, nullable=True)
     primary_keyword: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

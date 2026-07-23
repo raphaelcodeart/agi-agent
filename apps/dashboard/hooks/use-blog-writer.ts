@@ -143,6 +143,14 @@ export function useArchiveArticle() {
   });
 }
 
+export function useRestoreArticle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => blogWriterService.restoreArticle(id),
+    onSuccess: (_data, id) => invalidateArticles(queryClient, id),
+  });
+}
+
 export function useDeleteArticle() {
   const queryClient = useQueryClient();
   return useMutation({

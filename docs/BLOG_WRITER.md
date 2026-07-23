@@ -38,9 +38,9 @@ Un sito WordPress collegabile. `encrypted_application_password` è cifrata con l
 | `default_status` | `publish`, `draft`, `pending`, `private` — stato WordPress predefinito per un nuovo post |
 
 ### `blog_writer_articles`
-Un articolo generato/modificabile. `generation_prompt` (JSONB) conserva tutti i parametri del form di generazione, usato da "Rigenera". `content` è HTML (non Markdown), scritto direttamente dal modello con tag limitati (`h2`/`h3`/`p`/`ul`/`li`/`strong`).
+Un articolo generato/modificabile. `generation_prompt` (JSONB) conserva tutti i parametri del form di generazione, usato da "Rigenera" — resta `NULL` per gli articoli creati a mano, che quindi non sono rigenerabili (errore esplicito, non un bug). `content` è HTML (non Markdown), scritto direttamente dal modello con tag limitati (`h2`/`h3`/`p`/`ul`/`li`/`strong`) oppure incollato/scritto dall'admin. `media_file_id` (FK nullable → `media_files.id`, `SET NULL`) è un media **caricato manualmente** nella libreria Media esistente e allegato all'articolo dall'editor — mai generato/cercato dall'AI (vedi §3, §4).
 
-`status`: `generating`, `draft`, `ready`, `publishing`, `partially_published`, `published`, `failed`, `archived`.
+`status`: `generating`, `draft`, `ready`, `publishing`, `partially_published`, `published`, `failed`, `archived`. Un articolo `archived` non appare più in Bozze/Pubblicati ma resta recuperabile dal **Cestino** (`/blog-writer/trash`, `POST /{id}/restore` lo rimanda a `draft`) finché non viene eliminato definitivamente — l'eliminazione (`DELETE /{id}`) resta bloccata se l'articolo è già pubblicato su almeno un sito, in entrambi i casi.
 
 ### `blog_writer_publications`
 Una riga per ogni coppia `(articolo, sito WordPress)` — stesso principio di "ogni destinazione è indipendente" già applicato a `Publication`/`CampaignTarget` (AGENTS.md regola 1). Vincolo unico `(article_id, wordpress_site_id)` per idempotenza: non è possibile creare due pubblicazioni per la stessa coppia, un rilancio aggiorna la riga esistente invece di duplicarla.
@@ -65,6 +65,8 @@ Budget di token per lunghezza richiesta nella modalità AI (contenimento costi):
 
 `adapt_article_for_platforms` genera le versioni social (Instagram/Facebook/LinkedIn/X/Threads/generica) a partire da titolo+excerpt+URL pubblico, con lo stesso troncamento di sicurezza (`HARD_LIMITS`) già usato per la generazione testi campagna — x_text non supera mai 280 caratteri, threads_text mai 500.
 
+**Blocco lato frontend se l'AI non è configurata**: ogni pulsante che consuma AI in tutta la dashboard (generazione testi campagna, generazione/rigenerazione articolo, "usa per campagna social") usa lo stesso hook condiviso `hooks/use-ai-gate.ts` (letto da `GET /settings/ai`, vedi FUNCTIONALITY.md §5): il pulsante resta visivamente attenuato (non `disabled` nativo, resta cliccabile) e al click, se non è configurata alcuna chiave, apre `<AIRequiredDialog>` invece di procedere, con un link diretto a Impostazioni — mai una chiamata AI silenziosamente fallita con un errore 503 poco chiaro.
+
 ---
 
 ## 4. Pubblicazione WordPress
@@ -76,6 +78,8 @@ Endpoint REST usati (verificati su developer.wordpress.org, non inventati): `GET
 **Pubblicazione multi-sito**: `POST /blog-writer/articles/{id}/publish` crea/aggiorna una `BlogPublication` `pending` per ogni sito selezionato e lancia un task Celery per-sito (`publish_article_to_wordpress_task`, stesso pattern `SELECT...FOR UPDATE SKIP LOCKED` di `process_publication_task` — vedi FUNCTIONALITY.md §6). Un sito che fallisce non blocca gli altri: ogni pubblicazione è indipendente, tracciata con il proprio stato ed errore.
 
 **Retry**: `POST /blog-writer/articles/{id}/publications/{pub_id}/retry`, solo su pubblicazioni `failed`.
+
+**Media allegato**: se l'articolo ha un `media_file_id`, `blog_writer_publication_service._content_with_media` antepone un `<img src="{public_url}" alt="{titolo}" />` al contenuto prima di inviarlo a WordPress — il campo `content` dell'API REST accetta HTML arbitrario, verificato, non è un comportamento inventato. **Non** è una "immagine in evidenza" (featured image) nativa di WordPress: quella richiederebbe ricaricare il file nella libreria media del sito di destinazione (`POST /wp/v2/media`) prima di referenziarlo — fuori scope per ora (vedi §8). Il media va caricato manualmente nella sezione Media esistente prima di poterlo allegare: nessuna generazione o ricerca immagini via AI.
 
 ---
 
@@ -107,7 +111,7 @@ Per collegare un sito WordPress: sul sito stesso, wp-admin → Utenti → il tuo
 ## 8. Limiti noti di questa v1
 
 - **Pubblicazione WordPress non testata contro un sito reale** in questa sessione (deliberatamente, per non pubblicare contenuti di test su siti veri) — verificati invece, dal vivo e con successo: generazione articolo reale via OpenAI, adattamento social, CRUD completo (crea/modifica/duplica/elimina), protezione SSRF, tutti gli endpoint via richieste HTTP reali contro il database di produzione. Il primo utilizzo reale di "Pubblica sui blog" andrebbe verificato contro un sito WordPress di prova prima di un uso massiccio.
-- **Nessuna generazione/ricerca/upload immagini** (esplicitamente fuori scope, vedi richiesta originale).
+- **Nessuna generazione/ricerca immagini via AI** (esplicitamente fuori scope, vedi richiesta originale) — è però possibile allegare un media **già caricato manualmente** nella sezione Media esistente (§2/§4): viene incluso nel post come `<img>` in testa al contenuto, non come vera "featured image" WordPress (richiederebbe un upload separato nella libreria media di ogni sito di destinazione, non implementato).
 - **Nessun mock client WordPress dedicato**: il client parla sempre con l'API REST reale del sito configurato; la sicurezza per i test è strutturale (nessun sito reale pre-configurato, "Testa connessione" è sempre in sola lettura).
 - **Editor contenuto**: textarea HTML grezzo + anteprima renderizzata, non un editor WYSIWYG — coerente con l'assenza di qualunque libreria di rich-text editing nel resto della dashboard.
 - **Nessuna pubblicazione WordPress programmata** (data futura): la pubblicazione è sempre immediata o come bozza WordPress; la spec la elencava come "se disponibile", quindi opzionale.

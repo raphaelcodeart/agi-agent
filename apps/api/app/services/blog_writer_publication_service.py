@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List
 from sqlalchemy.orm import Session
 from app.models.blog_writer import BlogArticle, BlogPublication, WordpressSite
+from app.models.media import MediaFile
 from app.core.security import EncryptionService
 from app.integrations.wordpress import client as wp_client
 from app.integrations.wordpress.exceptions import WordpressApiError
@@ -11,6 +12,25 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 SUCCESS_STATES = {"published", "updated"}
+
+
+def _content_with_media(db: Session, article: BlogArticle) -> str:
+    """
+    Prepends the attached media (manually uploaded via the existing Media
+    library, never AI-generated/searched) as a plain <img> in the post body.
+    Not a native WordPress "featured image" - that needs the file re-uploaded
+    into each target site's own media library first (POST /wp/v2/media), out
+    of scope for now (see docs/BLOG_WRITER.md §8). This only needs the
+    content field, which WordPress's REST API already accepts as arbitrary
+    HTML - no extra endpoint/assumption involved.
+    """
+    if not article.media_file_id:
+        return article.content
+    media = db.query(MediaFile).filter(MediaFile.id == article.media_file_id).first()
+    if not media or not media.public_url:
+        return article.content
+    img_tag = f'<img src="{media.public_url}" alt="{article.title}" />'
+    return f"{img_tag}\n{article.content}"
 
 
 def create_or_reset_publications(db: Session, article: BlogArticle, targets: List[Dict[str, Any]]) -> List[BlogPublication]:
@@ -78,17 +98,19 @@ def execute_publication(db: Session, publication: BlogPublication) -> None:
     author = payload.get("author_id") or site.default_author_id
     status = payload.get("status") or site.default_status
 
+    content = _content_with_media(db, article)
+
     try:
         if publication.wordpress_post_id:
             result = wp_client.update_post(
                 site.api_url, site.username, password, publication.wordpress_post_id,
-                title=article.title, content=article.content, excerpt=article.excerpt, status=status,
+                title=article.title, content=content, excerpt=article.excerpt, status=status,
             )
             publication.publication_status = "updated"
         else:
             result = wp_client.create_post(
                 site.api_url, site.username, password,
-                title=article.title, content=article.content, excerpt=article.excerpt, status=status,
+                title=article.title, content=content, excerpt=article.excerpt, status=status,
                 author=author, category=category, tag_ids=None, slug=article.slug,
             )
             publication.publication_status = "published"
