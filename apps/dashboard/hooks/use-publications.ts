@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as publicationsService from "@/services/publications";
 import { queryKeys } from "@/lib/query/keys";
 import type { ListPublicationsParams } from "@/services/publications";
+import type { ChannelMetrics } from "@/types/api";
 
 export function usePublications(params: ListPublicationsParams = {}) {
   return useQuery({
@@ -18,6 +19,17 @@ export function usePublicationDetail(id: string | undefined) {
     queryKey: queryKeys.publications.detail(id ?? ""),
     queryFn: () => publicationsService.getPublication(id as string),
     enabled: !!id,
+  });
+}
+
+// On-demand only (never polled), same reasoning as useCampaignMetrics: Buffer
+// refreshes post metrics once a day, so the admin explicitly asks via a button.
+export function usePublicationMetrics(id: string) {
+  return useQuery<ChannelMetrics>({
+    queryKey: queryKeys.publications.metrics(id),
+    queryFn: () => publicationsService.getPublicationMetrics(id),
+    enabled: false,
+    retry: false,
   });
 }
 

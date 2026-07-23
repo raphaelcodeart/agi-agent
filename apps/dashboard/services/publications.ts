@@ -2,7 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import { buildQueryString } from "@/lib/api/query-string";
 import { isMockApiEnabled } from "@/lib/env";
 import * as mock from "@/lib/api/mock/adapter";
-import type { PublicationDetailResponse, PublicationResponse, PublicationStatus } from "@/types/api";
+import type { ChannelMetrics, PublicationDetailResponse, PublicationResponse, PublicationStatus } from "@/types/api";
 
 export interface ListPublicationsParams {
   campaign_id?: string;
@@ -19,6 +19,11 @@ export function listPublications(params: ListPublicationsParams = {}): Promise<P
 export function getPublication(id: string): Promise<PublicationDetailResponse> {
   if (isMockApiEnabled()) return mock.getPublication(id);
   return apiClient.get<PublicationDetailResponse>(`/publications/${id}`);
+}
+
+export function getPublicationMetrics(id: string): Promise<ChannelMetrics> {
+  if (isMockApiEnabled()) return mock.getPublicationMetrics(id);
+  return apiClient.get<ChannelMetrics>(`/publications/${id}/metrics`);
 }
 
 export function retryPublication(id: string): Promise<PublicationResponse> {

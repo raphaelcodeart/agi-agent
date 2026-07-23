@@ -86,6 +86,7 @@ export interface SocialChannelResponse {
   name: string;
   username: string | null;
   avatar_url: string | null;
+  external_link: string | null;
   channel_type: string | null;
   is_active: boolean;
   auto_publish_enabled: boolean;

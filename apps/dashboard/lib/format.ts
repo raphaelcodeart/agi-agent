@@ -32,6 +32,15 @@ export function formatPercentage(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
+// Only engagementRate is a 0-100 rate (developers.buffer.com/types/PostMetricUnit.html);
+// every other Buffer post metric type is a plain count.
+const PERCENTAGE_METRIC_TYPES = new Set(["engagementRate"]);
+
+export function formatMetricValue(type: string, value: number): string {
+  if (PERCENTAGE_METRIC_TYPES.has(type)) return `${value.toLocaleString("it-IT", { maximumFractionDigits: 1 })}%`;
+  return Math.round(value).toLocaleString("it-IT");
+}
+
 /**
  * The users/campaigns/publications list endpoints cap `limit` at 100 and expose no
  * total-count. When a query returns exactly the cap, the real total may be higher,

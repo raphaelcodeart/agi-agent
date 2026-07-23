@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { RefreshCwIcon } from "lucide-react";
+import { RefreshCwIcon, ExternalLinkIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
@@ -125,7 +125,19 @@ export default function ChannelsPage() {
         header: "Canale",
         cell: ({ row }) => (
           <div>
-            <p className="font-medium text-foreground">{row.original.name}</p>
+            {row.original.external_link ? (
+              <a
+                href={row.original.external_link}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
+              >
+                {row.original.name}
+                <ExternalLinkIcon className="size-3 text-muted-foreground" />
+              </a>
+            ) : (
+              <p className="font-medium text-foreground">{row.original.name}</p>
+            )}
             {row.original.username && (
               <p className="text-xs text-muted-foreground">@{row.original.username}</p>
             )}

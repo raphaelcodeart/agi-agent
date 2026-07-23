@@ -50,6 +50,7 @@ class MockBufferClient(BaseBufferClient):
                     "username": "@algarvebeachresort",
                     "avatar_url": "https://media.example.com/avatars/hotel_ig.png",
                     "channel_type": "instagram_business",
+                    "external_link": "https://instagram.com/algarvebeachresort",
                 },
                 {
                     "id": "chan_fb_hotel",
@@ -58,6 +59,7 @@ class MockBufferClient(BaseBufferClient):
                     "username": "AlgarveHotelOfficial",
                     "avatar_url": "https://media.example.com/avatars/hotel_fb.png",
                     "channel_type": "facebook_page",
+                    "external_link": "https://facebook.com/AlgarveHotelOfficial",
                 },
                 {
                     "id": "chan_li_hotel",
@@ -66,6 +68,7 @@ class MockBufferClient(BaseBufferClient):
                     "username": "algarve-hospitality",
                     "avatar_url": "https://media.example.com/avatars/hotel_li.png",
                     "channel_type": "linkedin_organization",
+                    "external_link": "https://linkedin.com/company/algarve-hospitality",
                 }
             ]
         elif organization_id == "org_mock_2":
@@ -77,6 +80,7 @@ class MockBufferClient(BaseBufferClient):
                     "username": "@lisbonmarketing",
                     "avatar_url": "https://media.example.com/avatars/agency_x.png",
                     "channel_type": "x_profile",
+                    "external_link": "https://x.com/lisbonmarketing",
                 },
                 {
                     "id": "chan_tt_agency",
@@ -85,6 +89,7 @@ class MockBufferClient(BaseBufferClient):
                     "username": "@lisbonagency",
                     "avatar_url": "https://media.example.com/avatars/agency_tt.png",
                     "channel_type": "tiktok_profile",
+                    "external_link": "https://tiktok.com/@lisbonagency",
                 }
             ]
         return []

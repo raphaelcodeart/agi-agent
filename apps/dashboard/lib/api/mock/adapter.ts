@@ -22,6 +22,7 @@ import type {
   CampaignMetricsResponse,
   CampaignPreviewResponse,
   CampaignResponse,
+  ChannelMetrics,
   GroupResponse,
   MediaResponse,
   PublicationDetailResponse,
@@ -326,45 +327,62 @@ export function getCampaignDetail(campaignId: string): Promise<CampaignDetailRes
   });
 }
 
+function buildChannelMetrics(pub: PublicationResponse): ChannelMetrics {
+  const channel = mockChannels.find((c) => c.id === pub.social_channel_id);
+  const user = mockUsers.find((u) => u.id === pub.user_id);
+  const seed = pub.id.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  const reactions = 5 + (seed % 200);
+  const views = reactions * 4 + (seed % 300);
+  const follows = seed % 6;
+  const clicks = seed % 40;
+  const metrics = [
+    { type: "reactions", name: "Reactions", value: reactions, unit: "count" },
+    { type: "views", name: "Views", value: views, unit: "count" },
+    { type: "clicks", name: "Clicks", value: clicks, unit: "count" },
+    { type: "follows", name: "New follows", value: follows, unit: "count" },
+    {
+      type: "engagementRate",
+      name: "Eng. Rate",
+      value: Math.round(Math.min(100, ((reactions + clicks + follows) / Math.max(views, 1)) * 100) * 100) / 100,
+      unit: "percentage",
+    },
+  ];
+  return {
+    publication_id: pub.id,
+    social_channel_id: pub.social_channel_id,
+    channel_name: channel?.name ?? "—",
+    user_name: user?.name ?? "—",
+    platform: channel?.platform ?? "unknown",
+    external_post_url: pub.external_post_url ?? null,
+    metrics,
+    metrics_updated_at: nowIso(),
+    error: null,
+  };
+}
+
+export function getPublicationMetrics(id: string): Promise<ChannelMetrics> {
+  const pub = mockPublications.find((p) => p.id === id);
+  if (!pub) notFound("Publication");
+  if (pub.status !== "published" && pub.status !== "scheduled") {
+    throw new ApiError(
+      400,
+      "Le statistiche sono disponibili solo per pubblicazioni riuscite (pubblicate o programmate)."
+    );
+  }
+  return delay(buildChannelMetrics(pub));
+}
+
 export function getCampaignMetrics(campaignId: string): Promise<CampaignMetricsResponse> {
   const published = mockPublications.filter(
     (p) => p.campaign_id === campaignId && (p.status === "published" || p.status === "scheduled")
   );
   const totals: Record<string, number> = {};
   const channels = published.map((pub) => {
-    const channel = mockChannels.find((c) => c.id === pub.social_channel_id);
-    const user = mockUsers.find((u) => u.id === pub.user_id);
-    const seed = pub.id.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-    const reactions = 5 + (seed % 200);
-    const views = reactions * 4 + (seed % 300);
-    const follows = seed % 6;
-    const clicks = seed % 40;
-    const metrics = [
-      { type: "reactions", name: "Reactions", value: reactions, unit: "count" },
-      { type: "views", name: "Views", value: views, unit: "count" },
-      { type: "clicks", name: "Clicks", value: clicks, unit: "count" },
-      { type: "follows", name: "New follows", value: follows, unit: "count" },
-      {
-        type: "engagementRate",
-        name: "Eng. Rate",
-        value: Math.round(Math.min(100, ((reactions + clicks + follows) / Math.max(views, 1)) * 100) * 100) / 100,
-        unit: "percentage",
-      },
-    ];
-    metrics.forEach((m) => {
+    const entry = buildChannelMetrics(pub);
+    entry.metrics.forEach((m) => {
       totals[m.type] = (totals[m.type] ?? 0) + m.value;
     });
-    return {
-      publication_id: pub.id,
-      social_channel_id: pub.social_channel_id,
-      channel_name: channel?.name ?? "—",
-      user_name: user?.name ?? "—",
-      platform: channel?.platform ?? "unknown",
-      external_post_url: pub.external_post_url ?? null,
-      metrics,
-      metrics_updated_at: nowIso(),
-      error: null,
-    };
+    return entry;
   });
   return delay({ totals, channels });
 }

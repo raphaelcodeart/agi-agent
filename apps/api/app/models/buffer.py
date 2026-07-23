@@ -65,6 +65,7 @@ class SocialChannel(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    external_link: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True) # public profile/page URL on the social network itself (Buffer's Channel.externalLink), not a Buffer URL
     channel_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # e.g. "page", "group", "profile"
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     auto_publish_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

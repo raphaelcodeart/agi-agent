@@ -91,6 +91,7 @@ def sync_buffer_connection(connection_id_str: str) -> None:
                         "name": chan_info["name"],
                         "username": chan_info.get("username"),
                         "avatar_url": chan_info.get("avatar_url"),
+                        "external_link": chan_info.get("external_link"),
                         "channel_type": chan_info.get("channel_type"),
                         "is_active": True,
                         "raw_metadata": chan_info,

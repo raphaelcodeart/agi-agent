@@ -54,6 +54,7 @@ Per i dettagli di deploy/infrastruttura vedi [DEPLOYMENT.md](./DEPLOYMENT.md); p
 - `status` di un utente (`active`/`inactive`/`suspended`) e `deleted_at` (soft delete) determinano se è targetabile: solo utenti `active` e non cancellati entrano nella risoluzione di una campagna.
 - I `UserGroup` sono raggruppamenti arbitrari (many-to-many) usati solo per il targeting, non per permessi.
 - Un `SocialChannel` è **un singolo profilo social** connesso a Buffer (una pagina FB, un profilo IG, un canale YouTube...). `is_active` e `publication_mode` (`automatic`/`notification`/`approval`/`disabled`) determinano se una campagna può davvero pubblicarci sopra — `disabled` lo esclude sempre dal targeting, a prescindere dagli altri criteri.
+- `SocialChannel.external_link` è l'URL pubblico reale del profilo/pagina sul social network (`Channel.externalLink` di Buffer), popolato dal sync — non un URL Buffer. Può essere `null` se Buffer non lo espone per quella piattaforma. La pagina "Canali" della dashboard lo usa per aprire il profilo in una nuova scheda.
 
 ---
 
@@ -185,7 +186,7 @@ Prefisso comune `/api/v1`. Elenco completo per router — per i dettagli di requ
 - **`/auth`**: `POST /login`, `GET /me`
 - **`/buffer`**: `GET /connections`, `POST /connections` (collega/ricollega), `POST /connections/{id}/sync`, `GET /channels`, `PUT /channels/{id}/publication-mode`, `DELETE /connections/{id}`
 - **`/campaigns`**: `GET /`, `POST /`, `POST /preview-targets`, `POST /{id}/launch`, `GET /{id}`, `GET /{id}/metrics`, `POST /{id}/pause`, `POST /{id}/resume`, `POST /{id}/cancel`, `DELETE /{id}`
-- **`/publications`**: `GET /`, `GET /{id}`, `POST /{id}/retry`, `POST /retry-selected`, `POST /retry-campaign-failures/{campaign_id}`, `POST /{id}/cancel`, `POST /{id}/skip`
+- **`/publications`**: `GET /`, `GET /{id}`, `GET /{id}/metrics`, `POST /{id}/retry`, `POST /retry-selected`, `POST /retry-campaign-failures/{campaign_id}`, `POST /{id}/cancel`, `POST /{id}/skip`
 - **`/media`**: `GET /`, `POST /upload`, `GET /{id}`, `DELETE /{id}`
 - **`/users`**: `GET /`, `POST /`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}` (soft delete), `GET /groups/list`, `POST /groups`, `PUT /groups/{id}`
 - **`/settings`**: `GET /`, `PUT /`, `GET /health`
@@ -195,6 +196,8 @@ Prefisso comune `/api/v1`. Elenco completo per router — per i dettagli di requ
 ## 10. Metriche
 
 `GET /campaigns/{id}/metrics` chiama Buffer **on-demand** (non salvato periodicamente) per ogni pubblicazione `published` **o** `scheduled` della campagna con un `external_post_id` valorizzato (stessa equivalenza pubblicato/programmato del §6 — un `scheduled` il cui orario è già passato è quasi certamente già live sulla piattaforma reale anche se la nostra label interna non lo riflette), tramite `get_post_metrics`. Le metriche di tipo "tasso" (es. `engagementRate`, unica percentuale 0-100 secondo la documentazione Buffer) vengono **mediate**, tutte le altre (like, visualizzazioni, commenti, ecc.) vengono **sommate** — non si sommano mai metriche di tipo diverso tra loro nella dashboard (es. visualizzazioni + impression + copertura restano tile separate, perché misurano cose diverse).
+
+`GET /publications/{id}/metrics` è lo stesso meccanismo ma scoped a **una singola pubblicazione** (mostrato nella scheda di dettaglio pubblicazione, sotto "Cronologia tentativi"): stessa chiamata `get_post_metrics`, stesso schema di risposta (`ChannelMetrics`), nessuna aggregazione essendo un solo canale. Risponde 400 se la pubblicazione non è `published`/`scheduled` o non ha ancora un `external_post_id`.
 
 ---
 

@@ -107,6 +107,7 @@ class ProductionBufferClient(BaseBufferClient):
             descriptor
             isDisconnected
             type
+            externalLink
           }
         }
         """
@@ -121,6 +122,10 @@ class ProductionBufferClient(BaseBufferClient):
                 "avatar_url": chan.get("avatar"),
                 "channel_type": chan.get("type"),
                 "is_active": not chan.get("isDisconnected", False),
+                # Channel.externalLink (developers.buffer.com/types/Channel.html):
+                # "the channel's URL on the social network", null for unsupported
+                # channels - not a Buffer URL.
+                "external_link": chan.get("externalLink"),
             }
             for chan in channels
         ]

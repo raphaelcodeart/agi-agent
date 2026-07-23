@@ -13,11 +13,6 @@ import {
   CopyIcon,
   Trash2Icon,
   BarChart3Icon,
-  HeartIcon,
-  EyeIcon,
-  UserPlusIcon,
-  MousePointerClickIcon,
-  PercentIcon,
   Loader2Icon,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -46,36 +41,10 @@ import {
 import { usePublications, useRetryPublication, useRetryCampaignFailures } from "@/hooks/use-publications";
 import { useChannels } from "@/hooks/use-channels";
 import { useUsers } from "@/hooks/use-users";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatMetricValue } from "@/lib/format";
+import { METRIC_TILE_CONFIG } from "@/lib/metric-config";
 import { ApiError } from "@/lib/api/errors";
 import type { PublicationResponse } from "@/types/api";
-
-// Each metric type is shown as its own tile (never summed across different
-// types like views+impressions+reach - those measure different things and
-// blending them would misrepresent what Buffer actually reported). Ordered so
-// the ones the admin cares about most (reactions, views, new follows) lead.
-const METRIC_TILE_CONFIG: { type: string; label: string; icon: typeof HeartIcon }[] = [
-  { type: "reactions", label: "Mi piace / Reazioni", icon: HeartIcon },
-  { type: "likes", label: "Mi piace (Facebook)", icon: HeartIcon },
-  { type: "views", label: "Visualizzazioni", icon: EyeIcon },
-  { type: "impressions", label: "Impression", icon: EyeIcon },
-  { type: "reach", label: "Copertura (persone raggiunte)", icon: EyeIcon },
-  { type: "follows", label: "Nuovi iscritti", icon: UserPlusIcon },
-  { type: "clicks", label: "Clic", icon: MousePointerClickIcon },
-  { type: "engagementRate", label: "Tasso di coinvolgimento (Buffer)", icon: PercentIcon },
-  { type: "comments", label: "Commenti", icon: BarChart3Icon },
-  { type: "shares", label: "Condivisioni", icon: BarChart3Icon },
-];
-
-// Only engagementRate is a 0-100 rate (developers.buffer.com/types/PostMetricUnit.html);
-// every other metric type is a plain count. Drives formatting, not aggregation
-// (the backend already averages percentage metrics instead of summing them).
-const PERCENTAGE_METRIC_TYPES = new Set(["engagementRate"]);
-
-function formatMetricValue(type: string, value: number): string {
-  if (PERCENTAGE_METRIC_TYPES.has(type)) return `${value.toLocaleString("it-IT", { maximumFractionDigits: 1 })}%`;
-  return Math.round(value).toLocaleString("it-IT");
-}
 
 const LIMIT = 20;
 

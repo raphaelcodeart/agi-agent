@@ -113,6 +113,7 @@ class SocialChannelResponse(BaseModel):
     name: str
     username: Optional[str]
     avatar_url: Optional[str]
+    external_link: Optional[str]
     channel_type: Optional[str]
     is_active: bool
     auto_publish_enabled: bool

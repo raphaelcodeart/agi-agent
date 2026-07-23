@@ -3,28 +3,32 @@
 import { use } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { CheckCircle2Icon, XCircleIcon } from "lucide-react";
+import { CheckCircle2Icon, XCircleIcon, BarChart3Icon, Loader2Icon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PlatformBadge } from "@/components/shared/platform-badge";
 import { RetryButton } from "@/components/shared/retry-button";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
+import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   usePublicationDetail,
+  usePublicationMetrics,
   useRetryPublication,
   useCancelPublication,
   useSkipPublication,
 } from "@/hooks/use-publications";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatMetricValue } from "@/lib/format";
+import { METRIC_TILE_CONFIG } from "@/lib/metric-config";
 import { ApiError } from "@/lib/api/errors";
 
 export default function PublicationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const detailQuery = usePublicationDetail(id);
+  const metricsQuery = usePublicationMetrics(id);
   const retryPublication = useRetryPublication();
   const cancelPublication = useCancelPublication();
   const skipPublication = useSkipPublication();
@@ -46,6 +50,7 @@ export default function PublicationDetailPage({ params }: { params: Promise<{ id
   const canRetry = ["failed", "cancelled", "retry_wait", "queued"].includes(pub.status);
   const canCancel = ["pending", "queued", "retry_wait"].includes(pub.status);
   const canSkip = ["pending", "queued", "retry_wait", "failed"].includes(pub.status);
+  const canShowStats = ["published", "scheduled"].includes(pub.status);
 
   function notify(promise: Promise<unknown>, message: string) {
     promise
@@ -196,6 +201,65 @@ export default function PublicationDetailPage({ params }: { params: Promise<{ id
           )}
         </CardContent>
       </Card>
+
+      {canShowStats && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+            <div>
+              <CardTitle className="text-base">Statistiche</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Dati da Buffer per questo singolo post. Aggiornati una volta al giorno da Buffer stesso: può
+                impiegare fino a ~24h prima che compaiano i primi dati.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={metricsQuery.isFetching}
+              onClick={() => metricsQuery.refetch()}
+            >
+              {metricsQuery.isFetching && <Loader2Icon className="size-4 animate-spin" />}
+              <BarChart3Icon className="size-4" />
+              {metricsQuery.data ? "Aggiorna statistiche" : "Carica statistiche"}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {metricsQuery.isError && (
+              <ErrorState error={metricsQuery.error} onRetry={() => metricsQuery.refetch()} />
+            )}
+
+            {metricsQuery.data?.error && (
+              <p className="text-sm text-destructive">{metricsQuery.data.error}</p>
+            )}
+
+            {metricsQuery.data && !metricsQuery.data.error && metricsQuery.data.metrics.length === 0 && (
+              <EmptyState
+                icon={BarChart3Icon}
+                title="Ancora nessun dato"
+                description="Le statistiche saranno disponibili entro ~24h dalla pubblicazione."
+              />
+            )}
+
+            {metricsQuery.data && !metricsQuery.data.error && metricsQuery.data.metrics.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {METRIC_TILE_CONFIG.filter((m) =>
+                  metricsQuery.data!.metrics.some((metric) => metric.type === m.type)
+                ).map((m) => (
+                  <StatCard
+                    key={m.type}
+                    label={m.label}
+                    value={formatMetricValue(
+                      m.type,
+                      metricsQuery.data!.metrics.find((metric) => metric.type === m.type)!.value
+                    )}
+                    icon={m.icon}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

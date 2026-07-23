@@ -9,10 +9,15 @@ from app.models.publication import Publication, PublicationAttempt
 from app.models.user import User
 from app.models.buffer import SocialChannel
 from app.tasks.publication import process_publication_task
+from app.core.security import EncryptionService
+from app.integrations.buffer.service import get_buffer_client
+from app.integrations.buffer.exceptions import BufferApiError
 from app.schemas.schemas import (
     PublicationResponse,
     PublicationDetailResponse,
     PublicationAttemptResponse,
+    ChannelMetrics,
+    PostMetricValue,
 )
 
 router = APIRouter()
@@ -60,6 +65,59 @@ def get_publication(
         "channel_platform": pub.social_channel.platform,
         "user_name": pub.user.name,
     }
+
+
+@router.get("/{pub_id}/metrics", response_model=ChannelMetrics)
+def get_publication_metrics(
+    pub_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin)
+):
+    """
+    Fetches engagement metrics for this single publication's post, live from
+    Buffer's Post.metrics API - same on-demand call as the campaign-level
+    metrics endpoint (GET /campaigns/{id}/metrics), scoped to one destination.
+    """
+    pub = db.query(Publication).filter(Publication.id == pub_id).first()
+    if not pub:
+        raise HTTPException(status_code=404, detail="Publication not found")
+
+    # "scheduled" is included alongside "published" for the same reason as the
+    # campaign-level endpoint: both mean Buffer accepted the post successfully
+    # and carry a real external_post_id (see docs/FUNCTIONALITY.md §6/§10).
+    if pub.status not in ("published", "scheduled") or not pub.external_post_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Le statistiche sono disponibili solo per pubblicazioni riuscite (pubblicate o programmate)."
+        )
+
+    channel = pub.social_channel
+    connection = pub.buffer_connection
+    client = get_buffer_client()
+
+    entry = ChannelMetrics(
+        publication_id=pub.id,
+        social_channel_id=pub.social_channel_id,
+        channel_name=channel.name if channel else "—",
+        user_name=pub.user.name if pub.user else "—",
+        platform=channel.platform if channel else "unknown",
+        external_post_url=pub.external_post_url,
+    )
+
+    try:
+        token = EncryptionService.decrypt(connection.access_token_encrypted) if connection else None
+        if not token:
+            raise BufferApiError("Connessione Buffer non disponibile", category="auth_error")
+
+        result = client.get_post_metrics(token, pub.external_post_id)
+        entry.metrics = [PostMetricValue(**m) for m in result.get("metrics", [])]
+        entry.metrics_updated_at = result.get("metrics_updated_at")
+    except BufferApiError as e:
+        entry.error = e.message
+    except Exception as e:
+        entry.error = str(e)
+
+    return entry
 
 
 @router.post("/{pub_id}/retry", response_model=PublicationResponse)

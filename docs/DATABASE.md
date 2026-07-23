@@ -136,6 +136,7 @@ Un **singolo profilo social connesso a Buffer** (una pagina Facebook, un profilo
 |---|---|---|
 | `platform` | string | `instagram`, `facebook`, `linkedin`, `tiktok`, `youtube`, `x`, `threads`, ... |
 | `external_channel_id` | string | ID canale lato Buffer, usato nelle chiamate `create_post` |
+| `external_link` | string, nullable | URL pubblico del profilo/pagina sul social network stesso (`Channel.externalLink` di Buffer — developers.buffer.com/types/Channel.html), non un URL Buffer. `null` se Buffer non lo espone per quella piattaforma. Popolato dal sync (`sync_buffer_connection`) |
 | `is_active` | bool | |
 | `publication_mode` | string | `automatic`, `notification`, `approval`, `disabled` — controlla se le campagne pubblicano davvero su questo canale o solo notificano/richiedono approvazione |
 
