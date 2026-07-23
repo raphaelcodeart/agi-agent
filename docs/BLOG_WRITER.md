@@ -108,7 +108,17 @@ Per collegare un sito WordPress: sul sito stesso, wp-admin → Utenti → il tuo
 
 ---
 
-## 8. Limiti noti di questa v1
+## 8. Interfaccia: conferme e selezione media
+
+**Etichetta "Dashboard BWA"**: la sidebar principale ha già una voce "Dashboard" (la home Buffer/campagne, `/`); la dashboard del modulo (`/blog-writer`) è etichettata **"Dashboard BWA"** sia nella sidebar (`lib/navigation.ts`) sia nel subnav in-pagina (`blog-writer/_components/blog-writer-subnav.tsx`) per evitare ambiguità tra le due.
+
+**Azioni di riga con conferma**: Duplica/Rigenera/Archivia/Elimina nella pagina Bozze (e Testa/Modifica/Scollega in Siti WordPress) usano il componente condiviso `components/shared/icon-action-button.tsx` — icona + etichetta piccola sotto, non un glifo nudo senza testo. Ogni azione che elimina o archivia (Archivia, Elimina, Scollega) apre sempre un `<ConfirmDialog>` prima di eseguire la mutation — mai un'azione irreversibile al primo click, stesso pattern già usato altrove nella dashboard (es. eliminazione campagna). "Duplica" e "Testa connessione" restano invece immediate: non distruttive, nulla da confermare.
+
+**Selezione media (editor articolo e wizard campagna)**: sia il selettore "Media allegato" in `blog-writer/[id]/page.tsx` sia lo step media di `campaigns/new/_components/step-media.tsx` condividono `components/shared/media-type-filter.tsx` — un filtro **Tutti / Immagini / Video** (`filterMediaByType`, basato sul prefisso di `mime_type`) per trovare rapidamente il file giusto in librerie numerose. Ogni miniatura mostra il nome file per intero sotto l'anteprima, non solo al passaggio del mouse. `components/shared/media-preview.tsx` mostra il primo frame reale del video (`<video preload="metadata" muted>`, scarica solo i metadati, non l'intero file) invece di una semplice icona generica — l'anteprima immagine (`<img>`) resta invariata, l'audio resta un'icona (non esiste un frame da mostrare).
+
+---
+
+## 9. Limiti noti di questa v1
 
 - **Pubblicazione WordPress non testata contro un sito reale** in questa sessione (deliberatamente, per non pubblicare contenuti di test su siti veri) — verificati invece, dal vivo e con successo: generazione articolo reale via OpenAI, adattamento social, CRUD completo (crea/modifica/duplica/elimina), protezione SSRF, tutti gli endpoint via richieste HTTP reali contro il database di produzione. Il primo utilizzo reale di "Pubblica sui blog" andrebbe verificato contro un sito WordPress di prova prima di un uso massiccio.
 - **Nessuna generazione/ricerca immagini via AI** (esplicitamente fuori scope, vedi richiesta originale) — è però possibile allegare un media **già caricato manualmente** nella sezione Media esistente (§2/§4): viene incluso nel post come `<img>` in testa al contenuto, non come vera "featured image" WordPress (richiederebbe un upload separato nella libreria media di ogni sito di destinazione, non implementato).
