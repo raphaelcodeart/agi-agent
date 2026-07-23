@@ -97,6 +97,11 @@ def generate_campaign_text(api_key: str, model: str, topic: str) -> Dict[str, st
                 ],
                 "response_format": {"type": "json_object"},
                 "temperature": 0.8,
+                # Backstop against runaway output cost: the 9 fields combined rarely
+                # exceed ~1000-1200 tokens even at their max length targets. This is
+                # a pure text-completion call (chat/completions) - no image/video
+                # generation endpoint is ever used by this integration.
+                "max_tokens": 1500,
             },
             timeout=45.0,
         )
