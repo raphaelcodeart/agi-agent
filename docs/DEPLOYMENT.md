@@ -127,7 +127,7 @@ Cosa cambiare rispetto all'esempio (le altre righe puoi lasciarle come sono):
 | `NEXT_PUBLIC_API_URL` | `http://IP_DEL_SERVER:8000` (o il tuo dominio, vedi sezione 9) | indirizzo che il **browser** userà per l'API |
 | `API_INTERNAL_URL` | lascia `http://api:8000` | indirizzo che usa il frontend **dentro Docker** per parlare col backend, non cambia mai |
 | `BUFFER_INTEGRATION_MODE` | `mock` finché non hai le credenziali Buffer reali, poi `production` | vedi sezione 12 |
-| `OPENAI_API_KEY` | opzionale — una chiave da platform.openai.com/api-keys | abilita il pulsante "Genera con AI" nella creazione campagna (docs/FUNCTIONALITY.md §5). Lasciala vuota per disabilitare la funzione: il resto della piattaforma funziona uguale |
+| `OPENAI_API_KEY` | opzionale — di solito lasciala vuota | fallback di primo avvio per il pulsante "Genera con AI" (docs/FUNCTIONALITY.md §5). Il modo normale per configurarla è dalla pagina **Impostazioni** della dashboard (salvata cifrata nel database, non nel `.env`) — questa variabile serve solo se vuoi una chiave di default già attiva prima che un admin configuri la propria |
 
 Genera `SECRET_KEY` con:
 

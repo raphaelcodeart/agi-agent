@@ -4,6 +4,24 @@ import httpx
 from app.integrations.openai.exceptions import OpenAIApiError
 
 OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_MODELS_URL = "https://api.openai.com/v1/models"
+
+
+def validate_api_key(api_key: str) -> bool:
+    """
+    Cheaply verifies a key actually works before persisting it, mirroring the
+    Buffer connection UX precedent (POST /connections calls get_user_info
+    synchronously). Listing models costs no tokens.
+    """
+    try:
+        response = httpx.get(
+            OPENAI_MODELS_URL,
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=15.0,
+        )
+    except httpx.RequestError:
+        return False
+    return response.status_code == 200
 
 # Per-platform character targets given to the model, and the hard ceiling this
 # module enforces server-side afterward regardless of what the model returns.

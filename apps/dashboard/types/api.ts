@@ -242,6 +242,16 @@ export interface ChannelMetrics {
   error: string | null;
 }
 
+export interface AISettingsResponse {
+  configured: boolean;
+  model: string;
+}
+
+export interface AISettingsUpdatePayload {
+  openai_api_key?: string;
+  openai_model?: string;
+}
+
 export interface AIGenerateTextResponse {
   default_text: string;
   instagram_text: string;

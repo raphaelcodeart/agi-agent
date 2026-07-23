@@ -17,6 +17,8 @@ import {
 } from "@/lib/api/mock/fixtures";
 import type {
   AIGenerateTextResponse,
+  AISettingsResponse,
+  AISettingsUpdatePayload,
   BufferConnectionResponse,
   CampaignCreatePayload,
   CampaignDetailResponse,
@@ -485,6 +487,28 @@ export function getSettings(): Promise<SystemSettingsResponse> {
 export function updateSettings(payload: SystemSettingsUpdatePayload): Promise<SystemSettingsResponse> {
   Object.assign(mockSettings, payload);
   return delay(mockSettings);
+}
+
+const mockAISettings: AISettingsResponse = { configured: false, model: "gpt-4o-mini" };
+
+export function getAISettings(): Promise<AISettingsResponse> {
+  return delay(mockAISettings);
+}
+
+export function updateAISettings(payload: AISettingsUpdatePayload): Promise<AISettingsResponse> {
+  if (payload.openai_api_key) {
+    if (payload.openai_api_key.includes("invalid")) {
+      throw new ApiError(400, "Chiave API OpenAI non valida");
+    }
+    mockAISettings.configured = true;
+  }
+  if (payload.openai_model) mockAISettings.model = payload.openai_model;
+  return delay({ ...mockAISettings });
+}
+
+export function deleteAISettings(): Promise<void> {
+  mockAISettings.configured = false;
+  return delay(undefined);
 }
 
 export function getHealth() {

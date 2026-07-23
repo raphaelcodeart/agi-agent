@@ -30,5 +30,6 @@ export const queryKeys = {
   settings: {
     detail: () => ["settings", "detail"] as const,
     health: () => ["settings", "health"] as const,
+    ai: () => ["settings", "ai"] as const,
   },
 } as const;

@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { ActivityIcon, DatabaseIcon, ServerIcon } from "lucide-react";
+import { ActivityIcon, DatabaseIcon, ServerIcon, SparklesIcon, Loader2Icon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ErrorState } from "@/components/shared/error-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -23,7 +24,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useSystemSettings, useUpdateSystemSettings, useHealth } from "@/hooks/use-settings";
+import {
+  useSystemSettings,
+  useUpdateSystemSettings,
+  useHealth,
+  useAISettings,
+  useUpdateAISettings,
+  useDeleteAISettings,
+} from "@/hooks/use-settings";
 import { settingsFormSchema, type SettingsFormValues } from "@/lib/validation/settings";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import { ApiError } from "@/lib/api/errors";
@@ -67,6 +75,106 @@ function HealthTile({ icon: Icon, label, ok, statusOverride }: { icon: LucideIco
         <StatusBadge status={statusOverride ?? (ok ? "connected" : "error")} />
       </div>
     </div>
+  );
+}
+
+function AISettingsCard() {
+  const aiSettingsQuery = useAISettings();
+  const updateAISettings = useUpdateAISettings();
+  const deleteAISettings = useDeleteAISettings();
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("");
+
+  useEffect(() => {
+    if (aiSettingsQuery.data) setModel(aiSettingsQuery.data.model);
+  }, [aiSettingsQuery.data]);
+
+  function handleSave() {
+    const payload: { openai_api_key?: string; openai_model?: string } = {};
+    if (apiKey.trim()) payload.openai_api_key = apiKey.trim();
+    if (model.trim() && model.trim() !== aiSettingsQuery.data?.model) payload.openai_model = model.trim();
+    if (!payload.openai_api_key && !payload.openai_model) {
+      toast.info("Nessuna modifica da salvare");
+      return;
+    }
+    updateAISettings.mutate(payload, {
+      onSuccess: () => {
+        toast.success("Impostazioni AI aggiornate");
+        setApiKey("");
+      },
+      onError: (error) => toast.error(error instanceof ApiError ? error.detail : "Aggiornamento non riuscito"),
+    });
+  }
+
+  function handleRemove() {
+    deleteAISettings.mutate(undefined, {
+      onSuccess: () => toast.success("Chiave API OpenAI rimossa"),
+      onError: (error) => toast.error(error instanceof ApiError ? error.detail : "Rimozione non riuscita"),
+    });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <SparklesIcon className="size-4" />
+          Generazione testo con AI
+        </CardTitle>
+        <CardDescription>
+          Chiave API OpenAI personale usata dal pulsante &quot;Genera con AI&quot; nella creazione campagna. Non
+          viene mai mostrata una volta salvata, solo se è configurata.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {aiSettingsQuery.isLoading ? (
+          <Skeleton className="h-32" />
+        ) : aiSettingsQuery.isError ? (
+          <ErrorState error={aiSettingsQuery.error} onRetry={() => aiSettingsQuery.refetch()} />
+        ) : (
+          <>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Stato</span>
+              <StatusBadge status={aiSettingsQuery.data?.configured ? "connected" : "disconnected"} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="ai-api-key">
+                  Chiave API OpenAI {aiSettingsQuery.data?.configured && "(lascia vuota per non modificarla)"}
+                </Label>
+                <Input
+                  id="ai-api-key"
+                  type="password"
+                  autoComplete="off"
+                  placeholder="sk-..."
+                  value={apiKey}
+                  onChange={(event) => setApiKey(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ai-model">Modello</Label>
+                <Input id="ai-model" placeholder="gpt-4o-mini" value={model} onChange={(event) => setModel(event.target.value)} />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSave} disabled={updateAISettings.isPending}>
+                {updateAISettings.isPending && <Loader2Icon className="size-4 animate-spin" />}
+                Salva
+              </Button>
+              {aiSettingsQuery.data?.configured && (
+                <Button
+                  variant="outline"
+                  className="text-destructive"
+                  onClick={handleRemove}
+                  disabled={deleteAISettings.isPending}
+                >
+                  Rimuovi chiave
+                </Button>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -198,6 +306,8 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      <AISettingsCard />
     </div>
   );
 }

@@ -16,6 +16,7 @@ Le tabelle sono create dalle migration Alembic in `apps/api/alembic/versions/` (
 6. [Media](#6-media)
 7. [Campagne e pubblicazioni](#7-campagne-e-pubblicazioni)
 8. [Audit log](#8-audit-log)
+9. [Impostazioni AI](#9-impostazioni-ai)
 
 ---
 
@@ -217,3 +218,18 @@ Log di sicurezza/tracciabilità delle azioni amministrative (es. `campaign_launc
 | `entity_type` / `entity_id` | string / UUID | a cosa si riferisce l'azione |
 | `metadata_json` (colonna `metadata`) | JSONB | dettagli extra (es. numero di canali targetizzati) |
 | `ip_address`, `user_agent` | string, nullable | |
+
+---
+
+## 9. Impostazioni AI
+
+### `ai_settings`
+Riga singola (singleton: zero o una riga, mai più di una) con la chiave API OpenAI **personale dell'amministratore**, configurabile dalla pagina Impostazioni della dashboard (non dal `.env` — vedi [FUNCTIONALITY.md §5](./FUNCTIONALITY.md#5-campagne-targeting-e-testo) e [DEPLOYMENT.md](./DEPLOYMENT.md)). Alimenta il pulsante "Genera con AI" nella creazione campagna.
+
+| Colonna | Tipo | Note |
+|---|---|---|
+| `openai_api_key_encrypted` | string, nullable | cifrata a riposo con lo stesso `EncryptionService` (Fernet) usato per le chiavi Buffer — mai testo in chiaro nel database, mai restituita dall'API (`GET /settings/ai` risponde solo `configured: bool`) |
+| `openai_model` | string | default `gpt-4o-mini`, modificabile dalla stessa schermata |
+| `updated_at` | timestamp | |
+
+Se questa riga non esiste o non ha una chiave impostata, il backend ricade sulla variabile d'ambiente `OPENAI_API_KEY` (se presente) solo come default di primo avvio — la riga in questa tabella, quando presente, ha sempre la precedenza.

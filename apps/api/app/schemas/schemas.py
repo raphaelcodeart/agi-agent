@@ -153,6 +153,19 @@ class MediaResponse(BaseModel):
 # ==============================================================================
 # AI Content Generation Schemas
 # ==============================================================================
+class AISettingsResponse(BaseModel):
+    configured: bool
+    model: str
+
+
+class AISettingsUpdateRequest(BaseModel):
+    # None/omitted = leave unchanged. An explicit empty string is rejected by
+    # the endpoint (use DELETE /settings/ai to remove the key instead), so this
+    # is never ambiguous between "don't touch" and "clear it".
+    openai_api_key: Optional[str] = Field(None, min_length=1, max_length=500)
+    openai_model: Optional[str] = Field(None, min_length=1, max_length=100)
+
+
 class AIGenerateTextRequest(BaseModel):
     topic: str = Field(..., min_length=3, max_length=1000)
 

@@ -6,6 +6,7 @@ from app.models.media import MediaFile
 from app.models.campaign import Campaign, CampaignTarget
 from app.models.publication import Publication, PublicationAttempt
 from app.models.audit import AuditLog
+from app.models.ai_settings import AISettings
 
 __all__ = [
     "Base",
@@ -22,4 +23,5 @@ __all__ = [
     "Publication",
     "PublicationAttempt",
     "AuditLog",
+    "AISettings",
 ]

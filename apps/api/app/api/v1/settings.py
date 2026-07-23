@@ -7,8 +7,17 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
 from app.models.administrator import Administrator
+from app.models.ai_settings import AISettings
 from app.core.config import settings
-from app.schemas.schemas import SystemSettingsResponse, SystemSettingsUpdate, HealthResponse
+from app.core.security import EncryptionService
+from app.integrations.openai.client import validate_api_key
+from app.schemas.schemas import (
+    SystemSettingsResponse,
+    SystemSettingsUpdate,
+    HealthResponse,
+    AISettingsResponse,
+    AISettingsUpdateRequest,
+)
 
 router = APIRouter()
 
@@ -60,6 +69,65 @@ def update_system_settings(
         "buffer_integration_mode": settings.BUFFER_INTEGRATION_MODE,
         "celery_queue_health": "ok"
     }
+
+
+@router.get("/ai", response_model=AISettingsResponse)
+def get_ai_settings(
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin)
+):
+    """
+    Reports only whether an OpenAI key is configured and which model is set -
+    never the key itself (same principle as never exposing Buffer tokens to
+    the frontend, AGENTS.md rule 8).
+    """
+    row = db.query(AISettings).first()
+    return {
+        "configured": bool(row and row.openai_api_key_encrypted),
+        "model": row.openai_model if row else settings.OPENAI_MODEL,
+    }
+
+
+@router.put("/ai", response_model=AISettingsResponse)
+def update_ai_settings(
+    payload: AISettingsUpdateRequest,
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin)
+):
+    """Sets/replaces the admin's own OpenAI API key and/or model for the AI text-generation helper."""
+    row = db.query(AISettings).first()
+    if not row:
+        row = AISettings()
+        db.add(row)
+
+    if payload.openai_api_key:
+        if not validate_api_key(payload.openai_api_key):
+            raise HTTPException(status_code=400, detail="Chiave API OpenAI non valida")
+        row.openai_api_key_encrypted = EncryptionService.encrypt(payload.openai_api_key)
+
+    if payload.openai_model:
+        row.openai_model = payload.openai_model
+
+    db.commit()
+    db.refresh(row)
+    return {
+        "configured": bool(row.openai_api_key_encrypted),
+        "model": row.openai_model,
+    }
+
+
+@router.delete("/ai", status_code=204)
+def delete_ai_settings(
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin)
+):
+    """Removes the configured OpenAI key. The "Genera con AI" button then falls back to the
+    server's OPENAI_API_KEY env var if set, otherwise it errors until reconfigured."""
+    row = db.query(AISettings).first()
+    if row:
+        row.openai_api_key_encrypted = None
+        db.commit()
+    return
 
 
 @router.get("/health", response_model=HealthResponse)
