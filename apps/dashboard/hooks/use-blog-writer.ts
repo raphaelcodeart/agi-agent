@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@ta
 import * as blogWriterService from "@/services/blog-writer";
 import { queryKeys } from "@/lib/query/keys";
 import type {
+  BlogArticleCreatePayload,
   BlogArticleGeneratePayload,
   BlogArticleUpdatePayload,
   BlogPublishTarget,
@@ -113,6 +114,14 @@ export function useGenerateArticle() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: BlogArticleGeneratePayload) => blogWriterService.generateArticle(payload),
+    onSuccess: () => invalidateArticles(queryClient),
+  });
+}
+
+export function useCreateArticleManual() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: BlogArticleCreatePayload) => blogWriterService.createArticleManual(payload),
     onSuccess: () => invalidateArticles(queryClient),
   });
 }

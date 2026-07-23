@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api/client";
 import { buildQueryString } from "@/lib/api/query-string";
 import type {
+  BlogArticleCreatePayload,
   BlogArticleDetailResponse,
   BlogArticleGeneratePayload,
   BlogArticleListItem,
@@ -67,6 +68,10 @@ export function getArticle(id: string): Promise<BlogArticleDetailResponse> {
 
 export function generateArticle(payload: BlogArticleGeneratePayload): Promise<BlogArticleResponse> {
   return apiClient.post<BlogArticleResponse>("/blog-writer/articles/generate", payload);
+}
+
+export function createArticleManual(payload: BlogArticleCreatePayload): Promise<BlogArticleResponse> {
+  return apiClient.post<BlogArticleResponse>("/blog-writer/articles/", payload);
 }
 
 export function updateArticle(id: string, payload: BlogArticleUpdatePayload): Promise<BlogArticleResponse> {

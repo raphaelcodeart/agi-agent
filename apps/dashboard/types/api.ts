@@ -441,6 +441,18 @@ export type BlogArticleStatus =
   | "failed"
   | "archived";
 
+export interface BlogArticleCreatePayload {
+  title: string;
+  slug?: string;
+  excerpt?: string;
+  content: string;
+  hashtags: string[];
+  meta_title?: string;
+  meta_description?: string;
+  language: string;
+  user_id?: string | null;
+}
+
 export interface BlogArticleGeneratePayload {
   topic: string;
   description?: string;

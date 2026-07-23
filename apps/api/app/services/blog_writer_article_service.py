@@ -14,6 +14,47 @@ def slugify(text: str) -> str:
     return re.sub(r"[\s-]+", "-", normalized)[:255] or "articolo"
 
 
+def ensure_unique_slug(db: Session, base_slug: str) -> str:
+    """
+    Slug uniqueness among local articles is not a hard DB constraint - WordPress
+    itself de-duplicates slugs per-site on publish - this is just to keep the
+    local list/URLs readable.
+    """
+    slug = base_slug
+    suffix = 2
+    while db.query(BlogArticle).filter(BlogArticle.slug == slug).first():
+        slug = f"{base_slug}-{suffix}"
+        suffix += 1
+    return slug
+
+
+def create_manual_article(db: Session, params: Dict[str, Any], created_by, user_id) -> BlogArticle:
+    """
+    Creates a draft directly from admin-provided text - no AI call at all. For
+    when the article is dictated, pasted from elsewhere, or the admin simply
+    prefers to write it by hand; everything downstream (editor, publish,
+    "usa per campagna social") treats it identically to an AI-generated draft.
+    """
+    slug = ensure_unique_slug(db, params.get("slug") or slugify(params["title"]))
+    article = BlogArticle(
+        user_id=user_id,
+        title=params["title"],
+        slug=slug,
+        excerpt=params.get("excerpt"),
+        content=params["content"],
+        hashtags=params.get("hashtags") or [],
+        meta_title=params.get("meta_title"),
+        meta_description=params.get("meta_description"),
+        language=params.get("language", "it"),
+        status="draft",
+        created_by=created_by,
+    )
+    db.add(article)
+    db.commit()
+    db.refresh(article)
+    return article
+
+
 def generate_article(db: Session, params: Dict[str, Any], created_by, user_id) -> BlogArticle:
     """
     Calls OpenAI to draft a full article and persists it immediately as a
@@ -26,16 +67,7 @@ def generate_article(db: Session, params: Dict[str, Any], created_by, user_id) -
         raise OpenAIApiError("Generazione AI non configurata: collega una chiave API OpenAI in Impostazioni.")
 
     result = generate_blog_article(api_key, model, params)
-
-    slug = result["slug"] or slugify(result["title"])
-    # Ensure slug uniqueness among existing articles (not a hard DB constraint -
-    # WordPress itself de-duplicates slugs per-site on publish - this is just to
-    # keep the local list readable).
-    base_slug = slug
-    suffix = 2
-    while db.query(BlogArticle).filter(BlogArticle.slug == slug).first():
-        slug = f"{base_slug}-{suffix}"
-        suffix += 1
+    slug = ensure_unique_slug(db, result["slug"] or slugify(result["title"]))
 
     article = BlogArticle(
         user_id=user_id,

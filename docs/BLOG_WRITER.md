@@ -52,11 +52,16 @@ Colonna nullable aggiunta a `campaigns` (FK → `blog_writer_articles.id`, `SET 
 
 ---
 
-## 3. Generazione contenuti — solo testo
+## 3. Generazione contenuti — solo testo, AI opzionale
 
-`generate_blog_article` (in `app/integrations/openai/client.py`) chiama esclusivamente l'endpoint di puro testo di OpenAI (`chat/completions`), mai un endpoint immagine/video. Restituisce titolo, slug, excerpt, contenuto HTML, hashtag, keyword, meta title/description, lingua e tono — salvati immediatamente come bozza (mai lasciata solo in memoria).
+La pagina "Nuovo articolo" offre **due modalità indipendenti**, scelte dall'admin ogni volta:
 
-Budget di token per lunghezza richiesta (contenimento costi): breve ~1800 token, media ~3000, lunga ~4500.
+- **Genera con AI** — `POST /blog-writer/articles/generate`: `generate_blog_article` (in `app/integrations/openai/client.py`) chiama esclusivamente l'endpoint di puro testo di OpenAI (`chat/completions`), mai un endpoint immagine/video. Restituisce titolo, slug, excerpt, contenuto HTML, hashtag, keyword, meta title/description, lingua e tono.
+- **Scrivi a mano** — `POST /blog-writer/articles/`: crea la bozza direttamente dal testo fornito dall'admin (scritto o incollato), **senza mai interpellare OpenAI**. Utile quando l'articolo esiste già altrove e va solo caricato. Lo slug è generato automaticamente dal titolo se non specificato. `generation_prompt` resta `NULL` per questi articoli (non c'è nulla da "rigenerare": il pulsante "Rigenera" nella pagina Bozze risponde con un errore chiaro se usato su un articolo scritto a mano).
+
+In entrambi i casi il risultato è salvato immediatamente come bozza (mai lasciato solo in memoria) e da quel momento in poi è indistinguibile per il resto del modulo (editor, pubblicazione, "usa per campagna social").
+
+Budget di token per lunghezza richiesta nella modalità AI (contenimento costi): breve ~1800 token, media ~3000, lunga ~4500. La modalità manuale non consuma alcun token.
 
 `adapt_article_for_platforms` genera le versioni social (Instagram/Facebook/LinkedIn/X/Threads/generica) a partire da titolo+excerpt+URL pubblico, con lo stesso troncamento di sicurezza (`HARD_LIMITS`) già usato per la generazione testi campagna — x_text non supera mai 280 caratteri, threads_text mai 500.
 

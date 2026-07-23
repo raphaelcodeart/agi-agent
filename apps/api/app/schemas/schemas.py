@@ -457,6 +457,19 @@ class BlogArticleGenerateRequest(BaseModel):
     user_id: Optional[uuid.UUID] = None
 
 
+class BlogArticleCreateRequest(BaseModel):
+    """Manual creation - no AI call. See POST /blog-writer/articles/."""
+    title: str = Field(..., min_length=1, max_length=255)
+    slug: Optional[str] = Field(None, max_length=255)
+    excerpt: Optional[str] = Field(None, max_length=1000)
+    content: str = Field(..., min_length=1)
+    hashtags: List[str] = Field(default_factory=list)
+    meta_title: Optional[str] = Field(None, max_length=255)
+    meta_description: Optional[str] = Field(None, max_length=500)
+    language: str = Field("it", max_length=10)
+    user_id: Optional[uuid.UUID] = None
+
+
 class BlogArticleUpdateRequest(BaseModel):
     title: Optional[str] = Field(None, max_length=255)
     slug: Optional[str] = Field(None, max_length=255)

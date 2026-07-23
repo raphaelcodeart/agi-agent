@@ -32,6 +32,19 @@ export const articleGenerateFormSchema = z.object({
 
 export type ArticleGenerateFormValues = z.infer<typeof articleGenerateFormSchema>;
 
+export const manualArticleFormSchema = z.object({
+  title: z.string().min(1, "Obbligatorio").max(255),
+  slug: z.string().max(255).optional().or(z.literal("")),
+  excerpt: z.string().max(1000).optional().or(z.literal("")),
+  content: z.string().min(1, "Incolla o scrivi il contenuto dell'articolo"),
+  hashtags: z.array(z.string()),
+  meta_title: z.string().max(255).optional().or(z.literal("")),
+  meta_description: z.string().max(500).optional().or(z.literal("")),
+  language: z.string().min(2).max(10),
+});
+
+export type ManualArticleFormValues = z.infer<typeof manualArticleFormSchema>;
+
 export const articleEditFormSchema = z.object({
   title: z.string().min(1, "Obbligatorio").max(255),
   slug: z.string().min(1, "Obbligatorio").max(255),

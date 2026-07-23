@@ -13,6 +13,7 @@ from app.services import blog_writer_article_service as article_service
 from app.services import blog_writer_publication_service as publication_service
 from app.tasks.blog_writer import publish_article_to_wordpress_task
 from app.schemas.schemas import (
+    BlogArticleCreateRequest,
     BlogArticleGenerateRequest,
     BlogArticleUpdateRequest,
     BlogArticleResponse,
@@ -79,6 +80,17 @@ def list_articles(
             sites_count=len(pubs), publications_count=len(pubs),
         ))
     return result
+
+
+@router.post("/", response_model=BlogArticleResponse, status_code=201)
+def create_article(
+    payload: BlogArticleCreateRequest,
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin)
+):
+    """Creates a draft directly from hand-written/pasted text - no AI call (see POST /generate for that)."""
+    article = article_service.create_manual_article(db, payload.model_dump(mode="json"), admin.id, payload.user_id)
+    return article
 
 
 @router.post("/generate", response_model=BlogArticleResponse, status_code=201)
@@ -187,11 +199,7 @@ def delete_article(article_id: uuid.UUID, db: Session = Depends(get_db), admin: 
 @router.post("/{article_id}/duplicate", response_model=BlogArticleResponse, status_code=201)
 def duplicate_article(article_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
     original = _get_article_or_404(db, article_id)
-    slug = article_service.slugify(f"{original.title}-copia")
-    base_slug, suffix = slug, 2
-    while db.query(BlogArticle).filter(BlogArticle.slug == slug).first():
-        slug = f"{base_slug}-{suffix}"
-        suffix += 1
+    slug = article_service.ensure_unique_slug(db, article_service.slugify(f"{original.title}-copia"))
 
     copy = BlogArticle(
         user_id=original.user_id, title=f"{original.title} (copia)", slug=slug,
