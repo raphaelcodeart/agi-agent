@@ -11,6 +11,9 @@ import {
   AlertOctagonIcon,
   SettingsIcon,
   NewspaperIcon,
+  FileTextIcon,
+  BookOpenCheckIcon,
+  GlobeIcon,
 } from "lucide-react";
 
 export interface NavItem {
@@ -32,13 +35,16 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
   { href: "/settings", label: "Impostazioni", icon: SettingsIcon },
 ];
 
-// Single entry point in the sidebar - "Nuovo articolo"/"Bozze"/"Pubblicati"/
-// "Siti WordPress" are reachable as action cards from the Blog Writer
-// dashboard itself (and a shared sub-nav on each of its pages), not as
-// separate top-level sidebar items. Keeps the two "products" visually and
-// structurally distinct (see app-sidebar.tsx's separator).
+// Own group in the sidebar, visually separated from the main app (see
+// app-sidebar.tsx's separator + group label). "Nuovo articolo" stays out of
+// the sidebar on purpose - reachable from the dashboard's action button and
+// the in-page BlogWriterSubnav - the other three are frequent enough
+// destinations to warrant their own sidebar entries.
 export const BLOG_WRITER_NAV_ITEMS: NavItem[] = [
-  { href: "/blog-writer", label: "Blog Writer AI", icon: NewspaperIcon },
+  { href: "/blog-writer", label: "Dashboard", icon: NewspaperIcon },
+  { href: "/blog-writer/drafts", label: "Bozze", icon: FileTextIcon },
+  { href: "/blog-writer/articles", label: "Pubblicati", icon: BookOpenCheckIcon },
+  { href: "/blog-writer/sites", label: "Siti WordPress", icon: GlobeIcon },
 ];
 
 // Combined, in sidebar order - used by findNavItem so breadcrumbs still
