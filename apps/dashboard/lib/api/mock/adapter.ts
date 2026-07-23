@@ -240,6 +240,13 @@ export function getMedia(id: string): Promise<MediaResponse> {
   return delay(media);
 }
 
+export function renameMedia(id: string, originalFilename: string): Promise<MediaResponse> {
+  const media = mockMedia.find((m) => m.id === id);
+  if (!media) notFound("Media");
+  media.original_filename = originalFilename;
+  return delay(media);
+}
+
 export function deleteMedia(id: string): Promise<void> {
   const index = mockMedia.findIndex((m) => m.id === id);
   if (index === -1) notFound("Media");

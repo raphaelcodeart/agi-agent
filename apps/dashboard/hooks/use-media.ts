@@ -30,6 +30,17 @@ export function useUploadMedia() {
   });
 }
 
+export function useRenameMedia() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, originalFilename }: { id: string; originalFilename: string }) =>
+      mediaService.renameMedia(id, originalFilename),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.media.list() });
+    },
+  });
+}
+
 export function useDeleteMedia() {
   const queryClient = useQueryClient();
   return useMutation({

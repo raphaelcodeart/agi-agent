@@ -150,6 +150,10 @@ class MediaResponse(BaseModel):
         from_attributes = True
 
 
+class MediaRenameRequest(BaseModel):
+    original_filename: str = Field(..., min_length=1, max_length=255)
+
+
 # ==============================================================================
 # AI Content Generation Schemas
 # ==============================================================================

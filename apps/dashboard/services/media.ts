@@ -20,6 +20,11 @@ export function getMedia(id: string): Promise<MediaResponse> {
   return apiClient.get<MediaResponse>(`/media/${id}`);
 }
 
+export function renameMedia(id: string, originalFilename: string): Promise<MediaResponse> {
+  if (isMockApiEnabled()) return mock.renameMedia(id, originalFilename);
+  return apiClient.patch<MediaResponse>(`/media/${id}`, { original_filename: originalFilename });
+}
+
 export function deleteMedia(id: string): Promise<void> {
   if (isMockApiEnabled()) return mock.deleteMedia(id);
   return apiClient.delete<void>(`/media/${id}`);

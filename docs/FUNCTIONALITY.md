@@ -191,7 +191,7 @@ Prefisso comune `/api/v1`. Elenco completo per router — per i dettagli di requ
 - **`/buffer`**: `GET /connections`, `POST /connections` (collega/ricollega), `POST /connections/{id}/sync`, `GET /channels`, `PUT /channels/{id}/publication-mode`, `DELETE /connections/{id}`
 - **`/campaigns`**: `GET /`, `POST /`, `POST /preview-targets`, `POST /{id}/launch`, `GET /{id}`, `GET /{id}/metrics`, `POST /{id}/pause`, `POST /{id}/resume`, `POST /{id}/cancel`, `DELETE /{id}`
 - **`/publications`**: `GET /`, `GET /{id}`, `GET /{id}/metrics`, `POST /{id}/retry`, `POST /retry-selected`, `POST /retry-campaign-failures/{campaign_id}`, `POST /{id}/cancel`, `POST /{id}/skip`
-- **`/media`**: `GET /`, `POST /upload`, `GET /{id}`, `DELETE /{id}`
+- **`/media`**: `GET /`, `POST /upload`, `GET /{id}`, `PATCH /{id}` (rinomina solo `original_filename`, non tocca il file fisico), `DELETE /{id}`
 - **`/users`**: `GET /`, `POST /`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}` (soft delete), `GET /groups/list`, `POST /groups`, `PUT /groups/{id}`
 - **`/settings`**: `GET /`, `PUT /`, `GET /health`, `GET /ai`, `PUT /ai`, `DELETE /ai` (credenziali OpenAI, vedi §5)
 - **`/ai`**: `POST /generate-campaign-text` (bozza testi campagna via OpenAI, richiede una chiave configurata — vedi `/settings/ai` sopra)
@@ -212,6 +212,7 @@ Prefisso comune `/api/v1`. Elenco completo per router — per i dettagli di requ
 - `public_url` deve essere raggiungibile via **HTTPS pubblico**: Buffer scarica il file da lì al momento della pubblicazione. Senza HTTPS configurato, il task di pubblicazione rifiuta esplicitamente (categoria errore `configuration_error`) prima di provare a chiamare Buffer.
 - Cancellazione: rifiutata se il media è ancora referenziato da una campagna attiva; altrimenti soft-delete, poi pulizia fisica giornaliera via `media_retention_cleanup`.
 - Limite dimensione upload: `UPLOAD_MAX_SIZE_BYTES` (default 100MB) — attenzione a mantenere allineato anche `client_max_body_size` in Nginx (vedi problema noto #6 in DEPLOYMENT.md).
+- Rinomina (`PATCH /media/{id}`): modifica solo `original_filename`, cioè il nome mostrato in dashboard — non tocca mai `stored_filename`/`storage_key`/`public_url`, quindi non può mai rompere un media già referenziato da una campagna o già inviato a Buffer.
 
 ---
 

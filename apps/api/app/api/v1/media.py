@@ -8,7 +8,7 @@ from app.models.administrator import Administrator
 from app.models.media import MediaFile
 from app.services.media_service import MediaService
 from app.tasks.media import inspect_media_task
-from app.schemas.schemas import MediaResponse
+from app.schemas.schemas import MediaResponse, MediaRenameRequest
 
 router = APIRouter()
 
@@ -49,6 +49,28 @@ def get_media_detail(
     media = db.query(MediaFile).filter(MediaFile.id == media_id, MediaFile.deleted_at.is_(None)).first()
     if not media:
         raise HTTPException(status_code=404, detail="Media file not found")
+    return media
+
+
+@router.patch("/{media_id}", response_model=MediaResponse)
+def rename_media(
+    media_id: uuid.UUID,
+    payload: MediaRenameRequest,
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin)
+):
+    """
+    Renames the display name only (original_filename). Never touches
+    stored_filename/storage_key/public_url - the physical file on disk and its
+    URL stay exactly as they are, so this can't ever break an already-referenced
+    media (campaigns, Buffer post URLs already sent).
+    """
+    media = db.query(MediaFile).filter(MediaFile.id == media_id, MediaFile.deleted_at.is_(None)).first()
+    if not media:
+        raise HTTPException(status_code=404, detail="Media file not found")
+    media.original_filename = payload.original_filename.strip()
+    db.commit()
+    db.refresh(media)
     return media
 
 
