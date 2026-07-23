@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
 
@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     # Buffer API - connections authenticate with a per-user personal API key
     # pasted into the dashboard, not OAuth (see app/integrations/buffer/client.py)
     BUFFER_INTEGRATION_MODE: str = "mock"  # "mock" or "production"
+
+    # OpenAI - optional, powers the campaign wizard's AI text-generation helper
+    # (app/integrations/openai/client.py). Feature is hidden in the dashboard
+    # when unset; never exposed to the frontend, requests are proxied server-side.
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-4o-mini"
 
     # Media Storage
     UPLOAD_MAX_SIZE_BYTES: int = 104857600  # 100MB

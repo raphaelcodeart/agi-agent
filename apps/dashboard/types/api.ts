@@ -242,6 +242,18 @@ export interface ChannelMetrics {
   error: string | null;
 }
 
+export interface AIGenerateTextResponse {
+  default_text: string;
+  instagram_text: string;
+  facebook_text: string;
+  linkedin_text: string;
+  tiktok_text: string;
+  x_text: string;
+  threads_text: string;
+  youtube_title: string;
+  youtube_description: string;
+}
+
 export interface CampaignMetricsResponse {
   totals: Record<string, number>;
   channels: ChannelMetrics[];

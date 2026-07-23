@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useChannels, useUpdateChannelMode } from "@/hooks/use-channels";
+import { useUsers } from "@/hooks/use-users";
 import { useBufferConnections } from "@/hooks/use-buffer-connections";
 import { useDebounce } from "@/hooks/use-debounce";
 import { syncConnection } from "@/services/buffer-connections";
@@ -63,6 +64,13 @@ export default function ChannelsPage() {
   });
   const updateMode = useUpdateChannelMode();
   const connectionsQuery = useBufferConnections();
+  const usersQuery = useUsers({ limit: 100 });
+
+  const userNames = useMemo(() => {
+    const map = new Map<string, string>();
+    usersQuery.data?.forEach((u) => map.set(u.id, u.name));
+    return map;
+  }, [usersQuery.data]);
 
   // Buffer only tells us about a newly-added social profile once we ask it to
   // (POST /connections/{id}/sync per connection) - there's no push/webhook, so
@@ -150,6 +158,11 @@ export default function ChannelsPage() {
         cell: ({ row }) => <PlatformBadge platform={row.original.platform} />,
       },
       {
+        id: "user",
+        header: "Utente",
+        cell: ({ row }) => userNames.get(row.original.user_id) ?? "—",
+      },
+      {
         accessorKey: "is_active",
         header: "Stato",
         cell: ({ row }) => <StatusBadge status={row.original.is_active ? "active" : "inactive"} />,
@@ -183,7 +196,7 @@ export default function ChannelsPage() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [userNames]
   );
 
   return (

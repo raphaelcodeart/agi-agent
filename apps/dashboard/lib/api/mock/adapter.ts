@@ -16,6 +16,7 @@ import {
   mockUsers,
 } from "@/lib/api/mock/fixtures";
 import type {
+  AIGenerateTextResponse,
   BufferConnectionResponse,
   CampaignCreatePayload,
   CampaignDetailResponse,
@@ -251,6 +252,21 @@ export function listCampaigns(params: ListCampaignsParams = {}): Promise<Campaig
   let result = mockCampaigns;
   if (params.status_filter) result = result.filter((c) => c.status === params.status_filter);
   return delay(result.slice(params.skip ?? 0, (params.skip ?? 0) + (params.limit ?? 20)));
+}
+
+export function generateCampaignText(topic: string): Promise<AIGenerateTextResponse> {
+  const clean = topic.trim();
+  return delay({
+    default_text: `${clean}. Scopri di più e non perderti le novità! #novita #2026`,
+    instagram_text: `${clean} ✨\n\nScopri di più nel nostro ultimo contenuto! 👇\n\n#instagram #novita #2026 #contentcreator`,
+    facebook_text: `${clean}\n\nCosa ne pensate? Fatecelo sapere nei commenti!`,
+    linkedin_text: `${clean}\n\nUn tema che sta ridefinendo il settore. Condividete la vostra esperienza nei commenti.`,
+    tiktok_text: `${clean} 🔥 #fyp #trend2026`,
+    x_text: `${clean.slice(0, 250)} #novita`,
+    threads_text: `${clean}\n\nVoi cosa ne pensate?`,
+    youtube_title: clean.slice(0, 95),
+    youtube_description: `${clean}\n\nIscriviti al canale per non perdere i prossimi contenuti!\n\n#novita #2026`,
+  });
 }
 
 export function createCampaign(payload: CampaignCreatePayload): Promise<CampaignResponse> {

@@ -108,6 +108,8 @@ YouTube è un caso a parte: `youtube_title` e `youtube_description` sono campi s
 
 **Limite caratteri per piattaforma**: se non è impostato un testo specifico per una piattaforma, il fallback è `default_text` (fino a 5000 caratteri) — ma X/Twitter e Threads hanno limiti reali molto più bassi (280 e 500). `launch_campaign` (`campaign_resolver.py`, `PLATFORM_TEXT_LIMITS`) verifica la lunghezza del testo **risolto** per questi due casi *prima* di contattare Buffer: se supera il limite, quel target/`Publication` viene creato direttamente in stato `failed` con `error_category="validation_failed"` e un messaggio esplicativo, senza sprecare una chiamata reale e senza consumare un tentativo. Gli altri canali della stessa campagna non sono influenzati (ogni destinazione resta indipendente, regola 1 di AGENTS.md).
 
+**Generazione testo con AI (opzionale)**: nello step 2 del wizard, il pulsante "Genera con AI" apre un dialog dove l'admin descrive un argomento in linguaggio naturale; `POST /api/v1/ai/generate-campaign-text` (`app/integrations/openai/client.py`) chiama l'API di OpenAI (modello configurabile via `OPENAI_MODEL`, default `gpt-4o-mini`) chiedendo un JSON con tutti e 9 i campi testo, rispettando target di lunghezza realistici per piattaforma nel prompt e un **troncamento server-side di sicurezza** (`HARD_LIMITS`) allineato agli stessi vincoli già validati da `CampaignCreateRequest` (x=280, threads=500, youtube_title=100, altri=5000) — non può mai generare un testo che fallisca la creazione della campagna. Il risultato compila i campi del form ma **non salva né lancia nulla**: è solo una bozza di partenza, modificabile liberamente come se fosse scritta a mano. Richiede `OPENAI_API_KEY` nel `.env` (mai committato); se assente l'endpoint risponde 503 e il pulsante mostra un errore, il resto del wizard funziona identico come sempre.
+
 ### Modalità di pubblicazione (`Campaign.publishing_mode`)
 
 `immediate` (lancia subito), `scheduled` (aspetta `scheduled_at`, poi il task periodico `poll_and_queue_scheduled_publications` lancia la campagna), `buffer_queue`, `draft` (non lanciata, salvata per dopo), `approval`.
@@ -190,6 +192,7 @@ Prefisso comune `/api/v1`. Elenco completo per router — per i dettagli di requ
 - **`/media`**: `GET /`, `POST /upload`, `GET /{id}`, `DELETE /{id}`
 - **`/users`**: `GET /`, `POST /`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}` (soft delete), `GET /groups/list`, `POST /groups`, `PUT /groups/{id}`
 - **`/settings`**: `GET /`, `PUT /`, `GET /health`
+- **`/ai`**: `POST /generate-campaign-text` (bozza testi campagna via OpenAI, richiede `OPENAI_API_KEY`)
 
 ---
 

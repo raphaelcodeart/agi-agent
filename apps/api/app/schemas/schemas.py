@@ -151,6 +151,25 @@ class MediaResponse(BaseModel):
 
 
 # ==============================================================================
+# AI Content Generation Schemas
+# ==============================================================================
+class AIGenerateTextRequest(BaseModel):
+    topic: str = Field(..., min_length=3, max_length=1000)
+
+
+class AIGenerateTextResponse(BaseModel):
+    default_text: str
+    instagram_text: str
+    facebook_text: str
+    linkedin_text: str
+    tiktok_text: str
+    x_text: str
+    threads_text: str
+    youtube_title: str
+    youtube_description: str
+
+
+# ==============================================================================
 # Campaign & Targeting Schemas
 # ==============================================================================
 class CampaignCreate(BaseModel):
