@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Rss } from "lucide-react";
+import { Rss, LogOutIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -15,7 +16,14 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { MAIN_NAV_ITEMS, BLOG_WRITER_NAV_ITEMS, type NavItem } from "@/lib/navigation";
+import { useLogout } from "@/hooks/use-auth";
+import {
+  MAIN_NAV_ITEMS,
+  BUFFER_NAV_ITEMS,
+  BLOG_WRITER_NAV_ITEMS,
+  SETTINGS_NAV_ITEM,
+  type NavItem,
+} from "@/lib/navigation";
 
 function NavItems({ items, pathname }: { items: NavItem[]; pathname: string }) {
   return (
@@ -37,6 +45,8 @@ function NavItems({ items, pathname }: { items: NavItem[]; pathname: string }) {
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const logout = useLogout();
+  const isSettingsActive = pathname.startsWith(SETTINGS_NAV_ITEM.href);
 
   return (
     <Sidebar collapsible="icon">
@@ -61,12 +71,48 @@ export function AppSidebar() {
         <SidebarSeparator />
 
         <SidebarGroup>
+          <SidebarGroupLabel>Social Publisher Buffer</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <NavItems items={BUFFER_NAV_ITEMS} pathname={pathname} />
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
           <SidebarGroupLabel>Blog Writer AI</SidebarGroupLabel>
           <SidebarGroupContent>
             <NavItems items={BLOG_WRITER_NAV_ITEMS} pathname={pathname} />
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarSeparator />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={isSettingsActive}
+              tooltip={SETTINGS_NAV_ITEM.label}
+              render={<Link href={SETTINGS_NAV_ITEM.href} />}
+            >
+              <SETTINGS_NAV_ITEM.icon />
+              <span>{SETTINGS_NAV_ITEM.label}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip="Esci"
+              onClick={() => logout.mutate()}
+              disabled={logout.isPending}
+              className="text-destructive hover:text-destructive"
+            >
+              <LogOutIcon />
+              <span>Esci</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }

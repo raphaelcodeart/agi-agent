@@ -22,6 +22,8 @@ export interface NavItem {
   icon: LucideIcon;
 }
 
+// Ungrouped/general items at the top of the sidebar - accounts, resources,
+// connections. No section label, same as before.
 export const MAIN_NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboardIcon },
   { href: "/users", label: "Utenti", icon: UsersIcon },
@@ -29,10 +31,15 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
   { href: "/buffer-connections", label: "Connessioni Buffer", icon: LinkIcon },
   { href: "/channels", label: "Canali social", icon: Share2Icon },
   { href: "/media", label: "Media", icon: ImagesIcon },
+];
+
+// Its own labeled group - the actual campaign execution/monitoring side of
+// the Buffer integration, separated from the account/resource management
+// items above it.
+export const BUFFER_NAV_ITEMS: NavItem[] = [
   { href: "/campaigns", label: "Campagne", icon: MegaphoneIcon },
   { href: "/publications", label: "Pubblicazioni", icon: SendIcon },
   { href: "/errors", label: "Centro errori", icon: AlertOctagonIcon },
-  { href: "/settings", label: "Impostazioni", icon: SettingsIcon },
 ];
 
 // Own group in the sidebar, visually separated from the main app (see
@@ -47,10 +54,13 @@ export const BLOG_WRITER_NAV_ITEMS: NavItem[] = [
   { href: "/blog-writer/sites", label: "Siti WordPress", icon: GlobeIcon },
 ];
 
-// Combined, in sidebar order - used by findNavItem so breadcrumbs still
-// resolve correctly for pages nested under /blog-writer/* even though only
-// the root entry appears in the sidebar itself.
-export const NAV_ITEMS: NavItem[] = [...MAIN_NAV_ITEMS, ...BLOG_WRITER_NAV_ITEMS];
+// Rendered in the sidebar footer, below everything else - not part of any
+// group above. "Esci" (logout) sits right underneath it (see app-sidebar.tsx).
+export const SETTINGS_NAV_ITEM: NavItem = { href: "/settings", label: "Impostazioni", icon: SettingsIcon };
+
+// Combined, in sidebar order - used by findNavItem so breadcrumbs resolve
+// correctly even though items live in different visual groups/the footer.
+export const NAV_ITEMS: NavItem[] = [...MAIN_NAV_ITEMS, ...BUFFER_NAV_ITEMS, ...BLOG_WRITER_NAV_ITEMS, SETTINGS_NAV_ITEM];
 
 export function findNavItem(pathname: string): NavItem | undefined {
   if (pathname === "/") return NAV_ITEMS[0];
