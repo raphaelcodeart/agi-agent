@@ -14,6 +14,7 @@ import { formatDateTime } from "@/lib/format";
 import { ApiError } from "@/lib/api/errors";
 import type { WordpressSiteResponse } from "@/types/api";
 import { SiteDialog } from "./_components/site-dialog";
+import { BlogWriterSubnav } from "../_components/blog-writer-subnav";
 
 export default function WordpressSitesPage() {
   const sitesQuery = useWordpressSites();
@@ -126,6 +127,7 @@ export default function WordpressSitesPage() {
 
   return (
     <div className="space-y-4">
+      <BlogWriterSubnav />
       <PageHeader
         title="Siti WordPress"
         description="Connetti i siti su cui Blog Writer AI può pubblicare articoli"

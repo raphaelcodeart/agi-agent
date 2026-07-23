@@ -30,6 +30,7 @@ import { articleGenerateFormSchema, type ArticleGenerateFormValues } from "@/lib
 import { useGenerateArticle } from "@/hooks/use-blog-writer";
 import { useWordpressSites, useWordpressSiteCategories } from "@/hooks/use-blog-writer";
 import { ApiError } from "@/lib/api/errors";
+import { BlogWriterSubnav } from "../_components/blog-writer-subnav";
 
 const LENGTH_OPTIONS = [
   { value: "short", label: "Breve (~400-600 parole)" },
@@ -84,6 +85,7 @@ export default function NewArticlePage() {
 
   return (
     <div className="space-y-6">
+      <BlogWriterSubnav />
       <PageHeader
         title="Nuovo articolo"
         description="Genera un articolo di blog con AI: compila almeno l'argomento, il resto ha valori predefiniti sensati."

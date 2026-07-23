@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useArticles } from "@/hooks/use-blog-writer";
 import { formatDateTime } from "@/lib/format";
 import type { BlogArticleListItem } from "@/types/api";
+import { BlogWriterSubnav } from "../_components/blog-writer-subnav";
 
 export default function PublishedArticlesPage() {
   const articlesQuery = useArticles({ limit: 100 });
@@ -46,6 +47,7 @@ export default function PublishedArticlesPage() {
 
   return (
     <div className="space-y-4">
+      <BlogWriterSubnav />
       <PageHeader title="Articoli pubblicati" description="Articoli usciti su almeno un sito WordPress" />
 
       <DataTable

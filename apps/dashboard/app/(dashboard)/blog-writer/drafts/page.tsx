@@ -20,6 +20,7 @@ import {
 import { formatDateTime } from "@/lib/format";
 import { ApiError } from "@/lib/api/errors";
 import type { BlogArticleListItem } from "@/types/api";
+import { BlogWriterSubnav } from "../_components/blog-writer-subnav";
 
 const DRAFT_STATUSES = new Set(["generating", "draft", "ready", "publishing", "partially_published", "failed"]);
 
@@ -108,6 +109,7 @@ export default function DraftsPage() {
 
   return (
     <div className="space-y-4">
+      <BlogWriterSubnav />
       <PageHeader
         title="Bozze"
         description="Articoli generati non ancora pubblicati (o pubblicati solo parzialmente)"

@@ -12,12 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBlogWriterDashboard } from "@/hooks/use-blog-writer";
 import { formatDateTime } from "@/lib/format";
+import { BlogWriterSubnav } from "./_components/blog-writer-subnav";
 
 export default function BlogWriterDashboardPage() {
   const dashboardQuery = useBlogWriterDashboard();
 
   return (
     <div className="space-y-6">
+      <BlogWriterSubnav />
       <PageHeader
         title="Blog Writer AI"
         description="Genera, gestisci e pubblica articoli di blog assistiti da AI"

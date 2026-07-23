@@ -50,6 +50,7 @@ import { formatDateTime } from "@/lib/format";
 import { ApiError } from "@/lib/api/errors";
 import { BLOG_WRITER_PREFILL_KEY, type BlogWriterCampaignPrefill } from "@/lib/blog-writer-prefill";
 import { PublishDialog } from "./_components/publish-dialog";
+import { BlogWriterSubnav } from "../_components/blog-writer-subnav";
 
 function countWords(html: string): number {
   const text = html.replace(/<[^>]*>/g, " ");
@@ -198,6 +199,7 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="space-y-6">
+      <BlogWriterSubnav />
       <PageHeader
         title="Modifica articolo"
         description={
