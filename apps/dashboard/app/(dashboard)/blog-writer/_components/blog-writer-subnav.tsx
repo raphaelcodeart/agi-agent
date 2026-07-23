@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 // Blog Writer only has one entry in the main sidebar (see app-sidebar.tsx) -
 // this in-page bar is how the admin moves between its sub-pages instead.
 const TABS = [
-  { href: "/blog-writer", label: "Dashboard", icon: LayoutDashboardIcon },
+  { href: "/blog-writer", label: "Dashboard BWA", icon: LayoutDashboardIcon },
   { href: "/blog-writer/new", label: "Nuovo articolo", icon: SparklesIcon },
   { href: "/blog-writer/drafts", label: "Bozze", icon: FileTextIcon },
   { href: "/blog-writer/articles", label: "Pubblicati", icon: BookOpenCheckIcon },

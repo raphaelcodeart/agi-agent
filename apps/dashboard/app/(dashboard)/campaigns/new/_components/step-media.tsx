@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -5,14 +6,16 @@ import { MediaPreview } from "@/components/shared/media-preview";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CardGridSkeleton } from "@/components/shared/loading-skeleton";
 import { UploadDropzone } from "@/components/shared/upload-dropzone";
+import { MediaTypeFilter, filterMediaByType, type MediaTypeFilterValue } from "@/components/shared/media-type-filter";
 import { useMediaList } from "@/hooks/use-media";
 import type { CampaignWizardValues } from "@/lib/validation/campaigns";
 
 export function StepMedia({ form }: { form: UseFormReturn<CampaignWizardValues> }) {
   const mediaQuery = useMediaList();
   const selectedId = form.watch("media_file_id");
+  const [typeFilter, setTypeFilter] = useState<MediaTypeFilterValue>("all");
 
-  const readyMedia = mediaQuery.data?.filter((m) => m.processing_status === "ready") ?? [];
+  const readyMedia = filterMediaByType(mediaQuery.data?.filter((m) => m.processing_status === "ready") ?? [], typeFilter);
   const processingCount =
     mediaQuery.data?.filter((m) => m.processing_status !== "ready" && m.processing_status !== "failed").length ?? 0;
 
@@ -37,10 +40,21 @@ export function StepMedia({ form }: { form: UseFormReturn<CampaignWizardValues> 
         {!selectedId && <CheckIcon className="size-4 text-primary" />}
       </button>
 
+      {!mediaQuery.isLoading && (mediaQuery.data?.length ?? 0) > 0 && (
+        <MediaTypeFilter value={typeFilter} onChange={setTypeFilter} />
+      )}
+
       {mediaQuery.isLoading ? (
         <CardGridSkeleton count={4} />
       ) : readyMedia.length === 0 ? (
-        <EmptyState title="Nessun media pronto" description="Carica un file qui sopra oppure prosegui senza allegato." />
+        <EmptyState
+          title="Nessun media pronto"
+          description={
+            typeFilter === "all"
+              ? "Carica un file qui sopra oppure prosegui senza allegato."
+              : "Nessun media di questo tipo. Prova un altro filtro o caricane uno nuovo."
+          }
+        />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {readyMedia.map((media) => {

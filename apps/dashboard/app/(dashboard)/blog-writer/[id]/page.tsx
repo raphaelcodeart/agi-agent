@@ -57,6 +57,7 @@ import { useAIGate } from "@/hooks/use-ai-gate";
 import { AIRequiredDialog } from "@/components/shared/ai-required-dialog";
 import { cn } from "@/lib/utils";
 import { useMediaList } from "@/hooks/use-media";
+import { MediaTypeFilter, filterMediaByType, type MediaTypeFilterValue } from "@/components/shared/media-type-filter";
 
 function countWords(html: string): number {
   const text = html.replace(/<[^>]*>/g, " ");
@@ -85,6 +86,7 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ id: st
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [socialSiteId, setSocialSiteId] = useState<string | undefined>(undefined);
   const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
+  const [mediaTypeFilter, setMediaTypeFilter] = useState<MediaTypeFilterValue>("all");
   const hasHydrated = useRef(false);
 
   const form = useForm<ArticleEditFormValues>({
@@ -396,21 +398,33 @@ export default function ArticleEditorPage({ params }: { params: Promise<{ id: st
               }
             />
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {(mediaQuery.data ?? []).map((media) => (
-                <button
-                  key={media.id}
-                  type="button"
-                  onClick={() => handleSelectMedia(media.id)}
-                  title={media.original_filename}
-                  className={cn(
-                    "rounded-md ring-2 ring-transparent transition-all",
-                    selectedMediaId === media.id && "ring-primary"
-                  )}
-                >
-                  <MediaPreview media={media} className="size-16" />
-                </button>
-              ))}
+            <div className="space-y-3">
+              <MediaTypeFilter value={mediaTypeFilter} onChange={setMediaTypeFilter} />
+              {(() => {
+                const filtered = filterMediaByType(mediaQuery.data ?? [], mediaTypeFilter);
+                return filtered.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nessun media di questo tipo.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {filtered.map((media) => (
+                      <button
+                        key={media.id}
+                        type="button"
+                        onClick={() => handleSelectMedia(media.id)}
+                        className={cn(
+                          "flex w-20 flex-col items-center gap-1 rounded-md p-1 ring-2 ring-transparent transition-all",
+                          selectedMediaId === media.id && "ring-primary"
+                        )}
+                      >
+                        <MediaPreview media={media} className="size-16" />
+                        <span className="line-clamp-2 text-center text-[10px] leading-tight text-muted-foreground" title={media.original_filename}>
+                          {media.original_filename}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </CardContent>

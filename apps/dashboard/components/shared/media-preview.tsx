@@ -1,4 +1,4 @@
-import { FileVideoIcon, ImageIcon, MusicIcon } from "lucide-react";
+import { ImageIcon, MusicIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MediaResponse } from "@/types/api";
 
@@ -25,7 +25,9 @@ export function MediaPreview({ media, className }: MediaPreviewProps) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={media.public_url} alt={media.original_filename} className="size-full object-cover" />
       ) : isVideo ? (
-        <FileVideoIcon className="size-5 text-muted-foreground" />
+        // preload="metadata" fetches just enough to paint the first frame as a
+        // preview thumbnail, without downloading the whole file.
+        <video src={media.public_url} className="size-full object-cover" muted preload="metadata" playsInline />
       ) : isAudio ? (
         <MusicIcon className="size-5 text-muted-foreground" />
       ) : (

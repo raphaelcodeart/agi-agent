@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { IconActionButton } from "@/components/shared/icon-action-button";
 import { Button } from "@/components/ui/button";
 import {
   useArticles,
@@ -34,6 +35,7 @@ export default function DraftsPage() {
   const duplicateArticle = useDuplicateArticle();
   const regenerateArticle = useRegenerateArticle();
   const [deleteTarget, setDeleteTarget] = useState<BlogArticleListItem | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<BlogArticleListItem | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const aiGate = useAIGate();
 
@@ -80,33 +82,27 @@ export default function DraftsPage() {
             <Button variant="ghost" size="sm" asChild>
               <Link href={`/blog-writer/${row.original.id}`}>Apri</Link>
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
+            <IconActionButton
+              icon={CopyIcon}
+              label="Duplica"
               onClick={() => duplicateArticle.mutate(row.original.id, { onSuccess: () => toast.success("Bozza duplicata") })}
-            >
-              <CopyIcon className="size-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
+            />
+            <IconActionButton
+              icon={RotateCcwIcon}
+              label="Rigenera"
+              title="Rigenera con AI"
               onClick={() => handleRegenerate(row.original)}
               disabled={regeneratingId === row.original.id}
+              spinning={regeneratingId === row.original.id}
               className={cn(!aiGate.configured && "opacity-50")}
-              title="Rigenera con AI"
-            >
-              <RotateCcwIcon className={regeneratingId === row.original.id ? "size-3.5 animate-spin" : "size-3.5"} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => archiveArticle.mutate(row.original.id, { onSuccess: () => toast.success("Articolo archiviato") })}
-            >
-              <ArchiveIcon className="size-3.5" />
-            </Button>
-            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteTarget(row.original)}>
-              <Trash2Icon className="size-3.5" />
-            </Button>
+            />
+            <IconActionButton icon={ArchiveIcon} label="Archivia" onClick={() => setArchiveTarget(row.original)} />
+            <IconActionButton
+              icon={Trash2Icon}
+              label="Elimina"
+              destructive
+              onClick={() => setDeleteTarget(row.original)}
+            />
           </div>
         ),
       },
@@ -160,6 +156,28 @@ export default function DraftsPage() {
             onError: (error) => {
               toast.error(error instanceof ApiError ? error.detail : "Eliminazione non riuscita");
               setDeleteTarget(null);
+            },
+          });
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!archiveTarget}
+        onOpenChange={(open) => !open && setArchiveTarget(null)}
+        title={`Archiviare "${archiveTarget?.title}"?`}
+        description="L'articolo verrà spostato nel Cestino - potrai recuperarlo in qualsiasi momento da lì."
+        confirmLabel="Archivia"
+        loading={archiveArticle.isPending}
+        onConfirm={() => {
+          if (!archiveTarget) return;
+          archiveArticle.mutate(archiveTarget.id, {
+            onSuccess: () => {
+              toast.success("Articolo archiviato");
+              setArchiveTarget(null);
+            },
+            onError: (error) => {
+              toast.error(error instanceof ApiError ? error.detail : "Archiviazione non riuscita");
+              setArchiveTarget(null);
             },
           });
         }}

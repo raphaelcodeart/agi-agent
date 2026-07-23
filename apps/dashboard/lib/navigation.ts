@@ -49,7 +49,7 @@ export const BUFFER_NAV_ITEMS: NavItem[] = [
 // the in-page BlogWriterSubnav - the other three are frequent enough
 // destinations to warrant their own sidebar entries.
 export const BLOG_WRITER_NAV_ITEMS: NavItem[] = [
-  { href: "/blog-writer", label: "Dashboard", icon: NewspaperIcon },
+  { href: "/blog-writer", label: "Dashboard BWA", icon: NewspaperIcon },
   { href: "/blog-writer/drafts", label: "Bozze", icon: FileTextIcon },
   { href: "/blog-writer/articles", label: "Pubblicati", icon: BookOpenCheckIcon },
   { href: "/blog-writer/sites", label: "Siti WordPress", icon: GlobeIcon },

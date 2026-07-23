@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { IconActionButton } from "@/components/shared/icon-action-button";
 import { Button } from "@/components/ui/button";
 import { useWordpressSites, useDeleteWordpressSite, useTestWordpressSiteConnection } from "@/hooks/use-blog-writer";
 import { formatDateTime } from "@/lib/format";
@@ -95,28 +96,27 @@ export default function WordpressSitesPage() {
         header: "",
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
+            <IconActionButton
+              icon={RefreshCwIcon}
+              label="Testa"
               onClick={() => handleTest(row.original)}
               disabled={testingId === row.original.id}
-            >
-              <RefreshCwIcon className={testingId === row.original.id ? "size-3.5 animate-spin" : "size-3.5"} />
-              Testa
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
+              spinning={testingId === row.original.id}
+            />
+            <IconActionButton
+              icon={PencilIcon}
+              label="Modifica"
               onClick={() => {
                 setEditTarget(row.original);
                 setDialogOpen(true);
               }}
-            >
-              <PencilIcon className="size-3.5" />
-            </Button>
-            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteTarget(row.original)}>
-              <Trash2Icon className="size-3.5" />
-            </Button>
+            />
+            <IconActionButton
+              icon={Trash2Icon}
+              label="Scollega"
+              destructive
+              onClick={() => setDeleteTarget(row.original)}
+            />
           </div>
         ),
       },
