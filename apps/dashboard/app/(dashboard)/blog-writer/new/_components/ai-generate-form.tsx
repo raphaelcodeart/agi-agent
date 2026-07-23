@@ -287,7 +287,7 @@ export function AIGenerateForm() {
                   <FormItem>
                     <FormLabel>Sito WordPress di destinazione (facoltativo)</FormLabel>
                     <Select
-                      items={(sitesQuery.data ?? []).map((s) => ({ value: s.id, label: s.name }))}
+                      items={[{ value: "__none__", label: "Nessuno" }, ...(sitesQuery.data ?? []).map((s) => ({ value: s.id, label: s.name }))]}
                       value={field.value ?? "__none__"}
                       onValueChange={(v) => {
                         field.onChange(v === "__none__" ? null : v);
@@ -320,7 +320,7 @@ export function AIGenerateForm() {
                     <FormItem>
                       <FormLabel>Categoria WordPress (facoltativa)</FormLabel>
                       <Select
-                        items={(categoriesQuery.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))}
+                        items={[{ value: "__none__", label: "Nessuna" }, ...(categoriesQuery.data ?? []).map((c) => ({ value: String(c.id), label: c.name }))]}
                         value={field.value ? String(field.value) : "__none__"}
                         onValueChange={(v) => field.onChange(v === "__none__" || !v ? null : Number(v))}
                       >
