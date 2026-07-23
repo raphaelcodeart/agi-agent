@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1 import auth, users, buffer, media, campaigns, publications, settings as settings_api, ai
+from app.api.v1 import blog_writer_sites, blog_writer_articles
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -36,6 +37,8 @@ app.include_router(campaigns.router, prefix=f"{settings.API_V1_STR}/campaigns", 
 app.include_router(publications.router, prefix=f"{settings.API_V1_STR}/publications", tags=["publications"])
 app.include_router(settings_api.router, prefix=f"{settings.API_V1_STR}/settings", tags=["settings"])
 app.include_router(ai.router, prefix=f"{settings.API_V1_STR}/ai", tags=["ai"])
+app.include_router(blog_writer_sites.router, prefix=f"{settings.API_V1_STR}/blog-writer/sites", tags=["blog-writer"])
+app.include_router(blog_writer_articles.router, prefix=f"{settings.API_V1_STR}/blog-writer/articles", tags=["blog-writer"])
 
 @app.get("/")
 def read_root():

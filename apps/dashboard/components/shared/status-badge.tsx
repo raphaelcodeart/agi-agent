@@ -53,6 +53,15 @@ const STATUS_TONE: Record<string, Tone> = {
   retry_wait: "warning",
   skipped: "neutral",
   unknown: "neutral",
+  // Blog Writer AI (ready/failed/draft/published reuse the tones defined above)
+  untested: "neutral",
+  generating: "info",
+  publishing: "info",
+  partially_published: "warning",
+  archived: "neutral",
+  retrying: "warning",
+  removed: "neutral",
+  updated: "success",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -91,6 +100,15 @@ const STATUS_LABELS: Record<string, string> = {
   retry_wait: "Attesa retry",
   skipped: "Saltato",
   unknown: "Sconosciuto",
+  // Blog Writer AI
+  untested: "Non testata",
+  generating: "Generazione...",
+  publishing: "Pubblicazione...",
+  partially_published: "Parziale",
+  archived: "Archiviato",
+  retrying: "Nuovo tentativo",
+  removed: "Rimosso",
+  updated: "Aggiornato",
 };
 
 const LIVE_STATUSES = new Set([
@@ -100,6 +118,9 @@ const LIVE_STATUSES = new Set([
   "preparing",
   "retry_wait",
   "inspecting",
+  "generating",
+  "publishing",
+  "retrying",
 ]);
 
 interface StatusBadgeProps {

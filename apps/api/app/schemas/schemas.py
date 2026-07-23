@@ -206,6 +206,9 @@ class CampaignCreate(BaseModel):
     timezone: str = "UTC"
     targeting_mode: str = "all_active_channels"
     targeting_params: Dict[str, Any] = Field(default_factory=dict, description="Must match targeting mode selections")
+    # Set only when this campaign was created via Blog Writer's "Usa per campagna
+    # social" - purely informational (see Campaign.article_id), never required.
+    article_id: Optional[uuid.UUID] = None
 
 class CampaignResponse(BaseModel):
     id: uuid.UUID
@@ -228,6 +231,7 @@ class CampaignResponse(BaseModel):
     metadata_json: Optional[Dict[str, Any]] = None
     status: str
     media_file_id: Optional[uuid.UUID]
+    article_id: Optional[uuid.UUID] = None
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
     created_at: datetime
@@ -362,3 +366,200 @@ class HealthResponse(BaseModel):
     redis: str
     celery_worker: str
     timestamp: datetime
+
+
+# ==============================================================================
+# Blog Writer AI Schemas
+# ==============================================================================
+
+class WordpressSiteCreate(BaseModel):
+    user_id: Optional[uuid.UUID] = None
+    name: str = Field(..., max_length=255)
+    site_url: str = Field(..., max_length=1000)
+    api_url: str = Field(..., max_length=1000, description="WordPress REST API root, e.g. https://example.com/wp-json")
+    username: str = Field(..., max_length=255)
+    application_password: str = Field(..., min_length=1, max_length=500)
+    default_author_id: Optional[int] = None
+    default_category_id: Optional[int] = None
+    default_status: str = Field("draft", description="publish, draft, pending, private")
+    language: str = Field("it", max_length=10)
+
+
+class WordpressSiteUpdate(BaseModel):
+    user_id: Optional[uuid.UUID] = None
+    name: Optional[str] = Field(None, max_length=255)
+    site_url: Optional[str] = Field(None, max_length=1000)
+    api_url: Optional[str] = Field(None, max_length=1000)
+    username: Optional[str] = Field(None, max_length=255)
+    # Omitted = keep existing password. Present = replace it. There is no
+    # "clear the password" case - a site without one can't publish, so removal
+    # only happens via DELETE on the whole site.
+    application_password: Optional[str] = Field(None, min_length=1, max_length=500)
+    default_author_id: Optional[int] = None
+    default_category_id: Optional[int] = None
+    default_status: Optional[str] = None
+    language: Optional[str] = Field(None, max_length=10)
+    is_active: Optional[bool] = None
+
+
+class WordpressSiteResponse(BaseModel):
+    id: uuid.UUID
+    user_id: Optional[uuid.UUID]
+    name: str
+    site_url: str
+    api_url: str
+    username: str
+    default_author_id: Optional[int]
+    default_author_name: Optional[str]
+    default_category_id: Optional[int]
+    default_category_name: Optional[str]
+    default_status: str
+    language: str
+    is_active: bool
+    connection_status: str
+    last_connection_test_at: Optional[datetime]
+    last_connection_error: Optional[str]
+    last_published_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WordpressOptionItem(BaseModel):
+    id: int
+    name: str
+
+
+class WordpressTestConnectionResponse(BaseModel):
+    success: bool
+    message: str
+    wp_user_name: Optional[str] = None
+
+
+class BlogArticleGenerateRequest(BaseModel):
+    topic: str = Field(..., min_length=3, max_length=500)
+    description: Optional[str] = Field(None, max_length=2000)
+    goal: Optional[str] = Field(None, max_length=500)
+    target_audience: Optional[str] = Field(None, max_length=500)
+    language: str = Field("it", max_length=10)
+    tone: Optional[str] = Field(None, max_length=100)
+    length: str = Field("medium", description="short, medium, long")
+    primary_keyword: Optional[str] = Field(None, max_length=255)
+    secondary_keywords: List[str] = Field(default_factory=list)
+    must_include: Optional[str] = Field(None, max_length=1000)
+    must_avoid: Optional[str] = Field(None, max_length=1000)
+    call_to_action: Optional[str] = Field(None, max_length=255)
+    hashtag_count: int = Field(5, ge=0, le=15)
+    wordpress_site_id: Optional[uuid.UUID] = None
+    wordpress_category_id: Optional[int] = None
+    user_id: Optional[uuid.UUID] = None
+
+
+class BlogArticleUpdateRequest(BaseModel):
+    title: Optional[str] = Field(None, max_length=255)
+    slug: Optional[str] = Field(None, max_length=255)
+    excerpt: Optional[str] = Field(None, max_length=1000)
+    content: Optional[str] = None
+    hashtags: Optional[List[str]] = None
+    meta_title: Optional[str] = Field(None, max_length=255)
+    meta_description: Optional[str] = Field(None, max_length=500)
+
+
+class BlogPublicationResponse(BaseModel):
+    id: uuid.UUID
+    article_id: uuid.UUID
+    wordpress_site_id: uuid.UUID
+    wordpress_site_name: str
+    wordpress_post_id: Optional[int]
+    wordpress_post_url: Optional[str]
+    wordpress_status: Optional[str]
+    publication_status: str
+    error_message: Optional[str]
+    retry_count: int
+    published_at: Optional[datetime]
+    created_at: datetime
+
+
+class BlogArticleResponse(BaseModel):
+    id: uuid.UUID
+    user_id: Optional[uuid.UUID]
+    title: str
+    slug: str
+    excerpt: Optional[str]
+    content: str
+    hashtags: Optional[List[str]]
+    primary_keyword: Optional[str]
+    secondary_keywords: Optional[List[str]]
+    meta_title: Optional[str]
+    meta_description: Optional[str]
+    language: str
+    tone: Optional[str]
+    target_audience: Optional[str]
+    article_goal: Optional[str]
+    generation_model: Optional[str]
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    last_edited_at: Optional[datetime]
+    published_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class BlogArticleDetailResponse(BaseModel):
+    article: BlogArticleResponse
+    publications: List[BlogPublicationResponse]
+    social_campaigns: List[CampaignResponse]
+
+
+class BlogArticleListItem(BaseModel):
+    id: uuid.UUID
+    title: str
+    language: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    sites_count: int
+    publications_count: int
+
+
+class BlogPublishTarget(BaseModel):
+    wordpress_site_id: uuid.UUID
+    category_id: Optional[int] = None
+    author_id: Optional[int] = None
+    status: Optional[str] = Field(None, description="Overrides the site's default_status for this publish")
+
+
+class BlogArticlePublishRequest(BaseModel):
+    targets: List[BlogPublishTarget] = Field(..., min_length=1)
+
+
+class SocialPreviewRequest(BaseModel):
+    wordpress_site_id: Optional[uuid.UUID] = Field(
+        None, description="Which published URL to use if the article is on multiple sites"
+    )
+
+
+class SocialPreviewResponse(BaseModel):
+    article_url: str
+    default_text: str
+    instagram_text: str
+    facebook_text: str
+    linkedin_text: str
+    x_text: str
+    threads_text: str
+
+
+class BlogWriterDashboardResponse(BaseModel):
+    draft_count: int
+    ready_count: int
+    published_count: int
+    failed_publications_count: int
+    sites_count: int
+    sites_error_count: int
+    social_campaigns_count: int
+    recent_articles: List[BlogArticleListItem]
+    recent_publications: List[BlogPublicationResponse]

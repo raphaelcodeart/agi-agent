@@ -36,6 +36,10 @@ export const campaignWizardSchema = z
     // Step 3 - Media
     media_file_id: z.string().optional().nullable(),
 
+    // Set only when prefilled from Blog Writer's "Usa per campagna social"
+    // (see lib/blog-writer-prefill.ts) - purely informational, never required.
+    article_id: z.string().optional().nullable(),
+
     // Step 4 - Recipients
     targeting_mode: z.enum(targetingModeValues),
     user_ids: z.array(z.string()).optional(),
@@ -119,6 +123,7 @@ export function toCampaignCreatePayload(values: CampaignWizardValues): CampaignC
     x_text: values.x_text || null,
     threads_text: values.threads_text || null,
     media_file_id: values.media_file_id || null,
+    article_id: values.article_id || null,
     publishing_mode: values.publishing_mode,
     scheduled_at: values.scheduled_at ? new Date(values.scheduled_at).toISOString() : null,
     timezone: values.timezone,

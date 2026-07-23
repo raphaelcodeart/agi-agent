@@ -1,6 +1,6 @@
 # Guida al deploy su server Linux
 
-Guida pratica per portare questo progetto (backend FastAPI + frontend Next.js + Postgres + Redis) su un server Linux, creare il database, e avviare tutto. Scritta per essere seguita passo passo da una persona, oppure eseguita direttamente da Claude Code se gli viene chiesto "fai il deploy seguendo docs/DEPLOYMENT.md". Per lo schema dati vedi [DATABASE.md](./DATABASE.md); per il comportamento reale del sistema una volta avviato vedi [FUNCTIONALITY.md](./FUNCTIONALITY.md).
+Guida pratica per portare questo progetto (backend FastAPI + frontend Next.js + Postgres + Redis) su un server Linux, creare il database, e avviare tutto. Scritta per essere seguita passo passo da una persona, oppure eseguita direttamente da Claude Code se gli viene chiesto "fai il deploy seguendo docs/DEPLOYMENT.md". Per lo schema dati vedi [DATABASE.md](./DATABASE.md); per il comportamento reale del sistema una volta avviato vedi [FUNCTIONALITY.md](./FUNCTIONALITY.md); per il modulo Blog Writer AI (generazione articoli + pubblicazione WordPress) vedi [BLOG_WRITER.md](./BLOG_WRITER.md).
 
 Se sei Claude Code e stai leggendo questo file per eseguire un deploy: vai alla sezione **[13. Istruzioni per Claude Code](#13-istruzioni-per-claude-code)** in fondo prima di iniziare.
 

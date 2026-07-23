@@ -32,4 +32,10 @@ export const queryKeys = {
     health: () => ["settings", "health"] as const,
     ai: () => ["settings", "ai"] as const,
   },
+  blogWriter: {
+    sites: () => ["blog-writer", "sites"] as const,
+    articles: (params?: unknown) => ["blog-writer", "articles", params] as const,
+    articleDetail: (id: string) => ["blog-writer", "article-detail", id] as const,
+    dashboard: () => ["blog-writer", "dashboard"] as const,
+  },
 } as const;

@@ -27,7 +27,10 @@ class Campaign(Base):
     threads_text: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     
     media_file_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("media_files.id", ondelete="SET NULL"), nullable=True)
-    
+    # Set when this campaign was created via Blog Writer's "Usa per campagna social"
+    # (blog_writer_articles.id) - purely informational, no behavior depends on it.
+    article_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("blog_writer_articles.id", ondelete="SET NULL"), nullable=True)
+
     publishing_mode: Mapped[str] = mapped_column(String(50), default="immediate", nullable=False) # immediate, scheduled, buffer_queue, draft, approval
     scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     timezone: Mapped[str] = mapped_column(String(100), default="UTC", nullable=False)

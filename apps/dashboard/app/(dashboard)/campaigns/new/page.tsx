@@ -22,6 +22,7 @@ import {
 } from "@/lib/validation/campaigns";
 import { useCreateCampaign, useLaunchCampaign, useCampaignDetail } from "@/hooks/use-campaigns";
 import { ApiError } from "@/lib/api/errors";
+import { BLOG_WRITER_PREFILL_KEY, type BlogWriterCampaignPrefill } from "@/lib/blog-writer-prefill";
 import { WizardStepper } from "./_components/wizard-stepper";
 import { StepInfo } from "./_components/step-info";
 import { StepText } from "./_components/step-text";
@@ -34,10 +35,12 @@ function NewCampaignForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const duplicateId = searchParams.get("duplicate");
+  const prefillArticle = searchParams.get("prefillArticle") === "1";
   const [step, setStep] = useState(1);
   const createCampaign = useCreateCampaign();
   const duplicateSource = useCampaignDetail(duplicateId ?? undefined);
   const hasPrefilled = useRef(false);
+  const hasPrefilledArticle = useRef(false);
 
   const form = useForm<CampaignWizardValues>({
     resolver: zodResolver(campaignWizardSchema),
@@ -53,6 +56,7 @@ function NewCampaignForm() {
       x_text: "",
       threads_text: "",
       media_file_id: null,
+      article_id: null,
       targeting_mode: "all_active_channels",
       user_ids: [],
       group_ids: [],
@@ -105,6 +109,37 @@ function NewCampaignForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duplicateSource.data]);
 
+  // Same idiom as the ?duplicate= prefill above, but reading a blob stashed by
+  // Blog Writer's "Usa per campagna social" (see lib/blog-writer-prefill.ts) -
+  // sessionStorage instead of a fetched campaign since there's no existing
+  // Campaign row to load yet.
+  useEffect(() => {
+    if (!prefillArticle || hasPrefilledArticle.current) return;
+    hasPrefilledArticle.current = true;
+    const raw = sessionStorage.getItem(BLOG_WRITER_PREFILL_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(BLOG_WRITER_PREFILL_KEY);
+    try {
+      const prefill = JSON.parse(raw) as BlogWriterCampaignPrefill;
+      form.reset({
+        ...form.getValues(),
+        title: prefill.title,
+        default_text: prefill.default_text,
+        instagram_text: prefill.instagram_text,
+        facebook_text: prefill.facebook_text,
+        linkedin_text: prefill.linkedin_text,
+        x_text: prefill.x_text,
+        threads_text: prefill.threads_text,
+        article_id: prefill.article_id,
+        publishing_mode: "draft",
+      });
+      toast.info("Campagna precompilata dall'articolo: rivedi il testo prima di scegliere destinatari e pubblicazione.");
+    } catch {
+      // Malformed/stale blob - silently ignore, wizard just starts blank.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillArticle]);
+
   async function goNext() {
     const fields = WIZARD_STEP_FIELDS[step - 1];
     const valid = fields.length === 0 || (await form.trigger(fields));
@@ -151,11 +186,13 @@ function NewCampaignForm() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={duplicateId ? "Duplica campagna" : "Nuova campagna"}
+        title={duplicateId ? "Duplica campagna" : prefillArticle ? "Nuova campagna da articolo" : "Nuova campagna"}
         description={
           duplicateId
             ? "Testo, media e destinatari precompilati dalla campagna originale: correggi ciò che serve e scegli come pubblicare."
-            : "Crea una campagna di pubblicazione multi-piattaforma"
+            : prefillArticle
+              ? "Testo precompilato dall'articolo Blog Writer: rivedilo, scegli destinatari e pubblicazione."
+              : "Crea una campagna di pubblicazione multi-piattaforma"
         }
       />
 

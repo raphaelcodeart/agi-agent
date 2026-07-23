@@ -4,6 +4,8 @@ Cosa fa **davvero**, oggi, questo software — non un elenco di intenzioni, ma i
 
 Se modifichi il comportamento descritto qui, aggiorna questo file nello stesso commit (AGENTS.md, regola 20).
 
+Il modulo **Blog Writer AI** (generazione articoli, siti WordPress, pubblicazione) è documentato separatamente in [BLOG_WRITER.md](./BLOG_WRITER.md) essendo un modulo isolato con proprie tabelle/endpoint/pagine — questo file copre solo la piattaforma campagne/Buffer preesistente.
+
 ---
 
 ## Indice

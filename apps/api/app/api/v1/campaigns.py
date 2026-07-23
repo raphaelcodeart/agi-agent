@@ -66,6 +66,7 @@ def create_campaign(
         x_text=payload.x_text,
         threads_text=payload.threads_text,
         media_file_id=payload.media_file_id,
+        article_id=payload.article_id,
         publishing_mode=payload.publishing_mode,
         scheduled_at=payload.scheduled_at,
         timezone=payload.timezone,

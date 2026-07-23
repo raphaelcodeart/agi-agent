@@ -161,6 +161,7 @@ export interface CampaignCreatePayload {
   x_text?: string | null;
   threads_text?: string | null;
   media_file_id?: string | null;
+  article_id?: string | null;
   publishing_mode: PublishingMode;
   scheduled_at?: string | null;
   timezone: string;
@@ -187,6 +188,7 @@ export interface CampaignResponse {
   metadata_json?: Record<string, unknown> | null;
   status: CampaignStatus;
   media_file_id: string | null;
+  article_id?: string | null;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -362,4 +364,195 @@ export interface HealthResponse {
   redis: "ok" | "failed";
   celery_worker: "ok" | "inactive" | "failed";
   timestamp: string;
+}
+
+// ==============================================================================
+// Blog Writer AI
+// ==============================================================================
+export type WordpressConnectionStatus = "untested" | "connected" | "error";
+
+export interface WordpressSiteResponse {
+  id: string;
+  user_id: string | null;
+  name: string;
+  site_url: string;
+  api_url: string;
+  username: string;
+  default_author_id: number | null;
+  default_author_name: string | null;
+  default_category_id: number | null;
+  default_category_name: string | null;
+  default_status: string;
+  language: string;
+  is_active: boolean;
+  connection_status: WordpressConnectionStatus;
+  last_connection_test_at: string | null;
+  last_connection_error: string | null;
+  last_published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WordpressSiteCreatePayload {
+  user_id?: string | null;
+  name: string;
+  site_url: string;
+  api_url: string;
+  username: string;
+  application_password: string;
+  default_author_id?: number | null;
+  default_category_id?: number | null;
+  default_status: string;
+  language: string;
+}
+
+export interface WordpressSiteUpdatePayload {
+  user_id?: string | null;
+  name?: string;
+  site_url?: string;
+  api_url?: string;
+  username?: string;
+  application_password?: string;
+  default_author_id?: number | null;
+  default_category_id?: number | null;
+  default_status?: string;
+  language?: string;
+  is_active?: boolean;
+}
+
+export interface WordpressOptionItem {
+  id: number;
+  name: string;
+}
+
+export interface WordpressTestConnectionResponse {
+  success: boolean;
+  message: string;
+  wp_user_name: string | null;
+}
+
+export type BlogArticleStatus =
+  | "generating"
+  | "draft"
+  | "ready"
+  | "publishing"
+  | "partially_published"
+  | "published"
+  | "failed"
+  | "archived";
+
+export interface BlogArticleGeneratePayload {
+  topic: string;
+  description?: string;
+  goal?: string;
+  target_audience?: string;
+  language: string;
+  tone?: string;
+  length: "short" | "medium" | "long";
+  primary_keyword?: string;
+  secondary_keywords: string[];
+  must_include?: string;
+  must_avoid?: string;
+  call_to_action?: string;
+  hashtag_count: number;
+  wordpress_site_id?: string | null;
+  wordpress_category_id?: number | null;
+  user_id?: string | null;
+}
+
+export interface BlogArticleUpdatePayload {
+  title?: string;
+  slug?: string;
+  excerpt?: string;
+  content?: string;
+  hashtags?: string[];
+  meta_title?: string;
+  meta_description?: string;
+}
+
+export interface BlogArticleResponse {
+  id: string;
+  user_id: string | null;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content: string;
+  hashtags: string[] | null;
+  primary_keyword: string | null;
+  secondary_keywords: string[] | null;
+  meta_title: string | null;
+  meta_description: string | null;
+  language: string;
+  tone: string | null;
+  target_audience: string | null;
+  article_goal: string | null;
+  generation_model: string | null;
+  status: BlogArticleStatus;
+  created_at: string;
+  updated_at: string;
+  last_edited_at: string | null;
+  published_at: string | null;
+}
+
+export interface BlogArticleListItem {
+  id: string;
+  title: string;
+  language: string;
+  status: BlogArticleStatus;
+  created_at: string;
+  updated_at: string;
+  sites_count: number;
+  publications_count: number;
+}
+
+export type BlogPublicationStatus = "pending" | "publishing" | "published" | "failed" | "retrying" | "removed" | "updated";
+
+export interface BlogPublicationResponse {
+  id: string;
+  article_id: string;
+  wordpress_site_id: string;
+  wordpress_site_name: string;
+  wordpress_post_id: number | null;
+  wordpress_post_url: string | null;
+  wordpress_status: string | null;
+  publication_status: BlogPublicationStatus;
+  error_message: string | null;
+  retry_count: number;
+  published_at: string | null;
+  created_at: string;
+}
+
+export interface BlogArticleDetailResponse {
+  article: BlogArticleResponse;
+  publications: BlogPublicationResponse[];
+  social_campaigns: CampaignResponse[];
+}
+
+export interface BlogPublishTarget {
+  wordpress_site_id: string;
+  category_id?: number | null;
+  author_id?: number | null;
+  status?: string | null;
+}
+
+export interface SocialPreviewResponse {
+  article_url: string;
+  default_text: string;
+  instagram_text: string;
+  facebook_text: string;
+  linkedin_text: string;
+  x_text: string;
+  threads_text: string;
+}
+
+export interface BlogWriterDashboardResponse {
+  draft_count: number;
+  ready_count: number;
+  published_count: number;
+  failed_publications_count: number;
+  sites_count: number;
+  sites_error_count: number;
+  social_campaigns_count: number;
+  recent_articles: BlogArticleListItem[];
+  recent_publications: BlogPublicationResponse[];
 }

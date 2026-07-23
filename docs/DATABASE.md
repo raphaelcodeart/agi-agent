@@ -4,6 +4,8 @@ Spiegazione di tutte le tabelle del progetto, cosa rappresentano e come sono col
 
 Le tabelle sono create dalle migration Alembic in `apps/api/alembic/versions/` (vedi [DEPLOYMENT.md §5](./DEPLOYMENT.md#5-creare-il-database-e-le-tabelle)) a partire dai modelli SQLAlchemy in `apps/api/app/models/`. Questo file descrive lo stato attuale dello schema; se modifichi i modelli, aggiorna anche questo documento (vedi AGENTS.md, regola 20: "Document architectural changes").
 
+Le tabelle del modulo Blog Writer AI (`blog_writer_*`) sono documentate separatamente in [BLOG_WRITER.md](./BLOG_WRITER.md#2-schema-database), essendo un modulo isolato con proprio schema.
+
 ---
 
 ## Indice

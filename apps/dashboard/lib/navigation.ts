@@ -10,6 +10,11 @@ import {
   SendIcon,
   AlertOctagonIcon,
   SettingsIcon,
+  NewspaperIcon,
+  SparklesIcon,
+  FileTextIcon,
+  BookOpenCheckIcon,
+  GlobeIcon,
 } from "lucide-react";
 
 export interface NavItem {
@@ -28,6 +33,11 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/campaigns", label: "Campagne", icon: MegaphoneIcon },
   { href: "/publications", label: "Pubblicazioni", icon: SendIcon },
   { href: "/errors", label: "Centro errori", icon: AlertOctagonIcon },
+  { href: "/blog-writer", label: "Blog Writer AI", icon: NewspaperIcon },
+  { href: "/blog-writer/new", label: "Blog Writer · Nuovo articolo", icon: SparklesIcon },
+  { href: "/blog-writer/drafts", label: "Blog Writer · Bozze", icon: FileTextIcon },
+  { href: "/blog-writer/articles", label: "Blog Writer · Pubblicati", icon: BookOpenCheckIcon },
+  { href: "/blog-writer/sites", label: "Blog Writer · Siti WordPress", icon: GlobeIcon },
   { href: "/settings", label: "Impostazioni", icon: SettingsIcon },
 ];
 
