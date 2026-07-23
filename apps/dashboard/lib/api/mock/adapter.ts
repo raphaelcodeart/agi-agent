@@ -327,7 +327,9 @@ export function getCampaignDetail(campaignId: string): Promise<CampaignDetailRes
 }
 
 export function getCampaignMetrics(campaignId: string): Promise<CampaignMetricsResponse> {
-  const published = mockPublications.filter((p) => p.campaign_id === campaignId && p.status === "published");
+  const published = mockPublications.filter(
+    (p) => p.campaign_id === campaignId && (p.status === "published" || p.status === "scheduled")
+  );
   const totals: Record<string, number> = {};
   const channels = published.map((pub) => {
     const channel = mockChannels.find((c) => c.id === pub.social_channel_id);

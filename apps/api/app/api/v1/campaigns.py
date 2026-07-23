@@ -203,7 +203,15 @@ def get_campaign_metrics(
         db.query(Publication)
         .filter(
             Publication.campaign_id == campaign_id,
-            Publication.status == "published",
+            # "scheduled" is included alongside "published": both mean Buffer
+            # accepted the post successfully (see docs/FUNCTIONALITY.md §6) and both
+            # carry a real external_post_id metrics can be fetched for. A "scheduled"
+            # publication whose due time has already passed has most likely gone
+            # live on the real platform by now anyway - get_post_status isn't
+            # implemented to confirm that (see docs/FUNCTIONALITY.md §13), so our
+            # own status label never flips from "scheduled" to "published", but
+            # Buffer's metrics endpoint doesn't care about our internal label.
+            Publication.status.in_(["published", "scheduled"]),
             Publication.external_post_id.isnot(None),
         )
         .all()

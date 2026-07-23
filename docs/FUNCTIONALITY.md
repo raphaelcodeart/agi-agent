@@ -194,7 +194,7 @@ Prefisso comune `/api/v1`. Elenco completo per router — per i dettagli di requ
 
 ## 10. Metriche
 
-`GET /campaigns/{id}/metrics` chiama Buffer **on-demand** (non salvato periodicamente) per ogni canale della campagna, tramite `get_post_metrics`. Le metriche di tipo "tasso" (es. `engagementRate`, unica percentuale 0-100 secondo la documentazione Buffer) vengono **mediate**, tutte le altre (like, visualizzazioni, commenti, ecc.) vengono **sommate** — non si sommano mai metriche di tipo diverso tra loro nella dashboard (es. visualizzazioni + impression + copertura restano tile separate, perché misurano cose diverse).
+`GET /campaigns/{id}/metrics` chiama Buffer **on-demand** (non salvato periodicamente) per ogni pubblicazione `published` **o** `scheduled` della campagna con un `external_post_id` valorizzato (stessa equivalenza pubblicato/programmato del §6 — un `scheduled` il cui orario è già passato è quasi certamente già live sulla piattaforma reale anche se la nostra label interna non lo riflette), tramite `get_post_metrics`. Le metriche di tipo "tasso" (es. `engagementRate`, unica percentuale 0-100 secondo la documentazione Buffer) vengono **mediate**, tutte le altre (like, visualizzazioni, commenti, ecc.) vengono **sommate** — non si sommano mai metriche di tipo diverso tra loro nella dashboard (es. visualizzazioni + impression + copertura restano tile separate, perché misurano cose diverse).
 
 ---
 
