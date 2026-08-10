@@ -247,6 +247,25 @@ export default function OmnichannelSettingsPage() {
         </div>
 
         <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label>Creatività (temperatura)</Label>
+            <span className="text-xs text-muted-foreground">{form.temperature.toFixed(1)}</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={1.5}
+            step={0.1}
+            value={form.temperature}
+            onChange={(e) => setForm({ ...form, temperature: Number(e.target.value) })}
+            className="w-full accent-primary"
+          />
+          <p className="text-xs text-muted-foreground">
+            Più bassa (0-0.3) = risposte più letterali e ripetibili, utile se hai istruzioni precise nel prompt da seguire alla lettera. Più alta (0.8+) = risposte più varie e naturali, meno prevedibili.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
           <Label>Argomenti consentiti (separati da virgola)</Label>
           <Input value={form.allowed_topics} onChange={(e) => setForm({ ...form, allowed_topics: e.target.value })} />
         </div>
