@@ -63,7 +63,7 @@ export function ChatPanel({ conversationId }: { conversationId: string | null })
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <ChannelIcon channel={conversation.channel} />
@@ -83,7 +83,7 @@ export function ChatPanel({ conversationId }: { conversationId: string | null })
         </div>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {conversation.messages.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">Nessun messaggio in questa conversazione.</p>
         )}

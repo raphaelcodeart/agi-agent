@@ -39,7 +39,7 @@ export function ConversationList({ selectedId, onSelect }: { selectedId: string 
   const { data: conversations, isLoading, isFetching, refetch } = useConversations({ status: statusFilter, search: debouncedSearch || undefined });
 
   return (
-    <div className="flex h-full flex-col border-r">
+    <div className="flex h-full min-h-0 flex-col border-r">
       <div className="space-y-2 border-b p-3">
         <div className="flex items-center gap-2">
           <SearchInput value={search} onChange={setSearch} placeholder="Cerca cliente, telefono, email..." className="flex-1" />
@@ -62,7 +62,7 @@ export function ConversationList({ selectedId, onSelect }: { selectedId: string 
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {isLoading ? (
           <div className="space-y-3 p-3">
             <Skeleton className="h-16" />

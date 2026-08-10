@@ -48,7 +48,7 @@ export function CustomerPanel({ conversationId }: { conversationId: string | nul
   }
 
   return (
-    <div className="h-full space-y-5 overflow-y-auto border-l p-4">
+    <div className="h-full min-h-0 space-y-5 overflow-y-auto border-l p-4">
       <div>
         <p className="text-sm font-semibold">{customer.name || "Cliente sconosciuto"}</p>
         <p className="text-xs text-muted-foreground">Cliente dal {formatDateTime(customer.created_at)}</p>
