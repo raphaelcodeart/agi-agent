@@ -1,10 +1,17 @@
 """
-Inbound entrypoints for the Omnichannel Responder: the real Telegram and
-Facebook Messenger webhooks (unauthenticated - neither provider can send our
-JWT, each verified its own way, see TelegramConnector/FacebookConnector.
-verify_webhook) and the admin-only "simulate message" dev tool (spec section
-51), which only works against channel_accounts of type 'mock' so it can
-never be pointed at a real customer channel by mistake.
+Inbound entrypoints for the Omnichannel Responder: the real Telegram,
+Facebook Messenger, Instagram Direct and WhatsApp webhooks (unauthenticated
+- no provider can send our JWT, each verified its own way, see
+TelegramConnector/FacebookConnector/WhatsAppConnector.verify_webhook) and
+the admin-only "simulate message" dev tool (spec section 51), which only
+works against channel_accounts of type 'mock' so it can never be pointed at
+a real customer channel by mistake.
+
+Facebook/Instagram/WhatsApp all share the exact same Meta webhook
+subscription mechanics (GET handshake with hub.mode/hub.verify_token/
+hub.challenge, POST with an X-Hub-Signature-256-signed body) - factored
+into _meta_webhook_verify/_meta_webhook_receive below, parameterized by
+channel, rather than three near-identical copies.
 
 Kept in its own router/file, separate from api/v1/omnichannel.py, because
 its auth model is fundamentally different (no admin JWT on these paths) -
@@ -63,19 +70,18 @@ async def telegram_webhook(channel_account_id: uuid.UUID, request: Request, db: 
     return {"ok": True}
 
 
-@router.get("/webhooks/facebook/{channel_account_id}")
-async def facebook_webhook_verify(channel_account_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+async def _meta_webhook_verify(channel: str, channel_account_id: uuid.UUID, request: Request, db: Session):
     """
     Meta's one-time subscription handshake (configured from the App
-    Dashboard's Messenger > Webhooks screen, not something this backend
-    calls on its own like Telegram's setWebhook - see docs/
-    OMNICHANNEL_RESPONDER.md §11). Meta sends hub.mode=subscribe,
+    Dashboard's Messenger/Instagram/WhatsApp > Webhooks screen, not
+    something this backend calls on its own like Telegram's setWebhook -
+    see docs/OMNICHANNEL_RESPONDER.md §11). Meta sends hub.mode=subscribe,
     hub.verify_token (must match channel_account.webhook_secret - the admin
     pastes it into the Meta dashboard) and hub.challenge, which must be
     echoed back verbatim as plain text for the subscription to succeed.
     """
     account = db.query(OmniChannelAccount).filter(
-        OmniChannelAccount.id == channel_account_id, OmniChannelAccount.channel == "facebook"
+        OmniChannelAccount.id == channel_account_id, OmniChannelAccount.channel == channel
     ).first()
     if not account:
         raise HTTPException(status_code=404, detail="Not found")
@@ -86,10 +92,9 @@ async def facebook_webhook_verify(channel_account_id: uuid.UUID, request: Reques
     raise HTTPException(status_code=403, detail="Webhook verification failed")
 
 
-@router.post("/webhooks/facebook/{channel_account_id}")
-async def facebook_webhook_receive(channel_account_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+async def _meta_webhook_receive(channel: str, channel_account_id: uuid.UUID, request: Request, db: Session):
     account = db.query(OmniChannelAccount).filter(
-        OmniChannelAccount.id == channel_account_id, OmniChannelAccount.channel == "facebook"
+        OmniChannelAccount.id == channel_account_id, OmniChannelAccount.channel == channel
     ).first()
     if not account:
         raise HTTPException(status_code=404, detail="Not found")
@@ -104,6 +109,36 @@ async def facebook_webhook_receive(channel_account_id: uuid.UUID, request: Reque
     messages = connector.parse_webhook(payload)
     _ingest_and_trigger(db, account, messages)
     return {"ok": True}
+
+
+@router.get("/webhooks/facebook/{channel_account_id}")
+async def facebook_webhook_verify(channel_account_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    return await _meta_webhook_verify("facebook", channel_account_id, request, db)
+
+
+@router.post("/webhooks/facebook/{channel_account_id}")
+async def facebook_webhook_receive(channel_account_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    return await _meta_webhook_receive("facebook", channel_account_id, request, db)
+
+
+@router.get("/webhooks/instagram/{channel_account_id}")
+async def instagram_webhook_verify(channel_account_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    return await _meta_webhook_verify("instagram", channel_account_id, request, db)
+
+
+@router.post("/webhooks/instagram/{channel_account_id}")
+async def instagram_webhook_receive(channel_account_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    return await _meta_webhook_receive("instagram", channel_account_id, request, db)
+
+
+@router.get("/webhooks/whatsapp/{channel_account_id}")
+async def whatsapp_webhook_verify(channel_account_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    return await _meta_webhook_verify("whatsapp", channel_account_id, request, db)
+
+
+@router.post("/webhooks/whatsapp/{channel_account_id}")
+async def whatsapp_webhook_receive(channel_account_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    return await _meta_webhook_receive("whatsapp", channel_account_id, request, db)
 
 
 @router.post("/dev/simulate-message", response_model=OmniMessageResponse, status_code=status.HTTP_201_CREATED)

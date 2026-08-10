@@ -84,8 +84,8 @@ export const SETTINGS_NAV_ITEM: NavItem = { href: "/settings", label: "Impostazi
 export const NAV_ITEMS: NavItem[] = [
   ...MAIN_NAV_ITEMS,
   ...BUFFER_NAV_ITEMS,
-  ...BLOG_WRITER_NAV_ITEMS,
   ...OMNICHANNEL_RESPONDER_NAV_ITEMS,
+  ...BLOG_WRITER_NAV_ITEMS,
   SETTINGS_NAV_ITEM,
 ];
 

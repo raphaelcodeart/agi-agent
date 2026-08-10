@@ -10,12 +10,12 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FilterSelect } from "@/components/shared/filter-bar";
-import { useConversations } from "@/hooks/use-omnichannel";
+import { useChannelAccounts, useConversations } from "@/hooks/use-omnichannel";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChannelIcon } from "./channel-icon";
-import type { OmniConversationStatus } from "@/types/api";
+import { ChannelIcon, channelLabel } from "./channel-icon";
+import type { OmniChannel, OmniConversationStatus } from "@/types/api";
 
 const STATUS_OPTIONS: { value: OmniConversationStatus; label: string }[] = [
   { value: "WAITING_APPROVAL", label: "Bozza da approvare" },
@@ -34,14 +34,49 @@ function initials(name: string | null): string {
 
 export function ConversationList({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
   const [statusFilter, setStatusFilter] = useState<OmniConversationStatus | "">("");
+  const [channelFilter, setChannelFilter] = useState<OmniChannel | "">("");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data: conversations, isLoading, isFetching, refetch } = useConversations({ status: statusFilter, search: debouncedSearch || undefined });
+  const { data: conversations, isLoading, isFetching, refetch } = useConversations({ status: statusFilter, channel: channelFilter || undefined, search: debouncedSearch || undefined });
+  const { data: channelAccounts } = useChannelAccounts();
+  // Only offer channels the admin actually has at least one connected
+  // account for - no point showing a WhatsApp filter icon with nothing
+  // behind it.
+  const connectedChannels = Array.from(new Set((channelAccounts ?? []).map((a) => a.channel)));
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r">
       <div className="space-y-2 border-b p-3">
+        {connectedChannels.length > 1 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setChannelFilter("")}
+              title="Tutti i canali"
+              className={cn(
+                "rounded-full border px-2 py-1 text-[0.7rem] font-medium transition-colors",
+                channelFilter === "" ? "border-primary bg-primary/10 text-primary" : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70"
+              )}
+            >
+              Tutti
+            </button>
+            {connectedChannels.map((channel) => (
+              <button
+                key={channel}
+                type="button"
+                onClick={() => setChannelFilter((prev) => (prev === channel ? "" : channel))}
+                title={channelLabel(channel)}
+                className={cn(
+                  "rounded-full border p-1 transition-colors",
+                  channelFilter === channel ? "border-primary bg-primary/10" : "border-transparent bg-muted hover:bg-muted/70"
+                )}
+              >
+                <ChannelIcon channel={channel} />
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <SearchInput value={search} onChange={setSearch} placeholder="Cerca cliente, telefono, email..." className="flex-1" />
           <Button

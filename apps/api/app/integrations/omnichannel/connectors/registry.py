@@ -4,7 +4,8 @@ from app.integrations.omnichannel.connectors.base import Connector
 from app.integrations.omnichannel.connectors.mock import MockConnector
 from app.integrations.omnichannel.connectors.telegram import TelegramConnector
 from app.integrations.omnichannel.connectors.facebook import FacebookConnector
-from app.integrations.omnichannel.connectors.unimplemented import WhatsAppConnector, InstagramConnector
+from app.integrations.omnichannel.connectors.instagram import InstagramConnector
+from app.integrations.omnichannel.connectors.whatsapp import WhatsAppConnector
 from app.models.omnichannel import OmniChannelAccount
 
 _CONNECTOR_CLASSES: dict[str, Type[Connector]] = {

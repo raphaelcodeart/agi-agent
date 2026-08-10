@@ -12,10 +12,17 @@ see docs/OMNICHANNEL_RESPONDER.md §11):
   webhook payloads really came from Meta
 
 OmniChannelAccount.access_token_encrypted stores BOTH, JSON-encoded
-(`{"page_access_token": "...", "app_secret": "..."}`) rather than a single
-string like every other connector - Messenger is the only channel needing
-two distinct secrets (one to send, one to verify inbound signatures). See
+(`{"access_token": "...", "app_secret": "..."}`) rather than a single string
+like Telegram - Messenger (and Instagram/WhatsApp, which share this same
+class hierarchy, see instagram.py/whatsapp.py) need two distinct secrets:
+one to send, one to verify inbound webhook signatures. See
 OmniChannelAccountCreate.app_secret / OmnichannelService.create_channel_account.
+
+Instagram Direct messaging (see instagram.py) runs on this exact same Graph
+API infrastructure since Meta unified Messenger + Instagram messaging
+(developers.facebook.com/docs/messenger-platform/instagram) - same webhook
+shape, same /me/messages Send API, same signature scheme - so
+InstagramConnector simply subclasses this class with zero logic changes.
 """
 import hashlib
 import hmac
@@ -29,18 +36,22 @@ GRAPH_API_BASE = "https://graph.facebook.com/v19.0"
 
 
 class FacebookConnector(Connector):
+    # Overridden by InstagramConnector purely for clearer error/status
+    # messages - every method below is identical for both channels.
+    channel_label = "Facebook"
+
     def _secrets(self) -> Dict[str, str]:
         if not self.access_token:
-            raise ConnectorError("Nessun token configurato per questo canale Facebook")
+            raise ConnectorError(f"Nessun token configurato per questo canale {self.channel_label}")
         try:
             return json.loads(self.access_token)
         except json.JSONDecodeError:
-            raise ConnectorError("Credenziali del canale Facebook corrotte o in un formato inatteso")
+            raise ConnectorError(f"Credenziali del canale {self.channel_label} corrotte o in un formato inatteso")
 
     def _page_access_token(self) -> str:
-        token = self._secrets().get("page_access_token")
+        token = self._secrets().get("access_token")
         if not token:
-            raise ConnectorError("Nessun Page Access Token configurato per questo canale Facebook")
+            raise ConnectorError(f"Nessun Access Token configurato per questo canale {self.channel_label}")
         return token
 
     def verify_webhook(self, headers: Dict[str, str], path_secret: str, body: bytes = b"") -> bool:
@@ -110,12 +121,12 @@ class FacebookConnector(Connector):
                 timeout=30.0,
             )
         except httpx.RequestError as e:
-            raise ConnectorError(f"Errore di rete verso Facebook: {str(e)}")
+            raise ConnectorError(f"Errore di rete verso {self.channel_label}: {str(e)}")
 
         data = response.json()
         if response.status_code != 200 or "error" in data:
             error_message = data.get("error", {}).get("message", "errore sconosciuto")
-            raise ConnectorError(f"Facebook ha rifiutato l'invio: {error_message}", status_code=response.status_code)
+            raise ConnectorError(f"{self.channel_label} ha rifiutato l'invio: {error_message}", status_code=response.status_code)
 
         return SendResult(external_message_id=data.get("message_id"), raw_response=data)
 

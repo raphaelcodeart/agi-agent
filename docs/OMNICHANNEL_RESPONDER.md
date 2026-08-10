@@ -90,7 +90,7 @@ Un account/canale collegato (bot Telegram, futuro numero WhatsApp Business, pagi
 |---|---|---|
 | `channel` | string | `telegram`, `whatsapp`, `instagram`, `facebook`, `mock` |
 | `status` | string | `pending`, `connected`, `error`, `disabled` |
-| `access_token_encrypted` | text, nullable | cifrato con lo stesso `EncryptionService` (Fernet) usato per i token Buffer — mai in chiaro, mai restituito dall'API. Per Facebook contiene un blob JSON cifrato `{"page_access_token", "app_secret"}` invece di una singola stringa, vedi §4 |
+| `access_token_encrypted` | text, nullable | cifrato con lo stesso `EncryptionService` (Fernet) usato per i token Buffer — mai in chiaro, mai restituito dall'API. Per i canali Meta (Facebook/Instagram/WhatsApp) contiene un blob JSON cifrato `{"access_token", "app_secret"}` invece di una singola stringa, vedi §4. WhatsApp aggiunge anche il Phone Number ID, ma in `external_account_id` (non è un segreto) |
 | `webhook_secret` | string(64) | generato random alla creazione (`uuid4().hex`); Telegram lo rimanda nell'header `X-Telegram-Bot-Api-Secret-Token` ad ogni richiesta webhook — è così che il webhook (pubblico, non autenticato) verifica che la richiesta venga davvero da Telegram, vedi §8 |
 | `config_json` (colonna `config`) | JSONB, nullable | configurazione libera per canale |
 
@@ -214,11 +214,12 @@ get_status() -> dict                                          # health check per
 Implementazioni:
 
 - **`TelegramConnector`** (`connectors/telegram.py`) — canale reale. Chiama l'API Bot di Telegram (`api.telegram.org/bot<token>/...`) via `httpx` diretto, stesso stile di `app/integrations/openai/client.py` (nessun SDK di terze parti). `register_webhook()` (non parte dell'ABC, specifico Telegram) chiama `setWebhook` passando `secret_token` = `omni_channel_accounts.webhook_secret`.
-- **`FacebookConnector`** (`connectors/facebook.py`) — canale reale, via Graph API (`graph.facebook.com/v19.0`, Send API + Messenger webhooks). A differenza di Telegram, Meta non offre una chiamata "registra webhook": l'amministratore incolla lui stesso URL e Verify Token nella Meta App Dashboard (Messenger → Impostazioni → Webhooks) — la pagina Canali mostra questi due valori già pronti da copiare (`FacebookWebhookInfoDialog`). Richiede **due** segreti distinti, non uno solo come ogni altro canale: il Page Access Token (per inviare) e l'App Secret (per verificare che i webhook in arrivo vengano davvero da Meta, header `X-Hub-Signature-256`, HMAC-SHA256 del body grezzo) — combinati in un unico blob JSON cifrato dentro `access_token_encrypted` (`OmnichannelService.create_channel_account`), nessuna nuova colonna necessaria. `parse_webhook` scarta esplicitamente gli "echo" (`message.is_echo`, i nostri stessi messaggi in uscita rimandati indietro da Meta) e le ricevute di consegna/lettura — solo i messaggi realmente in arrivo dal cliente diventano un `NormalizedIncomingMessage`.
+- **`FacebookConnector`** (`connectors/facebook.py`) — canale reale, via Graph API (`graph.facebook.com/v19.0`, Send API + Messenger webhooks). A differenza di Telegram, Meta non offre una chiamata "registra webhook": l'amministratore incolla lui stesso URL e Verify Token nella Meta App Dashboard (Messenger → Impostazioni → Webhooks) — la pagina Canali mostra questi due valori già pronti da copiare (`MetaWebhookInfoDialog`, condiviso con Instagram/WhatsApp). Richiede **due** segreti distinti, non uno solo come Telegram: l'Access Token (per inviare) e l'App Secret (per verificare che i webhook in arrivo vengano davvero da Meta, header `X-Hub-Signature-256`, HMAC-SHA256 del body grezzo) — combinati in un unico blob JSON cifrato `{"access_token", "app_secret"}` dentro `access_token_encrypted` (`OmnichannelService.create_channel_account`), nessuna nuova colonna necessaria. `parse_webhook` scarta esplicitamente gli "echo" (`message.is_echo`, i nostri stessi messaggi in uscita rimandati indietro da Meta) e le ricevute di consegna/lettura — solo i messaggi realmente in arrivo dal cliente diventano un `NormalizedIncomingMessage`.
+- **`InstagramConnector`** (`connectors/instagram.py`) — canale reale, **sottoclasse di `FacebookConnector` senza alcuna differenza di logica**: da quando Meta ha unificato Messenger e la messaggistica Instagram, un account Instagram professionale collegato a una Pagina Facebook usa esattamente la stessa infrastruttura (stesso formato webhook, stesso endpoint `/me/messages`, stessa firma) — quindi non c'è nulla da riscrivere, solo un'etichetta diversa (`channel_label = "Instagram"`) nei messaggi di errore/stato mostrati all'admin.
+- **`WhatsAppConnector`** (`connectors/whatsapp.py`) — canale reale, ma una famiglia di API diversa: **WhatsApp Cloud API**, non il Send API di Messenger. Payload webhook (`entry[].changes[].value.messages[]`) e formato di invio (`POST /{phone_number_id}/messages`, `messaging_product: "whatsapp"`) sono strutturalmente diversi da Facebook/Instagram, anche se la verifica firma webhook (`X-Hub-Signature-256`) passa dalla stessa infrastruttura Meta. Il Phone Number ID (non un segreto) va nella colonna esistente `external_account_id`, non nel blob cifrato. **Limite non implementato**: fuori dalla finestra di 24 ore dall'ultimo messaggio del cliente, WhatsApp accetta solo messaggi-template pre-approvati, che questo modulo non gestisce — dato che ogni bozza qui nasce sempre in risposta a un messaggio del cliente appena ricevuto, in pratica non è quasi mai un problema, ma un'approvazione molto tardiva (oltre 24h) fallirà con un errore esplicito sulla bozza, non silenziosamente.
 - **`MockConnector`** (`connectors/mock.py`) — nessuna chiamata esterna. Usato dallo strumento "Simula messaggio" per testare l'intera pipeline (ingest → bozza AI → approvazione → invio) senza credenziali reali.
-- **`WhatsAppConnector` / `InstagramConnector`** (`connectors/unimplemented.py`) — classi reali, registrate nel registry, ma `send_message` solleva `ConnectorError` con un messaggio esplicito ("non ancora implementato"). Nessun endpoint Meta è stato inventato: implementarli per davvero richiede una Business Verification/App Review di Meta che non può essere completata da codice. Aggiungerli per davvero significa scrivere una nuova classe in un nuovo file (esattamente come fatto per `facebook.py`) e registrarla in `registry.py` — nessun'altra parte del modulo cambia.
 
-`connectors/registry.py::get_connector(channel_account)` è la unica factory: decripta il token (se presente) e istanzia la classe giusta in base a `channel_account.channel`.
+`connectors/registry.py::get_connector(channel_account)` è la unica factory: decripta il token (se presente) e istanzia la classe giusta in base a `channel_account.channel`. Tutti e 5 i canali (`mock`, `telegram`, `facebook`, `instagram`, `whatsapp`) sono ora implementazioni reali — non esiste più alcun connettore-stub in questo modulo.
 
 ---
 
@@ -319,7 +320,7 @@ Tutti gli endpoint sotto `/api/v1/omnichannel-responder/` (eccetto il webhook Te
 | Knowledge Base | `GET\|POST /knowledge-base`, `DELETE /knowledge-base/{id}` |
 | Notifiche | `GET /notifications`, `POST /notifications/{id}/read` |
 | Analytics | `GET /analytics` — conteggi + `ai_acceptance_rate`/`ai_edit_rate`/`ai_rejection_rate` (bozze approvate senza modifiche / modificate / scartate, sul totale delle bozze arrivate a uno stato finale) |
-| Webhook/dev | `POST /webhooks/telegram/{channel_account_id}` (pubblico), `GET\|POST /webhooks/facebook/{channel_account_id}` (pubblico — `GET` è l'handshake di verifica di Meta, `POST` riceve i messaggi), `POST /dev/simulate-message` (vedi §8) |
+| Webhook/dev | `POST /webhooks/telegram/{channel_account_id}` (pubblico), `GET\|POST /webhooks/{facebook\|instagram\|whatsapp}/{channel_account_id}` (pubblico — `GET` è l'handshake di verifica di Meta, `POST` riceve i messaggi, stessa logica condivisa per tutti e tre via `_meta_webhook_verify`/`_meta_webhook_receive`), `POST /dev/simulate-message` (vedi §8) |
 
 Schema Pydantic completo in fondo a `app/schemas/schemas.py` (sezione `# Omnichannel Responder`).
 
@@ -329,8 +330,8 @@ Schema Pydantic completo in fondo a `app/schemas/schemas.py` (sezione `# Omnicha
 
 `app/(dashboard)/omnichannel-responder/`:
 
-- **`page.tsx`** — inbox a 3 colonne (`_components/conversation-list.tsx`, `chat-panel.tsx`, `customer-panel.tsx`, `ai-draft-card.tsx`). La bozza AI attiva (se presente) appare inline nella chat con i pulsanti Approva e invia / Copia / Rigenera / Scarta, textarea modificabile. Ogni riga della lista conversazioni mostra lo `StatusBadge` dello stato (`NEW`/`OPEN`/`AI_PROCESSING`/`WAITING_APPROVAL`/`WAITING_CUSTOMER`/`RESOLVED`/`ARCHIVED`/`SPAM`) su una riga propria, ben visibile, non solo aprendo la conversazione — così si vede a colpo d'occhio quali richiedono un'azione (`WAITING_APPROVAL`) senza doverle aprire una per una.
-- **`channels/page.tsx`** — lista canali, dialog di creazione, registrazione webhook Telegram, strumento "Simula messaggio" sui canali mock.
+- **`page.tsx`** — inbox a 3 colonne (`_components/conversation-list.tsx`, `chat-panel.tsx`, `customer-panel.tsx`, `ai-draft-card.tsx`). La bozza AI attiva (se presente) appare inline nella chat con i pulsanti Approva e invia / Copia / Rigenera / Scarta, textarea modificabile. Ogni riga della lista conversazioni mostra lo `StatusBadge` dello stato (`NEW`/`OPEN`/`AI_PROCESSING`/`WAITING_APPROVAL`/`WAITING_CUSTOMER`/`RESOLVED`/`ARCHIVED`/`SPAM`) su una riga propria, ben visibile, non solo aprendo la conversazione — così si vede a colpo d'occhio quali richiedono un'azione (`WAITING_APPROVAL`) senza doverle aprire una per una. In cima alla lista conversazioni, una riga di icone canale (una per ogni canale che ha almeno un account collegato, più "Tutti") filtra per canale con un click — usa lo stesso parametro `channel` già supportato da `GET /conversations`, nessuna chiamata API in più; la riga non appare affatto se è collegato un solo canale (nulla da filtrare).
+- **`channels/page.tsx`** — lista canali, dialog di creazione (campi diversi per canale: Telegram un token, i tre canali Meta due segreti + Phone Number ID solo per WhatsApp), registrazione webhook automatica per Telegram, dialog "Info webhook" condiviso per Facebook/Instagram/WhatsApp (`MetaWebhookInfoDialog`), strumento "Simula messaggio" sui canali mock.
 - **`settings/page.tsx`** — configurazione AI Agent (prompt, tono, lingua, argomenti, categorie sensibili a chip cliccabili, slider "Creatività" per `temperature`). In cima alla pagina, un riquadro ben visibile (bordo/sfondo colorato quando acceso, icona diversa) con l'interruttore per l'**autorisponditore automatico** (`response_mode`): a differenza degli altri campi si salva **subito** al click (non con il pulsante "Salva" generico, per non lasciarlo in uno stato "modificato ma non salvato" ambiguo su un'impostazione così delicata), e accenderlo richiede una conferma esplicita in un dialog dedicato — spegnerlo invece è immediato, senza conferma.
 - **`knowledge-base/page.tsx`** — CRUD documenti testuali.
 
@@ -348,7 +349,7 @@ Un pulsante di refresh manuale (icona ⟳) è disponibile accanto alla ricerca c
 
 ---
 
-## 11. Configurazione e come collegare Telegram / Facebook
+## 11. Configurazione e come collegare Telegram / Facebook / Instagram / WhatsApp
 
 **Nessuna nuova variabile `.env` obbligatoria.** Il modulo riusa `OPENAI_API_KEY`/`OPENAI_MODEL` (o la chiave configurata dalla pagina Impostazioni, stessa precedenza di [DATABASE.md §9](./DATABASE.md#9-impostazioni-ai)) e il `DATABASE_URL`/`REDIS_URL` già esistenti.
 
@@ -371,6 +372,23 @@ Per collegare una Pagina Facebook (Messenger) — più passaggi di Telegram, alc
 6. Su Meta: Messenger → Impostazioni → Webhooks → "Aggiungi URL callback", incolla i due valori, poi **iscrivi la Pagina all'evento `messages`** nella stessa schermata (passaggio facile da dimenticare — senza, il webhook risulta verificato ma non arriva mai nulla).
 7. **Prima di poter rispondere a clienti reali** (chiunque non sia un Tester/Admin dell'app), l'app deve superare l'**App Review** di Meta per il permesso `pages_messaging` — richiede Business Verification, può richiedere giorni. Finché l'app è in modalità sviluppo, puoi comunque testare scrivendo alla Pagina da un account aggiunto come Tester/Admin nell'app Meta.
 
+Per collegare Instagram Direct — **stessa app Meta di Facebook**, non serve crearne una seconda:
+
+1. Nell'app Meta già creata per Facebook, collega un account Instagram **professionale** (Business/Creator) alla stessa Pagina Facebook (Impostazioni Pagina → Account collegati, lato Instagram) e assicurati che il prodotto **Messenger** dell'app abbia il permesso Instagram abilitato.
+2. Dashboard → Canali → "Nuovo canale" → tipo `Instagram Direct` → stessi due valori di Facebook (Access Token, App Secret) — può essere lo stesso Page Access Token se la Pagina è la stessa.
+3. Icona ℹ️ "Info webhook" → questa volta l'URL punta a `.../webhooks/instagram/<id>` invece di `.../webhooks/facebook/<id>` — usa quello, non riusare l'URL di Facebook.
+4. Stessa App Review di Meta richiesta (permesso `instagram_manage_messages`) prima di rispondere a clienti reali.
+
+Per collegare un numero WhatsApp Business — configurazione a parte, API diversa (Cloud API, non Send API):
+
+1. Nella stessa app Meta, aggiungi il prodotto **WhatsApp**, collega o crea un numero da [WhatsApp Manager](https://business.facebook.com/wa/manage).
+2. Genera un **access token** permanente (System User con permesso `whatsapp_business_messaging`, da Meta Business Suite → Impostazioni Business → Utenti di sistema — un token temporaneo di test scade in 24h ed è utile solo per una prova rapida).
+3. Copia il **Phone Number ID** (non il numero di telefono stesso) da WhatsApp Manager → il tuo numero → API Setup.
+4. Dashboard → Canali → "Nuovo canale" → tipo `WhatsApp Business`, incolla Access Token, Phone Number ID e App Secret.
+5. Icona ℹ️ "Info webhook" → URL `.../webhooks/whatsapp/<id>` → incollalo in Meta App Dashboard → WhatsApp → Configuration → Webhook, iscrivendo il campo `messages`.
+6. **Limite non implementato**: risposte libere solo entro 24h dall'ultimo messaggio del cliente (vedi §4) — nessun messaggio-template pre-approvato gestito da questo modulo.
+7. Stessa App Review di Meta richiesta (`whatsapp_business_messaging`) prima di poter scrivere a numeri reali fuori dalla lista dei numeri di test.
+
 ---
 
 ## 12. Sicurezza
@@ -388,8 +406,8 @@ Per collegare una Pagina Facebook (Messenger) — più passaggi di Telegram, alc
 
 ## 13. Limiti noti di questa v1
 
-- **Telegram e Facebook Messenger sono canali reali.** WhatsApp/Instagram restano connettori-stub che rifiutano chiaramente l'invio (§4) — richiedono una Business Verification/App Review di Meta non completabile da codice. Facebook stesso, prima di poter rispondere a clienti reali (non solo Tester/Admin dell'app), richiede la stessa App Review per `pages_messaging` (§11) — il codice è pronto e verificato, ma l'approvazione di Meta è un passaggio esterno che l'amministratore deve completare per conto proprio.
-- **Nessun profilo Instagram gestito tramite Facebook Messenger**: il connettore Facebook parla solo con l'inbox della Pagina, non con Instagram Direct anche se le due sono collegate nella stessa app Meta — resta un canale a parte (`InstagramConnector`, ancora uno stub).
+- **Tutti e 5 i canali (Telegram, Facebook, Instagram, WhatsApp, mock) sono implementazioni reali** — non esiste più alcun connettore-stub in questo modulo (§4). Per i tre canali Meta, prima di poter rispondere a clienti reali (non solo Tester/Admin dell'app), serve comunque l'**App Review** di Meta per il permesso corrispondente (`pages_messaging`, `instagram_manage_messages`, `whatsapp_business_messaging`, vedi §11) — il codice è pronto e verificato, ma l'approvazione di Meta è un passaggio esterno che l'amministratore deve completare per conto proprio, può richiedere giorni.
+- **WhatsApp: nessun messaggio-template per fuori dalla finestra di 24h** (§4, §11) — solo risposte libere entro 24 ore dall'ultimo messaggio del cliente, come previsto dalla WhatsApp Cloud API.
 - **Knowledge Base per parole chiave, non embedding vettoriali** (§6) — funzionale per pochi documenti, non scala a una knowledge base grande quanto un vero RAG.
 - **Nessun WebSocket/SSE**: aggiornamento via polling (§10), coerente col resto della piattaforma ma non istantaneo (fino a qualche secondo di ritardo).
 - **Nessun lock a livello di conversazione** per messaggi in arrivo quasi simultanei (§7) — mitigato ma non eliminato dal fatto che il contesto è sempre letto fresco dal database.

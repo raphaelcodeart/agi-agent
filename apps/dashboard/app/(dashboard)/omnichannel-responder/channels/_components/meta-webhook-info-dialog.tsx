@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { OmniChannel } from "@/types/api";
 
 function CopyField({ label, value }: { label: string; value: string }) {
   return (
@@ -30,29 +31,50 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function FacebookWebhookInfoDialog({
+const META_CHANNEL_LABEL: Partial<Record<OmniChannel, string>> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  whatsapp: "WhatsApp",
+};
+
+const META_SUBSCRIBE_FIELD: Partial<Record<OmniChannel, string>> = {
+  facebook: "messages",
+  instagram: "messages",
+  whatsapp: "messages",
+};
+
+/**
+ * Shared across facebook/instagram/whatsapp - all three run on Meta's same
+ * webhook subscription mechanics (see backend api/v1/omnichannel_webhooks.py
+ * ::_meta_webhook_verify), only the URL path segment and dashboard location
+ * for pasting these values differ.
+ */
+export function MetaWebhookInfoDialog({
   open,
   onOpenChange,
+  channel,
   channelAccountId,
   verifyToken,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  channel: OmniChannel;
   channelAccountId: string;
   verifyToken: string;
 }) {
   const [publicBaseUrl, setPublicBaseUrl] = useState("");
   const webhookUrl = publicBaseUrl
-    ? `${publicBaseUrl.replace(/\/$/, "")}/api/v1/omnichannel-responder/webhooks/facebook/${channelAccountId}`
+    ? `${publicBaseUrl.replace(/\/$/, "")}/api/v1/omnichannel-responder/webhooks/${channel}/${channelAccountId}`
     : "";
+  const label = META_CHANNEL_LABEL[channel] ?? channel;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Info webhook Facebook</DialogTitle>
+          <DialogTitle>Info webhook {label}</DialogTitle>
           <DialogDescription>
-            A differenza di Telegram, qui non c&apos;è una registrazione automatica: incolla questi due valori tu stesso in Meta App Dashboard → Messenger → Impostazioni → Webhooks → &quot;Aggiungi URL callback&quot;.
+            A differenza di Telegram, qui non c&apos;è una registrazione automatica: incolla questi due valori tu stesso nella sezione Webhooks dell&apos;app Meta collegata.
           </DialogDescription>
         </DialogHeader>
 
@@ -66,7 +88,7 @@ export function FacebookWebhookInfoDialog({
           <CopyField label="Verify Token" value={verifyToken} />
 
           <p className="text-xs text-muted-foreground">
-            Dopo aver salvato in Meta, iscrivi la Pagina agli eventi <code>messages</code> nella stessa schermata — senza quello, i messaggi non arriveranno mai qui anche se il webhook risulta verificato.
+            Dopo aver salvato in Meta, iscrivi l&apos;app agli eventi <code>{META_SUBSCRIBE_FIELD[channel] ?? "messages"}</code> nella stessa schermata — senza quello, i messaggi non arriveranno mai qui anche se il webhook risulta verificato.
           </p>
         </div>
 

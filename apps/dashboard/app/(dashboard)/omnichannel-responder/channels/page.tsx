@@ -17,7 +17,10 @@ import { ChannelIcon, channelLabel } from "../_components/channel-icon";
 import { CreateChannelDialog } from "./_components/create-channel-dialog";
 import { RegisterWebhookDialog } from "./_components/register-webhook-dialog";
 import { SimulateMessageDialog } from "./_components/simulate-message-dialog";
-import { FacebookWebhookInfoDialog } from "./_components/facebook-webhook-info-dialog";
+import { MetaWebhookInfoDialog } from "./_components/meta-webhook-info-dialog";
+import type { OmniChannel } from "@/types/api";
+
+const META_CHANNELS: OmniChannel[] = ["facebook", "instagram", "whatsapp"];
 
 export default function OmnichannelChannelsPage() {
   const { data: accounts, isLoading } = useChannelAccounts();
@@ -25,10 +28,10 @@ export default function OmnichannelChannelsPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [webhookAccountId, setWebhookAccountId] = useState<string | null>(null);
-  const [facebookInfoAccountId, setFacebookInfoAccountId] = useState<string | null>(null);
+  const [metaInfoAccountId, setMetaInfoAccountId] = useState<string | null>(null);
   const [simulateAccountId, setSimulateAccountId] = useState<string | null>(null);
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
-  const facebookInfoAccount = accounts?.find((a) => a.id === facebookInfoAccountId);
+  const metaInfoAccount = accounts?.find((a) => a.id === metaInfoAccountId);
 
   return (
     <div>
@@ -85,8 +88,8 @@ export default function OmnichannelChannelsPage() {
                           <WebhookIcon />
                         </Button>
                       )}
-                      {account.channel === "facebook" && (
-                        <Button size="icon-sm" variant="ghost" title="Info webhook" onClick={() => setFacebookInfoAccountId(account.id)}>
+                      {META_CHANNELS.includes(account.channel) && (
+                        <Button size="icon-sm" variant="ghost" title="Info webhook" onClick={() => setMetaInfoAccountId(account.id)}>
                           <InfoIcon />
                         </Button>
                       )}
@@ -114,12 +117,13 @@ export default function OmnichannelChannelsPage() {
       {simulateAccountId && (
         <SimulateMessageDialog open={!!simulateAccountId} onOpenChange={(open) => !open && setSimulateAccountId(null)} channelAccountId={simulateAccountId} />
       )}
-      {facebookInfoAccount && (
-        <FacebookWebhookInfoDialog
-          open={!!facebookInfoAccountId}
-          onOpenChange={(open) => !open && setFacebookInfoAccountId(null)}
-          channelAccountId={facebookInfoAccount.id}
-          verifyToken={facebookInfoAccount.webhook_secret}
+      {metaInfoAccount && (
+        <MetaWebhookInfoDialog
+          open={!!metaInfoAccountId}
+          onOpenChange={(open) => !open && setMetaInfoAccountId(null)}
+          channel={metaInfoAccount.channel}
+          channelAccountId={metaInfoAccount.id}
+          verifyToken={metaInfoAccount.webhook_secret}
         />
       )}
       <ConfirmDialog

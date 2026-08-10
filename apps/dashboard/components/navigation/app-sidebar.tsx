@@ -94,18 +94,18 @@ export function AppSidebar() {
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel>Blog Writer AI</SidebarGroupLabel>
+          <SidebarGroupLabel>Omnichannel Responder</SidebarGroupLabel>
           <SidebarGroupContent>
-            <NavItems items={BLOG_WRITER_NAV_ITEMS} pathname={pathname} />
+            <NavItems items={OMNICHANNEL_RESPONDER_NAV_ITEMS} pathname={pathname} badgeCounts={omnichannelBadges} />
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel>Omnichannel Responder</SidebarGroupLabel>
+          <SidebarGroupLabel>Blog Writer AI</SidebarGroupLabel>
           <SidebarGroupContent>
-            <NavItems items={OMNICHANNEL_RESPONDER_NAV_ITEMS} pathname={pathname} badgeCounts={omnichannelBadges} />
+            <NavItems items={BLOG_WRITER_NAV_ITEMS} pathname={pathname} />
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

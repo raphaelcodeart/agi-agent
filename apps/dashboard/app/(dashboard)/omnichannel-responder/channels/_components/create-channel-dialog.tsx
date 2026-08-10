@@ -14,23 +14,37 @@ import type { OmniChannel } from "@/types/api";
 const CHANNEL_OPTIONS: { value: OmniChannel; label: string; available: boolean }[] = [
   { value: "telegram", label: "Telegram", available: true },
   { value: "facebook", label: "Facebook Messenger", available: true },
+  { value: "instagram", label: "Instagram Direct", available: true },
+  { value: "whatsapp", label: "WhatsApp Business", available: true },
   { value: "mock", label: "Test (mock, nessun account reale)", available: true },
-  { value: "whatsapp", label: "WhatsApp Business (non ancora disponibile)", available: false },
-  { value: "instagram", label: "Instagram Direct (non ancora disponibile)", available: false },
 ];
+
+// facebook/instagram/whatsapp all need the same Access Token + App Secret
+// pair (Meta's shared Graph API webhook infrastructure, see backend
+// connectors/facebook.py) plus, WhatsApp only, a Phone Number ID.
+const META_CHANNELS: OmniChannel[] = ["facebook", "instagram", "whatsapp"];
+
+const META_TOKEN_LABEL: Partial<Record<OmniChannel, string>> = {
+  facebook: "Page Access Token",
+  instagram: "Page/IG Access Token",
+  whatsapp: "Access Token (Cloud API)",
+};
 
 export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [channel, setChannel] = useState<OmniChannel>("telegram");
   const [name, setName] = useState("");
   const [accessToken, setAccessToken] = useState("");
   const [appSecret, setAppSecret] = useState("");
+  const [phoneNumberId, setPhoneNumberId] = useState("");
   const createChannelAccount = useCreateChannelAccount();
+  const isMeta = META_CHANNELS.includes(channel);
 
   function reset() {
     setChannel("telegram");
     setName("");
     setAccessToken("");
     setAppSecret("");
+    setPhoneNumberId("");
   }
 
   function handleSubmit() {
@@ -38,12 +52,22 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
       toast.error("Inserisci un nome per il canale");
       return;
     }
-    if (channel === "facebook" && (!accessToken.trim() || !appSecret.trim())) {
-      toast.error("Per Facebook servono sia il Page Access Token sia l'App Secret");
+    if (isMeta && (!accessToken.trim() || !appSecret.trim())) {
+      toast.error("Servono sia l'Access Token sia l'App Secret");
+      return;
+    }
+    if (channel === "whatsapp" && !phoneNumberId.trim()) {
+      toast.error("Serve il Phone Number ID");
       return;
     }
     createChannelAccount.mutate(
-      { channel, name, access_token: accessToken || undefined, app_secret: channel === "facebook" ? appSecret : undefined },
+      {
+        channel,
+        name,
+        access_token: accessToken || undefined,
+        app_secret: isMeta ? appSecret : undefined,
+        external_account_id: channel === "whatsapp" ? phoneNumberId : undefined,
+      },
       {
         onSuccess: () => {
           toast.success("Canale creato");
@@ -93,18 +117,24 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
             </div>
           )}
 
-          {channel === "facebook" && (
+          {isMeta && (
             <>
               <div className="space-y-1.5">
-                <Label>Page Access Token</Label>
+                <Label>{META_TOKEN_LABEL[channel]}</Label>
                 <Input value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="EAAxxxxx..." type="password" />
               </div>
+              {channel === "whatsapp" && (
+                <div className="space-y-1.5">
+                  <Label>Phone Number ID</Label>
+                  <Input value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} placeholder="Da WhatsApp Manager" />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>App Secret</Label>
                 <Input value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="App Dashboard → Impostazioni → Basic" type="password" />
               </div>
               <p className="text-xs text-muted-foreground">
-                Entrambi si trovano nell&apos;app Meta collegata alla tua Pagina Facebook (developers.facebook.com). Dopo la creazione, apri &quot;Info webhook&quot; dalla lista canali per l&apos;URL e il token da incollare nelle impostazioni Messenger dell&apos;app.
+                Si trovano nell&apos;app Meta collegata (developers.facebook.com). Dopo la creazione, apri &quot;Info webhook&quot; dalla lista canali per l&apos;URL e il token da incollare nelle impostazioni webhook dell&apos;app.
               </p>
             </>
           )}

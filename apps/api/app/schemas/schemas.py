@@ -593,12 +593,15 @@ class OmniChannelAccountCreate(BaseModel):
     channel: str  # telegram, whatsapp, instagram, facebook, mock
     name: str
     external_account_id: Optional[str] = None
-    access_token: Optional[str] = Field(None, description="Plaintext token/secret, encrypted at rest server-side and never echoed back. For Facebook, this is the Page Access Token.")
-    # Facebook-only: the Meta App Secret, used to verify inbound webhook
-    # signatures (X-Hub-Signature-256) - see connectors/facebook.py. Combined
-    # with access_token into a single encrypted JSON blob server-side
-    # (OmnichannelService.create_channel_account); ignored by every other channel.
-    app_secret: Optional[str] = Field(None, description="Facebook only: Meta App Secret, used to verify webhook signatures")
+    access_token: Optional[str] = Field(None, description="Plaintext token/secret, encrypted at rest server-side and never echoed back. For Facebook/Instagram this is the Page/IG Access Token; for WhatsApp, the Cloud API access token.")
+    # Meta channels only (facebook/instagram/whatsapp): the App Secret, used
+    # to verify inbound webhook signatures (X-Hub-Signature-256) - see
+    # connectors/facebook.py, connectors/whatsapp.py. Combined with
+    # access_token into a single encrypted JSON blob server-side
+    # (OmnichannelService.create_channel_account); ignored by telegram/mock.
+    app_secret: Optional[str] = Field(None, description="Facebook/Instagram/WhatsApp only: Meta App Secret, used to verify webhook signatures")
+    # WhatsApp only: the Phone Number ID from WhatsApp Manager - not a
+    # secret, reuses external_account_id rather than a new field.
     config: Optional[Dict[str, Any]] = None
 
 

@@ -44,12 +44,15 @@ class OmnichannelService:
 
     @staticmethod
     def create_channel_account(db: Session, owner_id: uuid.UUID, payload: OmniChannelAccountCreate) -> OmniChannelAccount:
-        # Facebook needs two secrets (Page Access Token to send, App Secret to
-        # verify inbound signatures) where every other channel needs one -
-        # combined into a single encrypted JSON blob so the schema/column
-        # stays the same shape for every channel. See connectors/facebook.py.
-        if payload.channel == "facebook" and payload.access_token:
-            secret_payload = json.dumps({"page_access_token": payload.access_token, "app_secret": payload.app_secret or ""})
+        # Meta channels (Facebook/Instagram/WhatsApp) need two secrets - an
+        # access token to send, an App Secret to verify inbound webhook
+        # signatures - where Telegram/mock need one. Combined into a single
+        # encrypted JSON blob so the access_token_encrypted column stays the
+        # same shape for every channel. See connectors/facebook.py,
+        # connectors/whatsapp.py. WhatsApp's Phone Number ID goes in the
+        # existing external_account_id column instead (not a secret).
+        if payload.channel in ("facebook", "instagram", "whatsapp") and payload.access_token:
+            secret_payload = json.dumps({"access_token": payload.access_token, "app_secret": payload.app_secret or ""})
             access_token_encrypted = EncryptionService.encrypt(secret_payload)
         else:
             access_token_encrypted = EncryptionService.encrypt(payload.access_token) if payload.access_token else None
