@@ -140,10 +140,11 @@ Un **singolo profilo social connesso a Buffer** (una pagina Facebook, un profilo
 | Colonna | Tipo | Note |
 |---|---|---|
 | `platform` | string | `instagram`, `facebook`, `linkedin`, `tiktok`, `youtube`, `x`, `threads`, ... |
+| `channel_type` | string, nullable | riportato direttamente da Buffer (`Channel.type`), es. `page`, `group`, `profile`. Un canale Instagram con `channel_type="profile"` è un profilo personale (non Professional/Business) — non può mai pubblicare via API, vedi [FUNCTIONALITY.md §5](./FUNCTIONALITY.md#5-campagne-targeting-e-testo) |
 | `external_channel_id` | string | ID canale lato Buffer, usato nelle chiamate `create_post` |
 | `external_link` | string, nullable | URL pubblico del profilo/pagina sul social network stesso (`Channel.externalLink` di Buffer — developers.buffer.com/types/Channel.html), non un URL Buffer. `null` se Buffer non lo espone per quella piattaforma. Popolato dal sync (`sync_buffer_connection`) |
 | `is_active` | bool | |
-| `publication_mode` | string | `automatic`, `notification`, `approval`, `disabled` — controlla se le campagne pubblicano davvero su questo canale o solo notificano/richiedono approvazione |
+| `publication_mode` | string | `automatic`, `notification`, `approval`, `disabled` — solo `disabled` ha un effetto reale (esclude il canale dal targeting, vedi `campaign_resolver.resolve_targets`). `notification`/`approval` sono **puramente descrittivi** oggi: contati a scopo informativo nell'anteprima campagna (`preview_campaign_targets`), ma un canale in questi stati viene comunque pubblicato esattamente come uno `automatic` — nessun flusso di notifica/approvazione separato è implementato |
 
 ---
 

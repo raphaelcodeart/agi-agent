@@ -29,6 +29,24 @@ PLATFORM_TEXT_LIMITS = {"x": 280, "threads": 500}
 # does, so there's no realistic duration problem to guard against for them.
 PLATFORM_VIDEO_MAX_DURATION_SECONDS = {"x": 140.0}
 
+# Instagram channels Buffer reports with channel_type="profile" (a personal,
+# non-Business/Creator account - value observed directly from Buffer's own API via
+# sync_buffer_connection, see models/buffer.py SocialChannel.channel_type) always
+# reject scheduled/immediate publishing with the same permanent error:
+# "Instagram personal profile channels require notification scheduling. Use
+# notification scheduling instead." - confirmed against this deployment's own
+# production Buffer API responses (2026-08-06/10, campaign "500€ instagram"), not
+# a documented Buffer spec page, per AGENTS.md rule 14 (verify, don't invent).
+# This is a structural Instagram/Meta Graph API limitation (personal profiles have
+# no Content Publishing permission at all, only Business/Creator accounts do) - no
+# retry ever succeeds, so this is caught here instead of burning the full retry
+# backoff sequence (up to ~6h per attempt, MAX_PUBLICATION_ATTEMPTS attempts) against
+# a call that can never work. This does NOT make the channel publishable - the only
+# real fix is converting the Instagram account to Professional/Business and
+# reconnecting; SocialChannel.publication_mode="notification" is purely descriptive
+# in this codebase today (see api/v1/buffer.py), not wired to a distinct Buffer call.
+CHANNEL_TYPES_REQUIRING_NOTIFICATION_SCHEDULING = {"instagram": {"profile"}}
+
 class CampaignResolver:
     @staticmethod
     def resolve_targets(db: Session, campaign: Campaign, targeting_params: Dict[str, Any]) -> List[SocialChannel]:
@@ -171,6 +189,32 @@ class CampaignResolver:
             f"non sono influenzati."
         )
 
+    @staticmethod
+    def compute_channel_type_validation_error(platform: str, channel_type: Optional[str]) -> Optional[str]:
+        """
+        Proactive check mirroring compute_video_duration_validation_error above, but
+        for channels whose Buffer-reported channel_type can never accept a real
+        publish - currently only Instagram "profile" (personal, non-Business/Creator)
+        channels, see CHANNEL_TYPES_REQUIRING_NOTIFICATION_SCHEDULING above. Fails
+        open (returns None) if channel_type is unknown, same fail-open policy as the
+        video-duration check.
+        """
+        if not channel_type:
+            return None
+        platform_key = platform.lower().strip()
+        blocked_types = CHANNEL_TYPES_REQUIRING_NOTIFICATION_SCHEDULING.get(platform_key)
+        if not blocked_types or channel_type.lower().strip() not in blocked_types:
+            return None
+
+        return (
+            f"Canale {platform} di tipo \"{channel_type}\" (profilo personale, non Professional/Business): "
+            f"Instagram non permette la pubblicazione automatica su profili personali, solo su account "
+            f"Professional/Business collegati a una Pagina Facebook - Buffer rifiuta sempre questo tipo di "
+            f"pubblicazione con lo stesso errore permanente. Converti l'account in Professional/Business su "
+            f"Instagram e ricollegalo su Buffer per poterlo pubblicare da qui. Questo canale è escluso "
+            f"automaticamente; gli altri canali della campagna non sono influenzati."
+        )
+
     @classmethod
     def preview_campaign_targets(
         cls, db: Session, campaign: Campaign, targeting_params: Dict[str, Any]
@@ -269,6 +313,11 @@ class CampaignResolver:
             if validation_error is None:
                 validation_error = cls.compute_video_duration_validation_error(
                     chan.platform, campaign.media_file
+                )
+
+            if validation_error is None:
+                validation_error = cls.compute_channel_type_validation_error(
+                    chan.platform, chan.channel_type
                 )
 
             # Check unique constraint to avoid duplicating targets on retry launch
