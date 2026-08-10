@@ -23,7 +23,8 @@ export function useMediaDetail(id: string | undefined) {
 export function useUploadMedia() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) => mediaService.uploadMedia(file),
+    mutationFn: ({ file, onProgress }: { file: File; onProgress?: (percent: number) => void }) =>
+      mediaService.uploadMedia(file, onProgress),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.media.list() });
     },

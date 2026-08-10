@@ -190,7 +190,7 @@ export default function SettingsPage() {
       concurrent_jobs_per_connection: 1,
       pause_between_requests_seconds: 10,
       max_publication_attempts: 5,
-      upload_max_size_bytes: 104857600,
+      upload_max_size_bytes: 524288000,
     },
   });
 

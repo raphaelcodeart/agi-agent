@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.models.campaign import Campaign, CampaignTarget
 from app.models.user import User, UserGroup
 from app.models.buffer import BufferConnection, BufferOrganization, SocialChannel
+from app.models.media import MediaFile
 from app.models.publication import Publication
 from app.models.audit import AuditLog
 
@@ -17,6 +18,16 @@ from app.models.audit import AuditLog
 # only be caught after a real, wasted Buffer API call. Platforms not listed here have
 # no separately documented limit in this codebase, so none is invented (AGENTS.md rule 14).
 PLATFORM_TEXT_LIMITS = {"x": 280, "threads": 500}
+
+# Hard per-platform video-duration limit enforced by Buffer's own documented specs
+# (support.buffer.com/article/616, "Sharing videos through Buffer": "X/Twitter videos
+# must be between 0.5 seconds to 140 seconds long", verified 2026-08). Only X/Twitter
+# has a stable, Buffer-documented figure here - Instagram/Facebook have no equivalent
+# Buffer-side number we could verify, so none is invented (AGENTS.md rule 14). Those
+# two aren't checked here at all: prod_client.py always publishes their videos as a
+# normal feed "post" (never a Reel), which tolerates much longer clips than a Reel
+# does, so there's no realistic duration problem to guard against for them.
+PLATFORM_VIDEO_MAX_DURATION_SECONDS = {"x": 140.0}
 
 class CampaignResolver:
     @staticmethod
@@ -132,6 +143,34 @@ class CampaignResolver:
 
         return campaign.default_text
 
+    @staticmethod
+    def compute_video_duration_validation_error(
+        platform: str, media_file: Optional[MediaFile]
+    ) -> Optional[str]:
+        """
+        Proactive check mirroring PLATFORM_TEXT_LIMITS above, but only for the one
+        platform (X/Twitter) with a stable, Buffer-documented duration ceiling. Fails
+        open (returns None) when duration is unknown yet (media still being inspected)
+        rather than blocking the channel on missing data - Buffer's own live rejection
+        remains the backstop for that case.
+        """
+        platform_key = platform.lower().strip()
+        duration_limit = PLATFORM_VIDEO_MAX_DURATION_SECONDS.get(platform_key)
+        if duration_limit is None or media_file is None:
+            return None
+        if not media_file.mime_type or "video" not in media_file.mime_type:
+            return None
+        duration = media_file.duration_seconds
+        if duration is None or duration <= duration_limit:
+            return None
+
+        return (
+            f"Video di {duration:.0f}s supera il limite di {duration_limit:.0f}s per "
+            f"{platform} (fonte: Buffer Help Center, support.buffer.com/article/616). "
+            f"Questo canale è escluso automaticamente; gli altri canali della campagna "
+            f"non sono influenzati."
+        )
+
     @classmethod
     def preview_campaign_targets(
         cls, db: Session, campaign: Campaign, targeting_params: Dict[str, Any]
@@ -225,6 +264,11 @@ class CampaignResolver:
                 validation_error = (
                     f"Testo di {len(resolved_text)} caratteri supera il limite di {text_limit} "
                     f"per {chan.platform}. Imposta un testo specifico per questa piattaforma piu breve."
+                )
+
+            if validation_error is None:
+                validation_error = cls.compute_video_duration_validation_error(
+                    chan.platform, campaign.media_file
                 )
 
             # Check unique constraint to avoid duplicating targets on retry launch

@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
 
     # Media Storage
-    UPLOAD_MAX_SIZE_BYTES: int = 104857600  # 100MB
+    UPLOAD_MAX_SIZE_BYTES: int = 524288000  # 500MB - see infrastructure/nginx/nginx.conf client_max_body_size, must match
     MEDIA_STORAGE_DIR: str = "/storage/uploads"
     THUMBNAIL_STORAGE_DIR: str = "/storage/thumbnails"
     # Public origin the "media" nginx vhost is reachable at (see
