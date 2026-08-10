@@ -11,7 +11,7 @@ export default function OmnichannelResponderPage() {
   return (
     <div className="-m-4 grid h-[calc(100vh-4rem)] grid-cols-[300px_1fr_280px] overflow-hidden rounded-lg border bg-background sm:-m-6">
       <ConversationList selectedId={selectedId} onSelect={setSelectedId} />
-      <ChatPanel conversationId={selectedId} />
+      <ChatPanel conversationId={selectedId} onDeleted={() => setSelectedId(null)} />
       <CustomerPanel conversationId={selectedId} />
     </div>
   );

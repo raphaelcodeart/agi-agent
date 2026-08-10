@@ -77,6 +77,10 @@ export function archiveConversation(id: string): Promise<OmniConversationDetailR
   return apiClient.post<OmniConversationDetailResponse>(`${BASE}/conversations/${id}/archive`);
 }
 
+export function deleteConversation(id: string): Promise<void> {
+  return apiClient.delete(`${BASE}/conversations/${id}`);
+}
+
 export function addConversationTag(conversationId: string, tagId: string): Promise<OmniConversationDetailResponse> {
   return apiClient.post<OmniConversationDetailResponse>(`${BASE}/conversations/${conversationId}/tags/${tagId}`);
 }
@@ -96,6 +100,14 @@ export function sendManualMessage(conversationId: string, text: string): Promise
 // Customers
 export function updateCustomer(id: string, payload: OmniCustomerUpdate): Promise<OmniCustomerResponse> {
   return apiClient.patch<OmniCustomerResponse>(`${BASE}/customers/${id}`, payload);
+}
+
+export function blockCustomer(id: string): Promise<OmniCustomerResponse> {
+  return apiClient.post<OmniCustomerResponse>(`${BASE}/customers/${id}/block`);
+}
+
+export function unblockCustomer(id: string): Promise<OmniCustomerResponse> {
+  return apiClient.post<OmniCustomerResponse>(`${BASE}/customers/${id}/unblock`);
 }
 
 // Tags

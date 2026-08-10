@@ -2,27 +2,30 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { SendIcon, StickyNoteIcon, CheckCircle2Icon, ArchiveIcon, SparklesIcon } from "lucide-react";
+import { SendIcon, StickyNoteIcon, CheckCircle2Icon, ArchiveIcon, SparklesIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useArchiveConversation, useConversationDetail, useResolveConversation, useAddNote, useSendManualMessage } from "@/hooks/use-omnichannel";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useArchiveConversation, useConversationDetail, useDeleteConversation, useResolveConversation, useAddNote, useSendManualMessage } from "@/hooks/use-omnichannel";
 import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ChannelIcon, channelLabel } from "./channel-icon";
 import { AIDraftCard } from "./ai-draft-card";
 
-export function ChatPanel({ conversationId }: { conversationId: string | null }) {
+export function ChatPanel({ conversationId, onDeleted }: { conversationId: string | null; onDeleted?: () => void }) {
   const { data: conversation, isLoading } = useConversationDetail(conversationId);
   const [composerText, setComposerText] = useState("");
   const [noteMode, setNoteMode] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const sendMessage = useSendManualMessage(conversationId ?? "");
   const addNote = useAddNote(conversationId ?? "");
   const resolveConversation = useResolveConversation(conversationId ?? "");
   const archiveConversation = useArchiveConversation(conversationId ?? "");
+  const deleteConversation = useDeleteConversation();
 
   if (!conversationId) {
     return (
@@ -80,8 +83,31 @@ export function ChatPanel({ conversationId }: { conversationId: string | null })
           <Button size="sm" variant="outline" onClick={() => archiveConversation.mutate()} disabled={conversation.status === "ARCHIVED"}>
             <ArchiveIcon /> Archivia
           </Button>
+          <Button size="sm" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmDeleteOpen(true)}>
+            <Trash2Icon /> Elimina
+          </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Eliminare definitivamente questa conversazione?"
+        description="Verranno eliminati per sempre tutti i messaggi, le bozze AI e le note interne di questa conversazione. Non è possibile annullare l'operazione. Il cliente e le altre sue eventuali conversazioni non vengono toccati."
+        confirmLabel="Elimina definitivamente"
+        destructive
+        loading={deleteConversation.isPending}
+        onConfirm={() => {
+          deleteConversation.mutate(conversation.id, {
+            onSuccess: () => {
+              toast.success("Conversazione eliminata");
+              setConfirmDeleteOpen(false);
+              onDeleted?.();
+            },
+            onError: (err) => toast.error(err instanceof ApiError ? err.message : "Impossibile eliminare la conversazione"),
+          });
+        }}
+      />
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {conversation.messages.length === 0 && (

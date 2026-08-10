@@ -635,6 +635,7 @@ export interface OmniCustomerResponse {
   language: string | null;
   timezone: string | null;
   notes: string | null;
+  is_blocked: boolean;
   created_at: string;
   last_contact_at: string | null;
   identities: OmniCustomerIdentityResponse[];

@@ -74,6 +74,11 @@ class OmniCustomer(Base):
     language: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     timezone: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # When true, ingest_message() (services/omnichannel_service.py) still records
+    # the customer's messages (nothing is silently lost) but files the
+    # conversation straight into SPAM and never enqueues an AI draft - see
+    # webhooks/omnichannel_webhooks.py::_ingest_and_trigger.
+    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)

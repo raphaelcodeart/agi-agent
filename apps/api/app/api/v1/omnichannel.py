@@ -265,6 +265,25 @@ def archive_conversation(conversation_id: uuid.UUID, db: Session = Depends(get_d
     return get_conversation_detail(conversation_id, db, admin)
 
 
+@router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_conversation(conversation_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """
+    Permanently deletes the conversation and everything tied to it - messages,
+    AI drafts, internal notes, tag associations - via the ondelete=CASCADE FKs
+    already on those tables (see app/models/omnichannel.py). Irreversible;
+    the frontend confirms explicitly before calling this. omni_ai_usage rows
+    survive (ondelete=SET NULL) so cost-tracking history isn't lost.
+    """
+    conversation = _owned_conversation(db, admin, conversation_id)
+    OmnichannelService.log_audit(
+        db, admin.id, admin.id, "CONVERSATION_DELETED", "conversation", conversation.id,
+        {"channel": conversation.channel_account.channel, "customer_id": str(conversation.customer_id)},
+    )
+    db.delete(conversation)
+    db.commit()
+    return
+
+
 @router.post("/conversations/{conversation_id}/tags/{tag_id}", response_model=OmniConversationDetailResponse)
 def add_conversation_tag(conversation_id: uuid.UUID, tag_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
     conversation = _owned_conversation(db, admin, conversation_id)
@@ -355,6 +374,36 @@ def update_customer(customer_id: uuid.UUID, payload: OmniCustomerUpdate, db: Ses
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(customer, field, value)
     OmnichannelService.log_audit(db, admin.id, admin.id, "CUSTOMER_UPDATED", "customer", customer.id)
+    db.commit()
+    db.refresh(customer)
+    return customer
+
+
+@router.post("/customers/{customer_id}/block", response_model=OmniCustomerResponse)
+def block_customer(customer_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """
+    Blocks a customer: their future messages are still recorded (nothing
+    silently lost) but the conversation is filed straight into SPAM and no
+    AI draft is ever generated for it (see OmniCustomer.is_blocked
+    docstring). Does not touch existing conversations/messages/drafts.
+    """
+    customer = db.query(OmniCustomer).filter(OmniCustomer.id == customer_id, OmniCustomer.owner_id == admin.id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Cliente non trovato")
+    customer.is_blocked = True
+    OmnichannelService.log_audit(db, admin.id, admin.id, "CUSTOMER_BLOCKED", "customer", customer.id)
+    db.commit()
+    db.refresh(customer)
+    return customer
+
+
+@router.post("/customers/{customer_id}/unblock", response_model=OmniCustomerResponse)
+def unblock_customer(customer_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    customer = db.query(OmniCustomer).filter(OmniCustomer.id == customer_id, OmniCustomer.owner_id == admin.id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Cliente non trovato")
+    customer.is_blocked = False
+    OmnichannelService.log_audit(db, admin.id, admin.id, "CUSTOMER_UNBLOCKED", "customer", customer.id)
     db.commit()
     db.refresh(customer)
     return customer

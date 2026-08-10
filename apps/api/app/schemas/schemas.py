@@ -633,6 +633,7 @@ class OmniCustomerResponse(BaseModel):
     language: Optional[str]
     timezone: Optional[str]
     notes: Optional[str]
+    is_blocked: bool
     created_at: datetime
     last_contact_at: Optional[datetime]
     identities: List[OmniCustomerIdentityResponse] = []

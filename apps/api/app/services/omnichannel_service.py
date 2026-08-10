@@ -155,7 +155,11 @@ class OmnichannelService:
         now = datetime.now(timezone.utc)
         conversation.last_message_at = now
         conversation.unread_count = (conversation.unread_count or 0) + 1
-        conversation.status = "AI_PROCESSING"
+        # A blocked customer's messages are still recorded (nothing silently
+        # lost) but filed straight into SPAM instead of triggering AI
+        # processing - the caller (_ingest_and_trigger) checks is_blocked
+        # separately before enqueuing generate_ai_draft_task.
+        conversation.status = "SPAM" if customer.is_blocked else "AI_PROCESSING"
         customer.last_contact_at = now
         if normalized.customer_display_name and not customer.name:
             customer.name = normalized.customer_display_name

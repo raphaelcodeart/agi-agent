@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { PhoneIcon, MailIcon, TagIcon, PlusIcon } from "lucide-react";
+import { PhoneIcon, MailIcon, TagIcon, PlusIcon, BanIcon, ShieldOffIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useConversationDetail, useUpdateCustomer, useTags, useAddConversationTag, useRemoveConversationTag } from "@/hooks/use-omnichannel";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useConversationDetail, useUpdateCustomer, useTags, useAddConversationTag, useRemoveConversationTag, useBlockCustomer, useUnblockCustomer } from "@/hooks/use-omnichannel";
 import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/format";
 
@@ -19,8 +20,11 @@ export function CustomerPanel({ conversationId }: { conversationId: string | nul
   const updateCustomer = useUpdateCustomer(conversationId ?? "");
   const addTag = useAddConversationTag(conversationId ?? "");
   const removeTag = useRemoveConversationTag(conversationId ?? "");
+  const blockCustomer = useBlockCustomer(conversationId ?? "");
+  const unblockCustomer = useUnblockCustomer(conversationId ?? "");
 
   const [notes, setNotes] = useState("");
+  const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
 
   useEffect(() => {
     setNotes(conversation?.customer.notes ?? "");
@@ -50,9 +54,54 @@ export function CustomerPanel({ conversationId }: { conversationId: string | nul
   return (
     <div className="h-full min-h-0 space-y-5 overflow-y-auto border-l p-4">
       <div>
-        <p className="text-sm font-semibold">{customer.name || "Cliente sconosciuto"}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">{customer.name || "Cliente sconosciuto"}</p>
+          {customer.is_blocked ? (
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() =>
+                unblockCustomer.mutate(customer.id, {
+                  onSuccess: () => toast.success("Cliente sbloccato"),
+                  onError: (err) => toast.error(err instanceof ApiError ? err.message : "Impossibile sbloccare il cliente"),
+                })
+              }
+              disabled={unblockCustomer.isPending}
+            >
+              <ShieldOffIcon /> Sblocca
+            </Button>
+          ) : (
+            <Button size="xs" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirmBlockOpen(true)}>
+              <BanIcon /> Blocca
+            </Button>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">Cliente dal {formatDateTime(customer.created_at)}</p>
+        {customer.is_blocked && (
+          <div className="mt-2 flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-xs text-destructive">
+            <BanIcon className="size-3.5 shrink-0" /> Cliente bloccato: i suoi nuovi messaggi non generano più bozze AI.
+          </div>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={confirmBlockOpen}
+        onOpenChange={setConfirmBlockOpen}
+        title="Bloccare questo cliente?"
+        description="I nuovi messaggi da questo cliente verranno comunque salvati, ma non genereranno più una bozza di risposta AI e la conversazione finirà automaticamente tra le Spam. Puoi sbloccarlo in qualsiasi momento."
+        confirmLabel="Blocca"
+        destructive
+        loading={blockCustomer.isPending}
+        onConfirm={() => {
+          blockCustomer.mutate(customer.id, {
+            onSuccess: () => {
+              toast.success("Cliente bloccato");
+              setConfirmBlockOpen(false);
+            },
+            onError: (err) => toast.error(err instanceof ApiError ? err.message : "Impossibile bloccare il cliente"),
+          });
+        }}
+      />
 
       <div className="space-y-2 text-sm">
         {customer.phone && (

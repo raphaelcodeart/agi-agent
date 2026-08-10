@@ -100,6 +100,7 @@ Il contatto che scrive (persona reale dietro un numero WhatsApp/username Telegra
 | Colonna | Tipo | Note |
 |---|---|---|
 | `name`, `first_name`, `last_name`, `phone`, `email`, `language`, `timezone`, `notes` | | tutti nullable, popolati progressivamente (dal canale al primo contatto, poi modificabili dall'operatore nella scheda cliente) |
+| `is_blocked` | bool, default `false` | `POST /customers/{id}/block\|unblock` (scheda cliente, pulsante "Blocca"/"Sblocca"). Un cliente bloccato può ancora scrivere - il messaggio viene salvato normalmente - ma `ingest_message` marca subito la conversazione `SPAM` invece di `AI_PROCESSING`, e il chiamante (`_ingest_and_trigger`) non mette mai in coda `generate_ai_draft_task` per lui: nessuna bozza AI viene mai generata finché resta bloccato. Non impedisce all'operatore di scrivergli manualmente (`POST /conversations/{id}/messages`) |
 | `last_contact_at` | timestamp, nullable | aggiornato ad ogni messaggio in arrivo |
 
 ### `omni_customer_identities`
@@ -307,8 +308,8 @@ Tutti gli endpoint sotto `/api/v1/omnichannel-responder/` (eccetto il webhook Te
 | Area | Endpoint principali |
 |---|---|
 | Canali | `GET/POST /channel-accounts`, `GET /channel-accounts/supported`, `GET /channel-accounts/{id}/status`, `POST /channel-accounts/{id}/register-webhook`, `DELETE /channel-accounts/{id}` |
-| Conversazioni | `GET /conversations` (filtri: `status`, `channel`, `assigned_admin_id`, `tag_id`, `search`), `GET /conversations/{id}`, `POST /conversations/{id}/assign\|resolve\|archive`, `POST\|DELETE /conversations/{id}/tags/{tag_id}`, `POST /conversations/{id}/notes`, `POST /conversations/{id}/messages` (invio manuale, bypassa l'AI) |
-| Clienti | `GET\|PATCH /customers/{id}` |
+| Conversazioni | `GET /conversations` (filtri: `status`, `channel`, `assigned_admin_id`, `tag_id`, `search`), `GET /conversations/{id}`, `POST /conversations/{id}/assign\|resolve\|archive`, `DELETE /conversations/{id}` (eliminazione **definitiva**, cascata su messaggi/bozze/note, vedi §3), `POST\|DELETE /conversations/{id}/tags/{tag_id}`, `POST /conversations/{id}/notes`, `POST /conversations/{id}/messages` (invio manuale, bypassa l'AI) |
+| Clienti | `GET\|PATCH /customers/{id}`, `POST /customers/{id}/block\|unblock` |
 | Tag | `GET\|POST /tags` |
 | Bozze AI | `PATCH /drafts/{id}`, `POST /drafts/{id}/approve\|regenerate\|reject` |
 | AI Agent | `GET\|PUT /ai-agent` (`PUT` valida `response_mode` contro i 3 valori ammessi e registra un `AI_RESPONSE_MODE_CHANGED` ad ogni cambio, vedi §3) |
@@ -365,6 +366,8 @@ Per testare senza un bot reale: crea un canale di tipo `Test (mock)`, poi usa l'
 - **Un solo percorso di invio**: nessun percorso di codice chiama `Connector.send_message` se non `OmnichannelDraftService.approve_and_send` — sia che parta da un click umano (`admin` valorizzato) sia che parta dall'autorisponditore automatico (`admin=None`, vedi §5), è la stessa funzione, con lo stesso row-lock anti-doppio-invio.
 - **`AUTO_REPLY` è opt-in, mai il default**: ogni nuovo `OmniAIAgentConfig` nasce con `response_mode="APPROVAL_REQUIRED"` (§3); passare ad `AUTO_REPLY` richiede un'azione esplicita dell'amministratore dalla pagina AI Agent, con una conferma dedicata prima di attivarlo, ed è sempre reversibile con un click. Ogni cambio produce un audit log dedicato (`AI_RESPONSE_MODE_CHANGED`).
 - **Categorie sensibili sempre più forti di `AUTO_REPLY`**: una bozza `HUMAN_REVIEW_REQUIRED` non viene mai auto-inviata, indipendentemente da `response_mode` — il controllo è esplicito nel codice (`generate_draft_for_message`), non delegato a un'impostazione che potrebbe essere disattivata per errore.
+- **Eliminazione conversazione irreversibile**: `DELETE /conversations/{id}` è un hard delete reale (nessun soft-delete/cestino per questo modulo, a differenza di Blog Writer AI) — confermato lato frontend con un dialog esplicito che elenca cosa verrà perso, e registrato in `omni_audit_logs` (`CONVERSATION_DELETED`) *prima* della cancellazione, perché dopo la riga non esiste più da interrogare.
+- **Blocco cliente non nasconde nulla**: un cliente bloccato può ancora scrivere e il messaggio resta salvato — si blocca solo la generazione automatica di bozze AI, non la ricezione. Un operatore può sempre vedere/rispondere manualmente a un cliente bloccato.
 
 ---
 

@@ -32,7 +32,11 @@ def _ingest_and_trigger(db: Session, account: OmniChannelAccount, messages: list
     for normalized in messages:
         message = OmnichannelService.ingest_message(db, account, normalized)
         if message:
-            generate_ai_draft_task.delay(str(message.id))
+            # Blocked customers: the message is still saved (ingest_message
+            # already filed the conversation into SPAM) but never gets an AI
+            # draft - see OmniCustomer.is_blocked docstring.
+            if not message.conversation.customer.is_blocked:
+                generate_ai_draft_task.delay(str(message.id))
             triggered.append(message)
     return triggered
 

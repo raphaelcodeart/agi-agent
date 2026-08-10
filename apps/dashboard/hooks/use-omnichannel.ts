@@ -89,6 +89,17 @@ export function useArchiveConversation(conversationId: string) {
   });
 }
 
+export function useDeleteConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => omnichannelService.deleteConversation(conversationId),
+    onSuccess: (_data, conversationId) => {
+      queryClient.removeQueries({ queryKey: queryKeys.omnichannel.conversationDetail(conversationId) });
+      queryClient.invalidateQueries({ queryKey: ["omnichannel", "conversations"] });
+    },
+  });
+}
+
 export function useAddConversationTag(conversationId: string) {
   const invalidate = useInvalidateConversation(conversationId);
   return useMutation({
@@ -126,6 +137,22 @@ export function useUpdateCustomer(conversationId: string) {
   const invalidate = useInvalidateConversation(conversationId);
   return useMutation({
     mutationFn: ({ customerId, payload }: { customerId: string; payload: OmniCustomerUpdate }) => omnichannelService.updateCustomer(customerId, payload),
+    onSuccess: invalidate,
+  });
+}
+
+export function useBlockCustomer(conversationId: string) {
+  const invalidate = useInvalidateConversation(conversationId);
+  return useMutation({
+    mutationFn: (customerId: string) => omnichannelService.blockCustomer(customerId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUnblockCustomer(conversationId: string) {
+  const invalidate = useInvalidateConversation(conversationId);
+  return useMutation({
+    mutationFn: (customerId: string) => omnichannelService.unblockCustomer(customerId),
     onSuccess: invalidate,
   });
 }
