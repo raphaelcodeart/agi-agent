@@ -38,4 +38,14 @@ export const queryKeys = {
     articleDetail: (id: string) => ["blog-writer", "article-detail", id] as const,
     dashboard: () => ["blog-writer", "dashboard"] as const,
   },
+  omnichannel: {
+    channelAccounts: () => ["omnichannel", "channel-accounts"] as const,
+    conversations: (params?: unknown) => ["omnichannel", "conversations", params] as const,
+    conversationDetail: (id: string) => ["omnichannel", "conversation-detail", id] as const,
+    tags: () => ["omnichannel", "tags"] as const,
+    aiAgent: () => ["omnichannel", "ai-agent"] as const,
+    knowledgeBase: () => ["omnichannel", "knowledge-base"] as const,
+    notifications: (unreadOnly?: boolean) => ["omnichannel", "notifications", unreadOnly] as const,
+    analytics: () => ["omnichannel", "analytics"] as const,
+  },
 } as const;

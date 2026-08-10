@@ -26,6 +26,7 @@ celery.conf.imports = (
     "app.tasks.publication",
     "app.tasks.cleanup",
     "app.tasks.blog_writer",
+    "app.tasks.omnichannel",
 )
 
 # Celery Beat Periodic Scheduling Config

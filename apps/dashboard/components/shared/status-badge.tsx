@@ -62,6 +62,13 @@ const STATUS_TONE: Record<string, Tone> = {
   retrying: "warning",
   removed: "neutral",
   updated: "success",
+  // Omnichannel Responder conversations
+  new: "info",
+  ai_processing: "info",
+  waiting_approval: "warning",
+  waiting_customer: "info",
+  resolved: "success",
+  spam: "destructive",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -109,6 +116,13 @@ const STATUS_LABELS: Record<string, string> = {
   retrying: "Nuovo tentativo",
   removed: "Rimosso",
   updated: "Aggiornato",
+  // Omnichannel Responder conversations
+  new: "Nuova",
+  ai_processing: "AI in elaborazione",
+  waiting_approval: "Da approvare",
+  waiting_customer: "Attesa cliente",
+  resolved: "Risolta",
+  spam: "Spam",
 };
 
 const LIVE_STATUSES = new Set([
@@ -121,6 +135,7 @@ const LIVE_STATUSES = new Set([
   "generating",
   "publishing",
   "retrying",
+  "ai_processing",
 ]);
 
 interface StatusBadgeProps {

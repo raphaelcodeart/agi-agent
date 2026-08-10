@@ -571,3 +571,219 @@ export interface BlogWriterDashboardResponse {
   recent_articles: BlogArticleListItem[];
   recent_publications: BlogPublicationResponse[];
 }
+
+// ==============================================================================
+// Omnichannel Responder (independent add-on module)
+// ==============================================================================
+export type OmniChannel = "telegram" | "whatsapp" | "instagram" | "facebook" | "mock";
+
+export type OmniConversationStatus =
+  | "NEW"
+  | "OPEN"
+  | "AI_PROCESSING"
+  | "WAITING_APPROVAL"
+  | "WAITING_CUSTOMER"
+  | "RESOLVED"
+  | "ARCHIVED"
+  | "SPAM";
+
+export type OmniDraftStatus =
+  | "GENERATING"
+  | "PENDING_APPROVAL"
+  | "EDITED"
+  | "APPROVED"
+  | "SENDING"
+  | "SENT"
+  | "REJECTED"
+  | "FAILED"
+  | "HUMAN_REVIEW_REQUIRED";
+
+export interface OmniChannelAccountResponse {
+  id: string;
+  channel: OmniChannel;
+  name: string;
+  external_account_id: string | null;
+  status: string;
+  webhook_secret: string;
+  config: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OmniChannelAccountCreate {
+  channel: OmniChannel;
+  name: string;
+  external_account_id?: string;
+  access_token?: string;
+  config?: Record<string, unknown>;
+}
+
+export interface OmniCustomerIdentityResponse {
+  id: string;
+  channel: OmniChannel;
+  external_user_id: string;
+  display_name: string | null;
+}
+
+export interface OmniCustomerResponse {
+  id: string;
+  name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  email: string | null;
+  language: string | null;
+  timezone: string | null;
+  notes: string | null;
+  created_at: string;
+  last_contact_at: string | null;
+  identities: OmniCustomerIdentityResponse[];
+}
+
+export interface OmniCustomerUpdate {
+  name?: string;
+  phone?: string;
+  email?: string;
+  language?: string;
+  notes?: string;
+}
+
+export interface OmniTagResponse {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+export interface OmniTagCreate {
+  name: string;
+  color?: string;
+}
+
+export interface OmniMessageResponse {
+  id: string;
+  conversation_id: string;
+  direction: "inbound" | "outbound";
+  sender_type: "customer" | "operator" | "ai";
+  text: string | null;
+  message_type: string;
+  attachments: Array<Record<string, unknown>> | null;
+  status: string;
+  created_at: string;
+}
+
+export interface OmniAIDraftResponse {
+  id: string;
+  conversation_id: string;
+  source_message_id: string | null;
+  original_ai_text: string | null;
+  edited_text: string | null;
+  status: OmniDraftStatus;
+  model: string | null;
+  confidence_score: number | null;
+  sensitive_category: string | null;
+  failure_reason: string | null;
+  created_at: string;
+  approved_at: string | null;
+  sent_at: string | null;
+}
+
+export interface OmniInternalNoteResponse {
+  id: string;
+  conversation_id: string;
+  admin_id: string | null;
+  text: string;
+  mentions: string[] | null;
+  created_at: string;
+}
+
+export interface OmniConversationListItem {
+  id: string;
+  status: OmniConversationStatus;
+  channel: OmniChannel;
+  channel_account_name: string;
+  customer: OmniCustomerResponse;
+  assigned_admin_id: string | null;
+  unread_count: number;
+  last_message_at: string | null;
+  last_message_preview: string | null;
+  tags: OmniTagResponse[];
+}
+
+export interface OmniConversationDetailResponse {
+  id: string;
+  status: OmniConversationStatus;
+  channel: OmniChannel;
+  channel_account_id: string;
+  customer: OmniCustomerResponse;
+  assigned_admin_id: string | null;
+  unread_count: number;
+  created_at: string;
+  updated_at: string;
+  tags: OmniTagResponse[];
+  messages: OmniMessageResponse[];
+  drafts: OmniAIDraftResponse[];
+  notes: OmniInternalNoteResponse[];
+}
+
+export interface OmniAIAgentConfigResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  system_prompt: string | null;
+  language: string;
+  tone: string;
+  temperature: number;
+  company_description: string | null;
+  allowed_topics: string[] | null;
+  forbidden_topics: string[] | null;
+  signature: string | null;
+  max_context_messages: number;
+  knowledge_base_enabled: boolean;
+  automatic_language_detection: boolean;
+  response_mode: "MANUAL" | "APPROVAL_REQUIRED" | "AUTO_REPLY";
+  sensitive_categories: string[] | null;
+}
+
+export type OmniAIAgentConfigUpdate = Partial<Omit<OmniAIAgentConfigResponse, "id">>;
+
+export interface OmniKnowledgeDocumentResponse {
+  id: string;
+  title: string;
+  source_type: "manual" | "faq" | "url" | "pdf" | "docx" | "txt";
+  content_text: string | null;
+  source_url: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OmniKnowledgeDocumentCreate {
+  title: string;
+  source_type?: string;
+  content_text?: string;
+  source_url?: string;
+}
+
+export interface OmniNotificationResponse {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface OmniAnalyticsResponse {
+  conversations_total: number;
+  conversations_open: number;
+  messages_received: number;
+  messages_sent: number;
+  ai_drafts_approved_unedited: number;
+  ai_drafts_approved_edited: number;
+  ai_drafts_rejected: number;
+  ai_acceptance_rate: number | null;
+  ai_edit_rate: number | null;
+  ai_rejection_rate: number | null;
+}

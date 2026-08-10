@@ -6,6 +6,8 @@ Se modifichi il comportamento descritto qui, aggiorna questo file nello stesso c
 
 Il modulo **Blog Writer AI** (generazione articoli, siti WordPress, pubblicazione) è documentato separatamente in [BLOG_WRITER.md](./BLOG_WRITER.md) essendo un modulo isolato con proprie tabelle/endpoint/pagine — questo file copre solo la piattaforma campagne/Buffer preesistente.
 
+Il modulo **Omnichannel Responder** (inbox AI multicanale con approvazione umana obbligatoria) è documentato separatamente in [OMNICHANNEL_RESPONDER.md](./OMNICHANNEL_RESPONDER.md), anch'esso un modulo isolato con proprie tabelle/endpoint/pagine, collegato al resto della piattaforma solo tramite `owner_id`.
+
 ---
 
 ## Indice

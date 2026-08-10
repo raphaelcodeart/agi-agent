@@ -8,3 +8,20 @@ from app.models.media import MediaFile  # noqa
 from app.models.campaign import Campaign, CampaignTarget  # noqa
 from app.models.publication import Publication, PublicationAttempt  # noqa
 from app.models.audit import AuditLog  # noqa
+from app.models.omnichannel import (  # noqa
+    OmniChannelAccount,
+    OmniCustomer,
+    OmniCustomerIdentity,
+    OmniConversation,
+    OmniMessage,
+    OmniAIDraft,
+    OmniAIAgentConfig,
+    OmniKnowledgeDocument,
+    OmniKnowledgeChunk,
+    OmniTag,
+    omni_conversation_tags,
+    OmniInternalNote,
+    OmniAuditLog,
+    OmniNotification,
+    OmniAIUsage,
+)

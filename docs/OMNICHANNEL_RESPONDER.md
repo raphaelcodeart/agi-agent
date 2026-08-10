@@ -1,0 +1,361 @@
+# Omnichannel Responder
+
+Modulo separato e indipendente: inbox unificata multicanale (Telegram, WhatsApp, Instagram, Facebook) con proposte di risposta generate dall'AI che **non vengono mai inviate automaticamente** — un operatore deve sempre approvarle, modificarle o scartarle prima dell'invio reale. Non modifica né duplica alcuna tabella/funzionalità esistente: l'unico collegamento con il resto della piattaforma è `owner_id` (FK verso `administrators.id`, la stessa identità che fa login nella dashboard). Per lo schema dati generale vedi [DATABASE.md](./DATABASE.md); per il resto delle funzionalità della piattaforma vedi [FUNCTIONALITY.md](./FUNCTIONALITY.md).
+
+Questo file è scritto per essere sufficiente, da solo, a ricostruire il modulo identico su un altro server (schema dati, endpoint, decisioni architetturali e i loro perché) senza dover rileggere il codice riga per riga.
+
+---
+
+## Indice
+
+1. [Architettura in breve](#1-architettura-in-breve)
+2. [Perché `owner_id` e non `tenant_id`](#2-perché-owner_id-e-non-tenant_id)
+3. [Schema database](#3-schema-database)
+4. [Connector layer](#4-connector-layer)
+5. [Flusso messaggio → bozza AI → approvazione → invio](#5-flusso-messaggio--bozza-ai--approvazione--invio)
+6. [Pipeline AI](#6-pipeline-ai)
+7. [Sicurezza contro invii duplicati e fuori ordine](#7-sicurezza-contro-invii-duplicati-e-fuori-ordine)
+8. [Webhook e strumento di simulazione](#8-webhook-e-strumento-di-simulazione)
+9. [API REST](#9-api-rest)
+10. [Frontend](#10-frontend)
+11. [Configurazione e come collegare Telegram](#11-configurazione-e-come-collegare-telegram)
+12. [Sicurezza](#12-sicurezza)
+13. [Limiti noti di questa v1](#13-limiti-noti-di-questa-v1)
+
+---
+
+## 1. Architettura in breve
+
+```
+Dashboard: /omnichannel-responder                (inbox a 3 colonne: conversazioni | chat + bozza AI | scheda cliente)
+           /omnichannel-responder/channels        (canali collegati, registrazione webhook, simulazione messaggi)
+           /omnichannel-responder/settings         (configurazione AI Agent)
+           /omnichannel-responder/knowledge-base    (documenti/FAQ usati dall'AI)
+
+Backend:   /api/v1/omnichannel-responder/...       (CRUD + workflow, autenticato, vedi §9)
+           /api/v1/omnichannel-responder/webhooks/telegram/{channel_account_id}  (pubblico, non autenticato)
+           /api/v1/omnichannel-responder/dev/simulate-message  (autenticato, solo su canali 'mock')
+
+Backend - moduli nuovi:
+  app/models/omnichannel.py                        (15 tabelle, vedi §3)
+  app/schemas/schemas.py                            (sezione "Omnichannel Responder" in fondo al file, non tocca le sezioni esistenti)
+  app/integrations/omnichannel/connectors/          (interfaccia Connector + implementazioni, vedi §4)
+  app/integrations/omnichannel/ai.py                 (context builder + generazione, vedi §6)
+  app/services/omnichannel_service.py                (ingest messaggi, customer/conversation resolution, note/tag/notifiche)
+  app/services/omnichannel_draft_service.py           (workflow bozza AI: genera/modifica/rigenera/approva-e-invia/scarta)
+  app/tasks/omnichannel.py                            (task Celery: generazione bozza AI in background)
+  app/api/v1/omnichannel.py                           (router principale, autenticato)
+  app/api/v1/omnichannel_webhooks.py                  (router webhook, pubblico + dev tool)
+  apps/api/alembic/versions/a1b2c3d4e5f6_...py         (unica migration che crea tutte le 15 tabelle)
+```
+
+File esistenti toccati, e solo in modo **additivo** (righe aggiunte, nessuna riga esistente modificata o rimossa):
+
+| File | Aggiunta |
+|---|---|
+| `app/db/base.py` | import dei nuovi modelli, necessario perché Alembic li veda |
+| `app/main.py` | due `app.include_router(...)` per i due nuovi router |
+| `app/workers/celery_app.py` | `"app.tasks.omnichannel"` aggiunto a `celery.conf.imports` |
+| `app/schemas/schemas.py` | nuova sezione in fondo al file (banner `# Omnichannel Responder`) |
+| `apps/dashboard/lib/navigation.ts` | nuovo gruppo di voci menu "Omnichannel Responder" (era già presente un placeholder da una richiesta precedente, ora sostituito con le voci reali) |
+| `apps/dashboard/components/navigation/app-sidebar.tsx` | rendering del nuovo gruppo |
+| `apps/dashboard/components/shared/status-badge.tsx` | nuove voci nelle mappe di tono/etichetta per gli stati di conversazione (`new`, `ai_processing`, `waiting_approval`, `waiting_customer`, `resolved`, `spam`) — stesso pattern già usato da ogni altro modulo in questo file |
+| `apps/dashboard/types/api.ts`, `lib/query/keys.ts` | nuove interfacce/query key, in fondo ai rispettivi file |
+
+Nessun nuovo servizio Docker: il modulo riusa `db` (Postgres), `redis`, `worker`/`beat` (Celery) già esistenti — nessuna modifica a `docker-compose.yml` / `docker-compose.prod.yml` / `infrastructure/nginx/nginx.conf` necessaria (il webhook pubblico vive sotto `/api/v1/...`, già proxato interamente da Nginx verso `api:8000`).
+
+---
+
+## 2. Perché `owner_id` e non `tenant_id`
+
+Il resto della piattaforma ha un solo tipo di identità che fa login: `Administrator` (vedi [DATABASE.md §3](./DATABASE.md#3-amministrazione)). La tabella `users` esistente rappresenta invece i **clienti gestiti** dall'amministratore (per le campagne social) — un concetto diverso da "un contatto che scrive su WhatsApp/Telegram", quindi non viene riusata qui.
+
+Ogni singola tabella di questo modulo (comprese le tabelle ponte many-to-many) ha una colonna `owner_id` (FK → `administrators.id`, `ondelete="CASCADE"`, indicizzata) che identifica **l'amministratore proprietario di quel dato** — denormalizzata apposta su ogni riga, non solo raggiungibile tramite una join, così che:
+
+- ogni query può filtrare `WHERE owner_id = :admin_id` direttamente, senza join;
+- se in futuro questo sistema diventasse multi-amministratore (più persone che usano la stessa installazione, ognuna con i propri canali/conversazioni), l'isolamento dei dati è già garantito da questa singola colonna, ripetuta ovunque — non serve reingegnerizzare nulla.
+
+Oggi, con un solo amministratore che fa login, `owner_id` coincide semplicemente con "l'admin loggato" su ogni endpoint (`admin.id` da `get_current_admin`, vedi [DATABASE.md §3](./DATABASE.md#3-amministrazione)).
+
+---
+
+## 3. Schema database
+
+Migration unica: `a1b2c3d4e5f6_add_omnichannel_responder_module.py` (down_revision `f977e27daa7d`, l'ultima migration esistente al momento della creazione del modulo). Crea 15 tabelle, tutte prefissate `omni_`, nessuna modifica a tabelle esistenti. Tutte le PK sono UUID (`uuid.uuid4()` lato Python), stesso stile di ogni altro modello del progetto.
+
+### `omni_channel_accounts`
+Un account/canale collegato (bot Telegram, futuro numero WhatsApp Business, pagina Instagram/Facebook...).
+
+| Colonna | Tipo | Note |
+|---|---|---|
+| `channel` | string | `telegram`, `whatsapp`, `instagram`, `facebook`, `mock` |
+| `status` | string | `pending`, `connected`, `error`, `disabled` |
+| `access_token_encrypted` | text, nullable | cifrato con lo stesso `EncryptionService` (Fernet) usato per i token Buffer — mai in chiaro, mai restituito dall'API |
+| `webhook_secret` | string(64) | generato random alla creazione (`uuid4().hex`); Telegram lo rimanda nell'header `X-Telegram-Bot-Api-Secret-Token` ad ogni richiesta webhook — è così che il webhook (pubblico, non autenticato) verifica che la richiesta venga davvero da Telegram, vedi §8 |
+| `config_json` (colonna `config`) | JSONB, nullable | configurazione libera per canale |
+
+### `omni_customers`
+Il contatto che scrive (persona reale dietro un numero WhatsApp/username Telegram/ecc.) — **non** la tabella `users` esistente, vedi §2.
+
+| Colonna | Tipo | Note |
+|---|---|---|
+| `name`, `first_name`, `last_name`, `phone`, `email`, `language`, `timezone`, `notes` | | tutti nullable, popolati progressivamente (dal canale al primo contatto, poi modificabili dall'operatore nella scheda cliente) |
+| `last_contact_at` | timestamp, nullable | aggiornato ad ogni messaggio in arrivo |
+
+### `omni_customer_identities`
+L'identità di un cliente su un canale specifico — separata da `omni_customers` apposta per riconoscere in futuro la stessa persona su più canali (WhatsApp + Instagram + Telegram = un solo `omni_customers`, più identità).
+
+| Colonna | Tipo | Note |
+|---|---|---|
+| `channel` | string | |
+| `external_user_id` | string | ID/numero/username lato canale (es. `chat.id` di Telegram) |
+| `display_name` | string, nullable | |
+
+Vincolo unico `(owner_id, channel, external_user_id)`: la stessa persona sullo stesso canale non genera mai due identità duplicate.
+
+### `omni_conversations`
+Una conversazione tra un cliente (su un canale specifico) e l'amministratore.
+
+| Colonna | Tipo | Note |
+|---|---|---|
+| `status` | string | `NEW`, `OPEN`, `AI_PROCESSING`, `WAITING_APPROVAL`, `WAITING_CUSTOMER`, `RESOLVED`, `ARCHIVED`, `SPAM` |
+| `assigned_admin_id` | UUID, nullable (FK → administrators, `SET NULL`) | assegnazione manuale (nessun round-robin/team in questa v1, vedi §13) |
+| `unread_count` | int | azzerato quando l'operatore apre la conversazione (`GET /conversations/{id}`) |
+| `last_message_at` | timestamp, nullable | usato per ordinare la lista conversazioni |
+
+Una conversazione **RESOLVED o ARCHIVED** non viene mai riaperta silenziosamente: un nuovo messaggio dello stesso cliente sullo stesso canale crea una **nuova** riga `omni_conversations` invece di riaprire la vecchia (vedi `OmnichannelService._find_or_create_conversation`).
+
+### `omni_messages`
+Ogni singolo messaggio, in entrata o in uscita.
+
+| Colonna | Tipo | Note |
+|---|---|---|
+| `channel_account_id` | UUID (FK → omni_channel_accounts) | denormalizzato dalla conversazione apposta per l'indice di idempotenza sotto |
+| `direction` | string | `inbound`, `outbound` |
+| `sender_type` | string | `customer`, `operator`, `ai` (l'AI compare come mittente solo per un messaggio realmente inviato dopo approvazione, mai per una bozza) |
+| `external_message_id` | string, nullable | ID del messaggio lato canale |
+| `message_type` | string | `TEXT`, `IMAGE`, `VIDEO`, `AUDIO`, `VOICE`, `DOCUMENT`, `LOCATION`, `CONTACT`, `OTHER` |
+| `attachments_json` (colonna `attachments`), `metadata_json` (colonna `metadata`) | JSONB, nullable | |
+| `status` | string | `received`, `pending`, `sent`, `failed` |
+
+Vincolo unico `(channel_account_id, external_message_id)`: **idempotenza dei webhook** — se Telegram (o qualunque canale) rinvia lo stesso evento due volte, il secondo viene scartato silenziosamente (vedi §8).
+
+### `omni_ai_drafts`
+La proposta di risposta generata dall'AI — il cuore del workflow "human-in-the-loop".
+
+| Colonna | Tipo | Note |
+|---|---|---|
+| `source_message_id` | UUID, nullable (FK → omni_messages, `SET NULL`) | il messaggio del cliente che ha innescato la generazione |
+| `original_ai_text` | text, nullable | **mai sovrascritto** da una modifica dell'operatore — conservato per un futuro confronto/analisi (spec "feedback loop") |
+| `edited_text` | text, nullable | testo modificato dall'operatore, se diverso dall'originale |
+| `status` | string | `GENERATING`, `PENDING_APPROVAL`, `EDITED`, `APPROVED`, `SENDING`, `SENT`, `REJECTED`, `FAILED`, `HUMAN_REVIEW_REQUIRED` |
+| `model`, `prompt_version` | string, nullable | |
+| `confidence_score` | float, nullable | riservato per uso futuro, non popolato in questa v1 |
+| `sensitive_category` | string, nullable | valorizzato se il messaggio del cliente tocca un argomento sensibile (rimborso, legale, medico...) — vedi §6 |
+| `failure_reason` | text, nullable | motivo se `status = FAILED` (es. nessuna API key OpenAI configurata) |
+| `approved_at`, `approved_by` (FK → administrators, `SET NULL`), `sent_at` | | |
+
+**La AI non ha mai un percorso di codice che invia un messaggio.** Solo `OmnichannelDraftService.approve_and_send`, chiamato da un endpoint autenticato dopo un'azione esplicita dell'operatore, chiama `Connector.send_message`.
+
+### `omni_ai_agent_configs`
+Configurazione dell'assistente AI. Una riga per `owner_id` (vincolo unico), creata al primo accesso con valori di default se non esiste ancora.
+
+| Colonna | Tipo | Note |
+|---|---|---|
+| `system_prompt`, `company_description`, `tone`, `language`, `signature` | | testo libero incorporato nel prompt di sistema ad ogni generazione, vedi §6 |
+| `temperature` | float | default `0.7` |
+| `allowed_topics_json`, `forbidden_topics_json` | JSONB, nullable | liste di argomenti, incorporate nel prompt |
+| `max_context_messages` | int | quanti messaggi recenti della conversazione includere nel contesto (default 20) |
+| `knowledge_base_enabled` | bool | se disattivato, la ricerca nella Knowledge Base viene saltata |
+| `automatic_language_detection` | bool | |
+| `response_mode` | string | `MANUAL`, `APPROVAL_REQUIRED`, `AUTO_REPLY` — **`AUTO_REPLY` è bloccato lato API** (`PUT /ai-agent` risponde 400 se richiesto): il campo esiste per une futura implementazione ma nessun percorso di codice in questa v1 invia mai automaticamente, quindi impostarlo non avrebbe alcun effetto — bloccato per evitare di far credere il contrario |
+| `sensitive_categories_json` | JSONB, nullable | vedi §6 |
+
+### `omni_knowledge_documents` / `omni_knowledge_chunks`
+Documenti di conoscenza aziendale (FAQ, prezzi, procedure...) usati dall'AI come contesto. Ogni documento viene spezzato in blocchi (`omni_knowledge_chunks`, ~500 caratteri, spezzato su paragrafi/spazi) alla creazione.
+
+**Ricerca per parole chiave, non per embedding vettoriali** (vedi §6 e §13): lo schema è comunque pensato per essere esteso in futuro con una colonna embedding + indice `pgvector` su `omni_knowledge_chunks`, senza cambiare il significato delle tabelle esistenti.
+
+### `omni_tags` / `omni_conversation_tags`
+Tag liberi (es. `VIP`, `RECLAMO`, `LEAD`) applicabili alle conversazioni. `omni_conversation_tags` è la tabella ponte many-to-many, con **PK composta** `(conversation_id, tag_id)` più la colonna `owner_id` (non-PK, `NOT NULL`).
+
+> **Attenzione se estendi questo modulo**: `omni_conversation_tags` ha una colonna extra (`owner_id`) oltre alle due FK della relazione. Il meccanismo automatico di SQLAlchemy (`relationship(secondary=...)`) scrive **solo** le due colonne della relazione quando fai `conversation.tags.append(tag)` — non conosce `owner_id` e l'INSERT fallirebbe per violazione del vincolo NOT NULL. Per questo `add_conversation_tag` in `api/v1/omnichannel.py` usa un `insert()` SQLAlchemy Core esplicito con `owner_id` valorizzato, mai `.append()`. La rimozione (`DELETE`, che non deve popolare nulla) può invece restare sul meccanismo automatico — vedi il commento sopra alla definizione della tabella in `app/models/omnichannel.py`.
+
+### `omni_internal_notes`
+Note interne su una conversazione, mai visibili/inviate al cliente — renderizzate nella chat con uno stile visivamente distinto (bordo tratteggiato, sfondo diverso).
+
+### `omni_audit_logs`
+Log di audit **separato** da `audit_logs` esistente (questo modulo non scrive mai in quella tabella). Stesso spirito: `action`, `entity_type`, `entity_id`, `metadata_json`, `admin_id` (FK `SET NULL`). Azioni registrate: `AI_GENERATED`, `AI_GENERATION_FAILED`, `AI_EDITED`, `AI_REGENERATED`, `AI_APPROVED`, `AI_REJECTED`, `MESSAGE_SENT`, `MESSAGE_FAILED`, `ASSIGNMENT_CHANGED`, `CUSTOMER_UPDATED`, `SETTINGS_CHANGED`.
+
+### `omni_notifications`
+Notifiche in-app, lette via polling (`GET /notifications`, ogni 15s lato frontend). `admin_id` nullable = notifica broadcast a tutti gli amministratori di quell'`owner_id`.
+
+### `omni_ai_usage`
+Tracciamento consumo AI per conversazione/modello (token input/output, costo stimato con una tariffa approssimativa hardcoded) — base per un futuro sistema di billing/limiti, non applica ancora alcun limite.
+
+---
+
+## 4. Connector layer
+
+Interfaccia comune (`app/integrations/omnichannel/connectors/base.py::Connector`, classe astratta) che ogni canale implementa, così che la logica di business non parli mai direttamente con l'API di un social network specifico:
+
+```python
+verify_webhook(headers, path_secret) -> bool     # la richiesta viene davvero dal canale?
+parse_webhook(payload) -> List[NormalizedIncomingMessage]   # payload grezzo -> formato interno comune
+send_message(external_user_id, text) -> SendResult          # invio reale, chiamato SOLO dopo approvazione umana
+get_contact(external_user_id) -> dict | None                 # opzionale
+download_attachment(attachment_ref) -> bytes | None           # opzionale, non implementato in questa v1 (vedi §13)
+get_status() -> dict                                          # health check per la pagina Canali
+```
+
+Implementazioni:
+
+- **`TelegramConnector`** (`connectors/telegram.py`) — l'unico canale reale in questa v1. Chiama l'API Bot di Telegram (`api.telegram.org/bot<token>/...`) via `httpx` diretto, stesso stile di `app/integrations/openai/client.py` (nessun SDK di terze parti). `register_webhook()` (non parte dell'ABC, specifico Telegram) chiama `setWebhook` passando `secret_token` = `omni_channel_accounts.webhook_secret`.
+- **`MockConnector`** (`connectors/mock.py`) — nessuna chiamata esterna. Usato dallo strumento "Simula messaggio" per testare l'intera pipeline (ingest → bozza AI → approvazione → invio) senza credenziali reali.
+- **`WhatsAppConnector` / `InstagramConnector` / `FacebookConnector`** (`connectors/unimplemented.py`) — classi reali, registrate nel registry, ma `send_message` solleva `ConnectorError` con un messaggio esplicito ("non ancora implementato"). Nessun endpoint Meta è stato inventato: implementarli per davvero richiede una Business Verification/App Review di Meta che non può essere completata da codice. Aggiungerli per davvero significa scrivere una nuova classe in un nuovo file e registrarla in `registry.py` — nessun'altra parte del modulo cambia.
+
+`connectors/registry.py::get_connector(channel_account)` è la unica factory: decripta il token (se presente) e istanzia la classe giusta in base a `channel_account.channel`.
+
+---
+
+## 5. Flusso messaggio → bozza AI → approvazione → invio
+
+```
+1. Webhook (Telegram) o "Simula messaggio" (canale mock) riceve un evento
+2. Connector.verify_webhook()  → 403 se non valido
+3. Connector.parse_webhook()   → NormalizedIncomingMessage
+4. OmnichannelService.ingest_message():
+     - se external_message_id già visto per questo channel_account → no-op (idempotenza, §7)
+     - trova o crea omni_customers + omni_customer_identities
+     - trova o crea omni_conversations (mai riapre una RESOLVED/ARCHIVED, vedi §3)
+     - salva omni_messages (direction=inbound, sender_type=customer)
+     - conversation.status = AI_PROCESSING
+5. generate_ai_draft_task.delay(message.id)   → in coda Celery, la richiesta HTTP del webhook NON aspetta l'AI
+6. (worker Celery) OmnichannelDraftService.generate_draft_for_message():
+     - crea subito una riga omni_ai_drafts con status GENERATING (la UI può mostrare "L'AI sta generando...")
+     - risolve la chiave OpenAI (ai_settings_service.get_openai_credentials, STESSA chiave configurata in Impostazioni)
+     - se manca la chiave → status FAILED, conversation torna OPEN
+     - integrations/omnichannel/ai.py::detect_sensitive_category() sul testo del cliente
+     - integrations/omnichannel/ai.py::generate_ai_reply() → chiamata OpenAI (chat/completions, testo puro)
+     - status = HUMAN_REVIEW_REQUIRED (se categoria sensibile) altrimenti PENDING_APPROVAL
+     - conversation.status = WAITING_APPROVAL
+     - crea una omni_notifications ("Bozza AI pronta")
+7. Operatore apre la conversazione, vede la bozza, può:
+     PATCH /drafts/{id}          → modifica il testo (status → EDITED)
+     POST /drafts/{id}/regenerate → richiama generate_ai_reply da zero (anche da stato FAILED)
+     POST /drafts/{id}/reject     → status REJECTED, conversation torna OPEN
+     POST /drafts/{id}/approve    → SOLO qui può partire un invio reale, vedi §7
+8. Approvazione riuscita:
+     - Connector.send_message() con il testo finale (edited_text se presente, altrimenti original_ai_text)
+     - nuovo omni_messages (direction=outbound, sender_type=ai o operator se il testo era stato modificato)
+     - draft.status = SENT, conversation.status = WAITING_CUSTOMER
+```
+
+L'operatore può anche scrivere un messaggio libero, bypassando completamente il workflow AI (`POST /conversations/{id}/messages`) — utile per rispondere subito senza aspettare/usare l'AI.
+
+---
+
+## 6. Pipeline AI
+
+`app/integrations/omnichannel/ai.py`, deliberatamente **senza dipendenza di codice** da `app/integrations/openai/client.py` (chiamata `httpx` propria) — l'unico pezzo di infrastruttura esistente riusato è `app.services.ai_settings_service.get_openai_credentials`, la stessa chiave OpenAI già configurabile dalla pagina Impostazioni e già usata da Blog Writer AI e dal wizard campagne.
+
+**Context builder** (`build_system_prompt` + `build_conversation_messages`): il prompt di sistema è composto da `system_prompt` dell'agente + descrizione azienda + tono + lingua (fissa o rilevata automaticamente) + argomenti consentiti/vietati + firma + eventuali blocchi di Knowledge Base pertinenti; la cronologia è limitata a `max_context_messages` messaggi più recenti **letti freschi dal database ad ogni generazione** (mai una cronologia in cache), così una bozza generata durante una raffica di messaggi quasi simultanei vede sempre lo stato più aggiornato possibile.
+
+**Knowledge Base**: `search_knowledge_base()` fa una ricerca **per parole chiave** (ILIKE sulle singole parole del messaggio del cliente, poi ordina i blocchi trovati per numero di termini in comune) — non è un vero RAG con embedding vettoriali. Scelta deliberata per questa v1: installare/gestire `pgvector` su un database di produzione già attivo è un cambiamento infrastrutturale a parte, mentre lo schema (`omni_knowledge_chunks`) è già pronto ad accogliere una colonna embedding in futuro senza modifiche concettuali.
+
+**Categorie sensibili** (`detect_sensitive_category`): lista fissa `refund`, `legal`, `medical`, `complaint`, `pricing_exception`, `discount`, `contract`, `payment_problem` (personalizzabile per agente in `sensitive_categories_json`), rilevate con un dizionario di parole chiave IT/EN (`_CATEGORY_KEYWORDS`) — un controllo euristico volutamente semplice, non un classificatore vero: sufficiente a forzare `HUMAN_REVIEW_REQUIRED` sui casi più ovvi, non un sostituto di un vero controllo prima di configurare l'agente su un caso d'uso sensibile davvero.
+
+**Costo**: ogni generazione salva una riga `omni_ai_usage` con token input/output e un costo stimato (tariffa forfettaria approssimata nel codice, non collegata a un vero listino OpenAI aggiornato automaticamente).
+
+---
+
+## 7. Sicurezza contro invii duplicati e fuori ordine
+
+- **Idempotenza webhook**: vincolo unico `(channel_account_id, external_message_id)` su `omni_messages` (§3) — un evento ricevuto due volte dal canale non crea due messaggi né due generazioni AI.
+- **Doppio click su "Approva e invia"**: `OmnichannelDraftService.approve_and_send` fa `SELECT ... FOR UPDATE` sulla riga `omni_ai_drafts`, verifica che lo stato sia ancora approvabile (`PENDING_APPROVAL`/`EDITED`/`HUMAN_REVIEW_REQUIRED`), lo porta subito a `SENDING` e **committa prima** di chiamare l'API esterna (mai un lock DB tenuto aperto durante una chiamata di rete). Una seconda richiesta concorrente legge `SENDING`/`SENT` e viene rifiutata con `409 Conflict` — nessun messaggio può partire due volte da un doppio click.
+- **Nessun lock a livello di conversazione** per l'ordine dei messaggi in arrivo quasi simultanei: mitigato dal fatto che il context builder legge sempre lo stato più recente dal database ad ogni generazione (vedi §6) — un limite noto, non un vero lock distribuito, vedi §13.
+
+---
+
+## 8. Webhook e strumento di simulazione
+
+`app/api/v1/omnichannel_webhooks.py`, **router separato** da `omnichannel.py` perché ha un modello di autenticazione diverso:
+
+- `POST /api/v1/omnichannel-responder/webhooks/telegram/{channel_account_id}` — **non autenticato** (Telegram non può inviare il JWT admin). Verificato invece tramite l'header `X-Telegram-Bot-Api-Secret-Token`, confrontato con `omni_channel_accounts.webhook_secret` (vedi §3, §4). Un `channel_account_id` inesistente o di un canale diverso da `telegram` risponde `404` identico in entrambi i casi (mai confermare/negare l'esistenza di un ID a un chiamante non autenticato). Non processa nulla di lento inline: normalizza, salva, e mette in coda `generate_ai_draft_task` — la richiesta HTTP a Telegram torna subito.
+- `POST /api/v1/omnichannel-responder/dev/simulate-message` — **autenticato** (richiede login admin), ma funziona **solo** su un `omni_channel_accounts` con `channel = "mock"`. Scelta diversa dalla spec originale (che suggeriva un gate su `ENVIRONMENT=development`): questa installazione ha un solo ambiente (produzione), quindi un gate sull'environment renderebbe lo strumento permanentemente inutilizzabile; il gate sul tipo di canale ottiene lo stesso obiettivo di sicurezza (non si può mai iniettare un messaggio falso su un canale reale) restando utilizzabile per testare il flusso end-to-end in qualunque momento.
+
+---
+
+## 9. API REST
+
+Tutti gli endpoint sotto `/api/v1/omnichannel-responder/` (eccetto il webhook Telegram) richiedono `Administrator` autenticato (`Depends(get_current_admin)`) e filtrano sempre per `owner_id = admin.id`.
+
+| Area | Endpoint principali |
+|---|---|
+| Canali | `GET/POST /channel-accounts`, `GET /channel-accounts/supported`, `GET /channel-accounts/{id}/status`, `POST /channel-accounts/{id}/register-webhook`, `DELETE /channel-accounts/{id}` |
+| Conversazioni | `GET /conversations` (filtri: `status`, `channel`, `assigned_admin_id`, `tag_id`, `search`), `GET /conversations/{id}`, `POST /conversations/{id}/assign\|resolve\|archive`, `POST\|DELETE /conversations/{id}/tags/{tag_id}`, `POST /conversations/{id}/notes`, `POST /conversations/{id}/messages` (invio manuale, bypassa l'AI) |
+| Clienti | `GET\|PATCH /customers/{id}` |
+| Tag | `GET\|POST /tags` |
+| Bozze AI | `PATCH /drafts/{id}`, `POST /drafts/{id}/approve\|regenerate\|reject` |
+| AI Agent | `GET\|PUT /ai-agent` (`PUT` rifiuta `response_mode: AUTO_REPLY`, vedi §3) |
+| Knowledge Base | `GET\|POST /knowledge-base`, `DELETE /knowledge-base/{id}` |
+| Notifiche | `GET /notifications`, `POST /notifications/{id}/read` |
+| Analytics | `GET /analytics` — conteggi + `ai_acceptance_rate`/`ai_edit_rate`/`ai_rejection_rate` (bozze approvate senza modifiche / modificate / scartate, sul totale delle bozze arrivate a uno stato finale) |
+| Webhook/dev | `POST /webhooks/telegram/{channel_account_id}` (pubblico), `POST /dev/simulate-message` (vedi §8) |
+
+Schema Pydantic completo in fondo a `app/schemas/schemas.py` (sezione `# Omnichannel Responder`).
+
+---
+
+## 10. Frontend
+
+`app/(dashboard)/omnichannel-responder/`:
+
+- **`page.tsx`** — inbox a 3 colonne (`_components/conversation-list.tsx`, `chat-panel.tsx`, `customer-panel.tsx`, `ai-draft-card.tsx`). La bozza AI attiva (se presente) appare inline nella chat con i pulsanti Approva e invia / Copia / Rigenera / Scarta, textarea modificabile.
+- **`channels/page.tsx`** — lista canali, dialog di creazione, registrazione webhook Telegram, strumento "Simula messaggio" sui canali mock.
+- **`settings/page.tsx`** — configurazione AI Agent (prompt, tono, lingua, argomenti, categorie sensibili a chip cliccabili).
+- **`knowledge-base/page.tsx`** — CRUD documenti testuali.
+
+**Nessun WebSocket/SSE**: l'intero progetto non ha alcuna infrastruttura realtime preesistente (verificato prima di iniziare). L'inbox si aggiorna via **polling** con TanStack Query (`refetchInterval`: 8s per la lista conversazioni, 4s per la conversazione aperta, 15s per le notifiche) — coerente con il resto della dashboard, nessuna nuova infrastruttura introdotta per questo modulo. Se in futuro serve un aggiornamento realtime, andrebbe introdotto come una scelta architetturale a parte, non implicita in questo modulo.
+
+Nuovi file: `services/omnichannel.ts` (chiamate fetch), `hooks/use-omnichannel.ts` (React Query), entrambi seguono esattamente lo stesso pattern di `services/channels.ts` / `hooks/use-channels.ts` già esistenti.
+
+---
+
+## 11. Configurazione e come collegare Telegram
+
+**Nessuna nuova variabile `.env` obbligatoria.** Il modulo riusa `OPENAI_API_KEY`/`OPENAI_MODEL` (o la chiave configurata dalla pagina Impostazioni, stessa precedenza di [DATABASE.md §9](./DATABASE.md#9-impostazioni-ai)) e il `DATABASE_URL`/`REDIS_URL` già esistenti.
+
+Per collegare un bot Telegram:
+
+1. Crea un bot con [@BotFather](https://t.me/BotFather) su Telegram, copia il token (`123456:ABC-DEF...`).
+2. Dashboard → Omnichannel Responder → Canali → "Nuovo canale" → tipo `Telegram`, incolla il token.
+3. Sulla riga del canale appena creato, icona 🔗 "Registra webhook" → incolla l'URL pubblico HTTPS di **questa API** (es. `https://api.162-55-187-18.sslip.io`, lo stesso vhost `api.*` di [DEPLOYMENT.md §9](./DEPLOYMENT.md#9-dominio-e-https-consigliato-richiesto-per-pubblicare-fotovideo-su-buffer)). Il backend chiama `setWebhook` verso Telegram con l'URL `<public_base_url>/api/v1/omnichannel-responder/webhooks/telegram/<channel_account_id>`.
+4. Scrivi al bot da Telegram: il messaggio deve comparire nell'Inbox entro pochi secondi, seguito dalla bozza AI (se una chiave OpenAI è configurata).
+
+Per testare senza un bot reale: crea un canale di tipo `Test (mock)`, poi usa l'icona ▶ "Simula messaggio" sulla sua riga.
+
+---
+
+## 12. Sicurezza
+
+- **Isolamento dati**: ogni query filtra per `owner_id`, vedi §2. Nessun endpoint accetta un `owner_id` dal client — è sempre derivato dall'admin autenticato.
+- **Token canale cifrati a riposo**: stesso `EncryptionService` (Fernet) usato per i token Buffer, mai restituiti da nessun endpoint.
+- **Webhook Telegram non autenticato ma verificato**: header secret-token confrontato con un valore casuale per-canale (§8), non un segreto condiviso globale.
+- **AI mai in grado di inviare da sola**: nessun percorso di codice chiama `Connector.send_message` se non `OmnichannelDraftService.approve_and_send`, raggiungibile solo da un endpoint autenticato dopo un'azione esplicita dell'operatore (§5, §7).
+- **`AUTO_REPLY` bloccato lato API** anche se il campo esiste nello schema (§3) — evita che un admin lo imposti pensando che abbia effetto, quando nessun codice lo implementa ancora.
+- **Categorie sensibili**: forzano sempre revisione umana esplicita (`HUMAN_REVIEW_REQUIRED`), mai un invio "quasi automatico" su temi delicati (§6).
+
+---
+
+## 13. Limiti noti di questa v1
+
+- **Solo Telegram è un canale reale.** WhatsApp/Instagram/Facebook sono connettori-stub che rifiutano chiaramente l'invio (§4) — richiedono una Business Verification/App Review di Meta non completabile da codice.
+- **Knowledge Base per parole chiave, non embedding vettoriali** (§6) — funzionale per pochi documenti, non scala a una knowledge base grande quanto un vero RAG.
+- **Nessun WebSocket/SSE**: aggiornamento via polling (§10), coerente col resto della piattaforma ma non istantaneo (fino a qualche secondo di ritardo).
+- **Nessun lock a livello di conversazione** per messaggi in arrivo quasi simultanei (§7) — mitigato ma non eliminato dal fatto che il contesto è sempre letto fresco dal database.
+- **`response_mode: AUTO_REPLY` non implementato**, solo bloccato esplicitamente (§3, §12) — il campo esiste per un'estensione futura.
+- **Download allegati non implementato**: `Connector.download_attachment()` esiste nell'interfaccia ma nessuna implementazione la usa ancora — un messaggio con foto/video/audio viene salvato con `message_type` corretto e il riferimento file Telegram in `metadata_json`, ma il file non viene scaricato/servito.
+- **Nessun round-robin/team di assegnazione**: solo assegnazione manuale (`assigned_admin_id`), niente logica di smistamento automatico per reparto/lingua/canale.
+- **Nessun merge contatti**: se un cliente scrive la prima volta con dati diversi (es. nome cambiato), non viene proposto automaticamente alcun merge tra `omni_customers` esistenti.
+- **Nessun test pytest automatico aggiunto**: stesso stato del resto del progetto (vedi [BLOG_WRITER.md §9](./BLOG_WRITER.md#9-limiti-noti-di-questa-v1)) — verificato manualmente end-to-end contro il database di produzione (import Python, generazione schema OpenAPI, migration applicata, container ricostruiti e verificati via `curl` attraverso Nginx).

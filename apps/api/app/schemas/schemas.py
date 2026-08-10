@@ -581,3 +581,265 @@ class BlogWriterDashboardResponse(BaseModel):
     social_campaigns_count: int
     recent_articles: List[BlogArticleListItem]
     recent_publications: List[BlogPublicationResponse]
+
+
+# ==============================================================================
+# Omnichannel Responder - AI unified inbox (independent add-on module).
+# Every *Response schema below mirrors a table in app/models/omnichannel.py
+# 1:1; none of them are ever returned without the caller's own owner_id
+# scoping already applied at the query level (see app/api/v1/omnichannel.py).
+# ==============================================================================
+class OmniChannelAccountCreate(BaseModel):
+    channel: str  # telegram, whatsapp, instagram, facebook, mock
+    name: str
+    external_account_id: Optional[str] = None
+    access_token: Optional[str] = Field(None, description="Plaintext token/secret, encrypted at rest server-side and never echoed back")
+    config: Optional[Dict[str, Any]] = None
+
+
+class OmniChannelAccountResponse(BaseModel):
+    id: uuid.UUID
+    channel: str
+    name: str
+    external_account_id: Optional[str]
+    status: str
+    webhook_secret: str
+    config: Optional[Dict[str, Any]] = Field(None, validation_alias="config_json", serialization_alias="config")
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class OmniCustomerIdentityResponse(BaseModel):
+    id: uuid.UUID
+    channel: str
+    external_user_id: str
+    display_name: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class OmniCustomerResponse(BaseModel):
+    id: uuid.UUID
+    name: Optional[str]
+    first_name: Optional[str]
+    last_name: Optional[str]
+    phone: Optional[str]
+    email: Optional[str]
+    language: Optional[str]
+    timezone: Optional[str]
+    notes: Optional[str]
+    created_at: datetime
+    last_contact_at: Optional[datetime]
+    identities: List[OmniCustomerIdentityResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class OmniCustomerUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    language: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class OmniTagResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    color: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class OmniTagCreate(BaseModel):
+    name: str
+    color: Optional[str] = None
+
+
+class OmniMessageResponse(BaseModel):
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    direction: str
+    sender_type: str
+    text: Optional[str]
+    message_type: str
+    attachments: Optional[List[Dict[str, Any]]] = Field(None, validation_alias="attachments_json", serialization_alias="attachments")
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class OmniMessageCreate(BaseModel):
+    """Manual outbound message sent directly by an operator (bypasses the AI draft workflow)."""
+    text: str = Field(..., min_length=1, max_length=5000)
+
+
+class OmniAIDraftResponse(BaseModel):
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    source_message_id: Optional[uuid.UUID]
+    original_ai_text: Optional[str]
+    edited_text: Optional[str]
+    status: str
+    model: Optional[str]
+    confidence_score: Optional[float]
+    sensitive_category: Optional[str]
+    failure_reason: Optional[str]
+    created_at: datetime
+    approved_at: Optional[datetime]
+    sent_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class OmniAIDraftEditRequest(BaseModel):
+    edited_text: str = Field(..., min_length=1, max_length=5000)
+
+
+class OmniInternalNoteCreate(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+    mentions: Optional[List[str]] = None
+
+
+class OmniInternalNoteResponse(BaseModel):
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    admin_id: Optional[uuid.UUID]
+    text: str
+    mentions: Optional[List[str]] = Field(None, validation_alias="mentions_json", serialization_alias="mentions")
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class OmniConversationAssignRequest(BaseModel):
+    assigned_admin_id: Optional[uuid.UUID] = None
+
+
+class OmniConversationListItem(BaseModel):
+    id: uuid.UUID
+    status: str
+    channel: str
+    channel_account_name: str
+    customer: OmniCustomerResponse
+    assigned_admin_id: Optional[uuid.UUID]
+    unread_count: int
+    last_message_at: Optional[datetime]
+    last_message_preview: Optional[str]
+    tags: List[OmniTagResponse] = []
+
+
+class OmniConversationDetailResponse(BaseModel):
+    id: uuid.UUID
+    status: str
+    channel: str
+    channel_account_id: uuid.UUID
+    customer: OmniCustomerResponse
+    assigned_admin_id: Optional[uuid.UUID]
+    unread_count: int
+    created_at: datetime
+    updated_at: datetime
+    tags: List[OmniTagResponse] = []
+    messages: List[OmniMessageResponse] = []
+    drafts: List[OmniAIDraftResponse] = []
+    notes: List[OmniInternalNoteResponse] = []
+
+
+class OmniAIAgentConfigResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: Optional[str]
+    system_prompt: Optional[str]
+    language: str
+    tone: str
+    temperature: float
+    company_description: Optional[str]
+    allowed_topics: Optional[List[str]] = Field(None, validation_alias="allowed_topics_json", serialization_alias="allowed_topics")
+    forbidden_topics: Optional[List[str]] = Field(None, validation_alias="forbidden_topics_json", serialization_alias="forbidden_topics")
+    signature: Optional[str]
+    max_context_messages: int
+    knowledge_base_enabled: bool
+    automatic_language_detection: bool
+    response_mode: str
+    sensitive_categories: Optional[List[str]] = Field(None, validation_alias="sensitive_categories_json", serialization_alias="sensitive_categories")
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class OmniAIAgentConfigUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    system_prompt: Optional[str] = None
+    language: Optional[str] = None
+    tone: Optional[str] = None
+    temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
+    company_description: Optional[str] = None
+    allowed_topics: Optional[List[str]] = None
+    forbidden_topics: Optional[List[str]] = None
+    signature: Optional[str] = None
+    max_context_messages: Optional[int] = Field(None, ge=1, le=100)
+    knowledge_base_enabled: Optional[bool] = None
+    automatic_language_detection: Optional[bool] = None
+    # response_mode intentionally NOT settable to "AUTO_REPLY" here - validated
+    # server-side (see api/v1/omnichannel.py) so full autonomous sending stays
+    # opt-in and reversible, never a silent default.
+    response_mode: Optional[str] = None
+    sensitive_categories: Optional[List[str]] = None
+
+
+class OmniKnowledgeDocumentCreate(BaseModel):
+    title: str
+    source_type: str = "manual"  # manual, faq, url, txt (pdf/docx parsing not implemented in this MVP)
+    content_text: Optional[str] = None
+    source_url: Optional[str] = None
+
+
+class OmniKnowledgeDocumentResponse(BaseModel):
+    id: uuid.UUID
+    title: str
+    source_type: str
+    content_text: Optional[str]
+    source_url: Optional[str]
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class OmniNotificationResponse(BaseModel):
+    id: uuid.UUID
+    type: str
+    title: str
+    body: Optional[str]
+    entity_type: Optional[str]
+    entity_id: Optional[uuid.UUID]
+    read_at: Optional[datetime]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class OmniSimulateMessageRequest(BaseModel):
+    """Dev-only ingestion path - only accepted for channel_accounts of type 'mock' (see api/v1/omnichannel_webhooks.py)."""
+    channel_account_id: uuid.UUID
+    external_user_id: str = Field(..., description="Fake per-channel id of the simulated customer, e.g. 'test-user-1'")
+    customer_name: Optional[str] = None
+    text: str = Field(..., min_length=1, max_length=5000)

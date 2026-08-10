@@ -21,6 +21,7 @@ import {
   MAIN_NAV_ITEMS,
   BUFFER_NAV_ITEMS,
   BLOG_WRITER_NAV_ITEMS,
+  OMNICHANNEL_RESPONDER_NAV_ITEMS,
   SETTINGS_NAV_ITEM,
   type NavItem,
 } from "@/lib/navigation";
@@ -83,6 +84,15 @@ export function AppSidebar() {
           <SidebarGroupLabel>Blog Writer AI</SidebarGroupLabel>
           <SidebarGroupContent>
             <NavItems items={BLOG_WRITER_NAV_ITEMS} pathname={pathname} />
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Omnichannel Responder</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <NavItems items={OMNICHANNEL_RESPONDER_NAV_ITEMS} pathname={pathname} />
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

@@ -6,6 +6,8 @@ Le tabelle sono create dalle migration Alembic in `apps/api/alembic/versions/` (
 
 Le tabelle del modulo Blog Writer AI (`blog_writer_*`) sono documentate separatamente in [BLOG_WRITER.md](./BLOG_WRITER.md#2-schema-database), essendo un modulo isolato con proprio schema.
 
+Le tabelle del modulo Omnichannel Responder (`omni_*`, 15 tabelle) sono documentate separatamente in [OMNICHANNEL_RESPONDER.md](./OMNICHANNEL_RESPONDER.md#3-schema-database) — anch'esso un modulo isolato con proprio schema, collegato al resto della piattaforma solo tramite `owner_id` (FK verso `administrators.id`).
+
 ---
 
 ## Indice
