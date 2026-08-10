@@ -5,6 +5,8 @@ import type {
   OmniAIAgentConfigUpdate,
   OmniAIDraftResponse,
   OmniAnalyticsResponse,
+  OmniBroadcastRequest,
+  OmniBroadcastResult,
   OmniChannelAccountCreate,
   OmniChannelAccountResponse,
   OmniConversationDetailResponse,
@@ -95,6 +97,10 @@ export function addNote(conversationId: string, text: string, mentions?: string[
 
 export function sendManualMessage(conversationId: string, text: string): Promise<OmniMessageResponse> {
   return apiClient.post<OmniMessageResponse>(`${BASE}/conversations/${conversationId}/messages`, { text });
+}
+
+export function sendBroadcast(payload: OmniBroadcastRequest): Promise<OmniBroadcastResult> {
+  return apiClient.post<OmniBroadcastResult>(`${BASE}/broadcast`, payload);
 }
 
 // Customers

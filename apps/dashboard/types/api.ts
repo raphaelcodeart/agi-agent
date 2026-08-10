@@ -674,6 +674,25 @@ export interface OmniMessageResponse {
   created_at: string;
 }
 
+export interface OmniBroadcastRequest {
+  text: string;
+  conversation_ids?: string[];
+}
+
+export interface OmniBroadcastFailure {
+  conversation_id: string;
+  customer_name: string | null;
+  channel: OmniChannel;
+  error: string;
+}
+
+export interface OmniBroadcastResult {
+  total_targeted: number;
+  sent: number;
+  failed: number;
+  failures: OmniBroadcastFailure[];
+}
+
 export interface OmniAIDraftResponse {
   id: string;
   conversation_id: string;

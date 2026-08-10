@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { InboxIcon, RefreshCwIcon } from "lucide-react";
+import { InboxIcon, RefreshCwIcon, MegaphoneIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ChannelIcon, channelLabel } from "./channel-icon";
+import { BroadcastDialog } from "./broadcast-dialog";
 import type { OmniChannel, OmniConversationStatus } from "@/types/api";
 
 const STATUS_OPTIONS: { value: OmniConversationStatus; label: string }[] = [
@@ -36,6 +37,7 @@ export function ConversationList({ selectedId, onSelect }: { selectedId: string 
   const [statusFilter, setStatusFilter] = useState<OmniConversationStatus | "">("");
   const [channelFilter, setChannelFilter] = useState<OmniChannel | "">("");
   const [search, setSearch] = useState("");
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
   const { data: conversations, isLoading, isFetching, refetch } = useConversations({ status: statusFilter, channel: channelFilter || undefined, search: debouncedSearch || undefined });
@@ -87,6 +89,9 @@ export function ConversationList({ selectedId, onSelect }: { selectedId: string 
             disabled={isFetching}
           >
             <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
+          </Button>
+          <Button size="icon-sm" variant="outline" title="Invio multiplo" onClick={() => setBroadcastOpen(true)}>
+            <MegaphoneIcon />
           </Button>
         </div>
         <FilterSelect
@@ -155,6 +160,8 @@ export function ConversationList({ selectedId, onSelect }: { selectedId: string 
           </ul>
         )}
       </div>
+
+      <BroadcastDialog open={broadcastOpen} onOpenChange={setBroadcastOpen} />
     </div>
   );
 }

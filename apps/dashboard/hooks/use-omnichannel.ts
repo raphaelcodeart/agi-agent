@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as omnichannelService from "@/services/omnichannel";
 import { queryKeys } from "@/lib/query/keys";
 import type { ListConversationsParams } from "@/services/omnichannel";
-import type { OmniAIAgentConfigUpdate, OmniChannelAccountCreate, OmniCustomerUpdate, OmniKnowledgeDocumentCreate, OmniTagCreate } from "@/types/api";
+import type { OmniAIAgentConfigUpdate, OmniBroadcastRequest, OmniChannelAccountCreate, OmniCustomerUpdate, OmniKnowledgeDocumentCreate, OmniTagCreate } from "@/types/api";
 
 // Channel accounts
 export function useChannelAccounts() {
@@ -129,6 +129,14 @@ export function useSendManualMessage(conversationId: string) {
   return useMutation({
     mutationFn: (text: string) => omnichannelService.sendManualMessage(conversationId, text),
     onSuccess: invalidate,
+  });
+}
+
+export function useSendBroadcast() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: OmniBroadcastRequest) => omnichannelService.sendBroadcast(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["omnichannel", "conversations"] }),
   });
 }
 

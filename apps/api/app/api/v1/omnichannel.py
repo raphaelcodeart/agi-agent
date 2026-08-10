@@ -13,7 +13,7 @@ can't send a JWT) and has its own verification story.
 """
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import insert, or_, select
 from sqlalchemy.orm import Session, joinedload
@@ -48,6 +48,9 @@ from app.schemas.schemas import (
     OmniCustomerUpdate,
     OmniMessageCreate,
     OmniMessageResponse,
+    OmniBroadcastRequest,
+    OmniBroadcastResult,
+    OmniBroadcastFailure,
     OmniAIDraftResponse,
     OmniAIDraftEditRequest,
     OmniAIAgentConfigResponse,
@@ -374,6 +377,93 @@ def send_manual_message(conversation_id: uuid.UUID, payload: OmniMessageCreate, 
     db.commit()
     db.refresh(message)
     return message
+
+
+# Hard cap on a single broadcast request - keeps this a synchronous,
+# immediate-feedback request (the admin sees exactly who succeeded/failed
+# right away) instead of needing a background task + polling. Deliberately
+# conservative: this is a manual, occasional admin action on a small/medium
+# contact list, not a marketing blast tool - see docs/OMNICHANNEL_RESPONDER.md
+# §5 (broadcast) for the reasoning and the WhatsApp/Meta 24h-window caveat.
+_MAX_BROADCAST_RECIPIENTS = 50
+
+
+@router.post("/broadcast", response_model=OmniBroadcastResult)
+def send_broadcast(payload: OmniBroadcastRequest, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """
+    Sends the same free-form text to many existing conversations at once -
+    "message everyone who's contacted me". Uses the inbox itself as the
+    address book (every OmniConversation already ties a customer to a
+    channel + identity) rather than introducing a separate contacts concept.
+
+    Blocked customers are always skipped, even if explicitly selected -
+    blocking must never be bypassable by a bulk action. ARCHIVED/SPAM
+    conversations are excluded from "send to everyone" by default, but an
+    explicit conversation_ids selection can still target an ARCHIVED one
+    deliberately (SPAM/blocked customers are excluded no matter what).
+
+    Runs synchronously with a hard recipient cap (_MAX_BROADCAST_RECIPIENTS)
+    - see that constant's comment for why this isn't a background task.
+    """
+    from app.models.omnichannel import OmniCustomerIdentity
+
+    query = (
+        db.query(OmniConversation)
+        .options(joinedload(OmniConversation.customer), joinedload(OmniConversation.channel_account))
+        .filter(OmniConversation.owner_id == admin.id)
+    )
+    if payload.conversation_ids:
+        query = query.filter(OmniConversation.id.in_(payload.conversation_ids))
+    else:
+        query = query.filter(OmniConversation.status.notin_(["ARCHIVED", "SPAM"]))
+    conversations = query.all()
+
+    if len(conversations) > _MAX_BROADCAST_RECIPIENTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Troppi destinatari selezionati ({len(conversations)}): massimo {_MAX_BROADCAST_RECIPIENTS} per singolo invio multiplo.",
+        )
+
+    sent = 0
+    failures: List[Dict[str, Any]] = []
+    now = datetime.now(timezone.utc)
+
+    for conversation in conversations:
+        if conversation.customer.is_blocked:
+            continue  # never bypassable by selection, see docstring
+
+        identity = db.query(OmniCustomerIdentity).filter(
+            OmniCustomerIdentity.owner_id == admin.id,
+            OmniCustomerIdentity.customer_id == conversation.customer_id,
+            OmniCustomerIdentity.channel == conversation.channel_account.channel,
+        ).first()
+        if not identity:
+            failures.append({"conversation_id": conversation.id, "customer_name": conversation.customer.name, "channel": conversation.channel_account.channel, "error": "Nessuna identità cliente trovata per questo canale"})
+            continue
+
+        try:
+            connector = get_connector(conversation.channel_account)
+            send_result = connector.send_message(identity.external_user_id, payload.text)
+        except ConnectorError as e:
+            failures.append({"conversation_id": conversation.id, "customer_name": conversation.customer.name, "channel": conversation.channel_account.channel, "error": e.message})
+            continue
+
+        db.add(OmniMessage(
+            owner_id=admin.id, conversation_id=conversation.id, channel_account_id=conversation.channel_account_id,
+            direction="outbound", sender_type="operator", external_message_id=send_result.external_message_id,
+            text=payload.text, message_type="TEXT", status="sent",
+        ))
+        conversation.status = "WAITING_CUSTOMER"
+        conversation.last_message_at = now
+        sent += 1
+
+    OmnichannelService.log_audit(
+        db, admin.id, admin.id, "BROADCAST_SENT", "conversation", None,
+        {"total_targeted": len(conversations), "sent": sent, "failed": len(failures), "text_preview": payload.text[:200]},
+    )
+    db.commit()
+
+    return OmniBroadcastResult(total_targeted=len(conversations), sent=sent, failed=len(failures), failures=[OmniBroadcastFailure(**f) for f in failures])
 
 
 # ==============================================================================

@@ -693,6 +693,32 @@ class OmniMessageCreate(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000)
 
 
+class OmniBroadcastRequest(BaseModel):
+    """
+    Bulk send to multiple existing conversations at once ("message everyone
+    who's contacted me"). conversation_ids=None (or empty) means every
+    eligible conversation for this owner - see api/v1/omnichannel.py::
+    send_broadcast for exactly what "eligible" excludes (blocked customers,
+    archived/spam conversations).
+    """
+    text: str = Field(..., min_length=1, max_length=5000)
+    conversation_ids: Optional[List[uuid.UUID]] = None
+
+
+class OmniBroadcastFailure(BaseModel):
+    conversation_id: uuid.UUID
+    customer_name: Optional[str]
+    channel: str
+    error: str
+
+
+class OmniBroadcastResult(BaseModel):
+    total_targeted: int
+    sent: int
+    failed: int
+    failures: List[OmniBroadcastFailure]
+
+
 class OmniAIDraftResponse(BaseModel):
     id: uuid.UUID
     conversation_id: uuid.UUID
