@@ -320,6 +320,10 @@ Schema Pydantic completo in fondo a `app/schemas/schemas.py` (sezione `# Omnicha
 
 Nuovi file: `services/omnichannel.ts` (chiamate fetch), `hooks/use-omnichannel.ts` (React Query), entrambi seguono esattamente lo stesso pattern di `services/channels.ts` / `hooks/use-channels.ts` già esistenti.
 
+Un pulsante di refresh manuale (icona ⟳) è disponibile accanto alla ricerca conversazioni, giusto per rassicurazione visiva — non necessario funzionalmente (il polling a 8s è già sufficiente), e comunque **impossibile da estendere a un vero "scarica cronologia"**: l'API Bot di Telegram non ha alcun endpoint per recuperare messaggi passati, riceve solo gli eventi arrivati dopo la registrazione del webhook.
+
+**Attenzione per ogni futuro `<Select>` aggiunto a questo modulo**: il componente `Select` di questo progetto (`components/ui/select.tsx`, base-ui) mostra il **valore grezzo** nel trigger invece dell'etichetta se non gli viene passata esplicitamente la prop `items` (una mappa `{value, label}[]`) — comportamento già documentato nel commento di `components/shared/filter-bar.tsx::FilterSelect`, ma inizialmente dimenticato in 4 punti di questo modulo (filtro stato conversazioni, tono/lingua nell'AI Agent, tipo canale nella creazione, selettore tag — corretto). Per un filtro con opzione "Tutti", riusa `FilterSelect`; per un `<Select>` normale, passa sempre `items={OPTIONS}` insieme a `value`/`onValueChange`.
+
 ---
 
 ## 11. Configurazione e come collegare Telegram
