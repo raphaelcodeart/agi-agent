@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/shared/search-input";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FilterSelect } from "@/components/shared/filter-bar";
@@ -93,7 +94,10 @@ export function ConversationList({ selectedId, onSelect }: { selectedId: string 
                       <span className="truncate text-sm font-medium">{conv.customer.name || "Cliente sconosciuto"}</span>
                       <span className="shrink-0 text-[0.7rem] text-muted-foreground">{conv.last_message_at ? formatDateTime(conv.last_message_at).split(" ").slice(-1)[0] : ""}</span>
                     </div>
-                    <div className="mt-0.5 flex items-center gap-1.5">
+                    <div className="mt-1">
+                      <StatusBadge status={conv.status.toLowerCase()} />
+                    </div>
+                    <div className="mt-1 flex items-center gap-1.5">
                       <ChannelIcon channel={conv.channel} />
                       <p className="truncate text-xs text-muted-foreground">{conv.last_message_preview || "—"}</p>
                     </div>

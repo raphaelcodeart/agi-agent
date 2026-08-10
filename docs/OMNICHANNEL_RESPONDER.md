@@ -311,7 +311,7 @@ Schema Pydantic completo in fondo a `app/schemas/schemas.py` (sezione `# Omnicha
 
 `app/(dashboard)/omnichannel-responder/`:
 
-- **`page.tsx`** — inbox a 3 colonne (`_components/conversation-list.tsx`, `chat-panel.tsx`, `customer-panel.tsx`, `ai-draft-card.tsx`). La bozza AI attiva (se presente) appare inline nella chat con i pulsanti Approva e invia / Copia / Rigenera / Scarta, textarea modificabile.
+- **`page.tsx`** — inbox a 3 colonne (`_components/conversation-list.tsx`, `chat-panel.tsx`, `customer-panel.tsx`, `ai-draft-card.tsx`). La bozza AI attiva (se presente) appare inline nella chat con i pulsanti Approva e invia / Copia / Rigenera / Scarta, textarea modificabile. Ogni riga della lista conversazioni mostra lo `StatusBadge` dello stato (`NEW`/`OPEN`/`AI_PROCESSING`/`WAITING_APPROVAL`/`WAITING_CUSTOMER`/`RESOLVED`/`ARCHIVED`/`SPAM`) su una riga propria, ben visibile, non solo aprendo la conversazione — così si vede a colpo d'occhio quali richiedono un'azione (`WAITING_APPROVAL`) senza doverle aprire una per una.
 - **`channels/page.tsx`** — lista canali, dialog di creazione, registrazione webhook Telegram, strumento "Simula messaggio" sui canali mock.
 - **`settings/page.tsx`** — configurazione AI Agent (prompt, tono, lingua, argomenti, categorie sensibili a chip cliccabili).
 - **`knowledge-base/page.tsx`** — CRUD documenti testuali.
