@@ -147,6 +147,37 @@ def sync_buffer_connection(connection_id_str: str) -> None:
         db.close()
 
 
+@celery.task(name="app.tasks.sync.sync_all_buffer_connections")
+def sync_all_buffer_connections() -> None:
+    """
+    Periodic fan-out: re-syncs every connection whose state might legitimately
+    have drifted since the last sync (organizations/channels added, removed, or
+    changed on Buffer's side - e.g. is_active, channel_type). Dispatches the
+    existing per-connection sync_buffer_connection task for each one instead of
+    duplicating its logic here.
+
+    Deliberately excludes:
+    - "disconnected": the admin explicitly disconnected it - resyncing would
+      contradict that choice.
+    - "revoked": this platform authenticates with a personal Buffer API key
+      pasted by the admin (see DATABASE.md §5), not OAuth - a revoked key can
+      only be fixed by pasting a new one, sync can never recover it on its own.
+    - "pending": not yet validated once, nothing to refresh yet.
+    """
+    db = SessionLocal()
+    try:
+        connections = db.query(BufferConnection).filter(
+            BufferConnection.status.in_(["connected", "expired", "error"])
+        ).all()
+        if not connections:
+            return
+        logger.info(f"Periodic sync: dispatching sync_buffer_connection for {len(connections)} connections")
+        for conn in connections:
+            sync_buffer_connection.delay(str(conn.id))
+    finally:
+        db.close()
+
+
 @celery.task(name="app.tasks.sync.refresh_expired_tokens")
 def refresh_expired_tokens() -> None:
     """

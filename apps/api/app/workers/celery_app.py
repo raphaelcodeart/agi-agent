@@ -43,6 +43,10 @@ celery.conf.beat_schedule = {
         "task": "app.tasks.sync.refresh_expired_tokens",
         "schedule": crontab(minute=0), # Every hour
     },
+    "sync-all-buffer-connections-every-4h": {
+        "task": "app.tasks.sync.sync_all_buffer_connections",
+        "schedule": crontab(minute=15, hour="*/4"), # Every 4 hours, offset from the hourly job above
+    },
     "poll-scheduled-campaign-launches-every-30s": {
         "task": "app.tasks.publication.poll_and_queue_scheduled_publications",
         "schedule": 30.0, # Every 30 seconds

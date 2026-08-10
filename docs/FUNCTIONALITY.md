@@ -185,7 +185,8 @@ Questi limiti sono **modificabili a caldo** senza riavviare i worker: vedi [§12
 |---|---|---|
 | `process_publication` | on-demand (lancio/retry campagna, o dal task di poll) | Esegue una singola pubblicazione verso Buffer (vedi §6) |
 | `poll_and_queue_scheduled_publications` | periodico, ogni 30s | Lancia le campagne `draft` il cui `scheduled_at` è passato; accoda le pubblicazioni `pending` o `retry_wait` mature |
-| `sync_buffer_connection` | on-demand (collegamento/ricollegamento, sync manuale) | Sincronizza organizzazioni e canali Buffer per una connessione; disattiva i canali non più presenti |
+| `sync_buffer_connection` | on-demand (collegamento/ricollegamento, sync manuale) + periodico (via `sync_all_buffer_connections`) | Sincronizza organizzazioni e canali Buffer per una connessione; disattiva i canali non più presenti, aggiorna `channel_type`/`is_active` |
+| `sync_all_buffer_connections` | periodico, ogni 4 ore | Dispatcha `sync_buffer_connection` per ogni connessione `connected`/`expired`/`error` (esclude `disconnected`/`revoked`/`pending`, vedi docstring). Aggiunto per evitare che `is_active`/`channel_type` restino non aggiornati per settimane tra un collegamento manuale e l'altro — così `resolve_targets` (§5) esclude i canali diventati non validi *prima* del lancio di una campagna, senza aggiungere alcuna chiamata Buffer in più al momento dell'invio |
 | `refresh_expired_tokens` | periodico, ogni ora | **Codice legacy inattivo**, vedi [§13](#13-cose-note-come-non-finite-o-legacy) |
 | `inspect_media` | on-demand (dopo ogni upload media) | ffprobe + generazione miniatura |
 | `recover_stale_publications` | periodico, ogni 5 minuti | Recupera pubblicazioni bloccate in `processing` (worker crashato) o in `queued` (job Celery perso) da più di 15 minuti |
