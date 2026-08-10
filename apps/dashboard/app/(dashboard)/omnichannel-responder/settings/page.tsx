@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { SaveIcon } from "lucide-react";
+import { SaveIcon, ZapIcon, ShieldCheckIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,11 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { cn } from "@/lib/utils";
 import { useAIAgentConfig, useUpdateAIAgentConfig } from "@/hooks/use-omnichannel";
 import { ApiError } from "@/lib/api/client";
+import type { OmniAIAgentConfigResponse } from "@/types/api";
 
 const TONE_OPTIONS = [
   { value: "professionale", label: "Professionale" },
@@ -55,7 +58,9 @@ export default function OmnichannelSettingsPage() {
     temperature: number; company_description: string; allowed_topics: string; forbidden_topics: string;
     signature: string; max_context_messages: number; knowledge_base_enabled: boolean;
     automatic_language_detection: boolean; sensitive_categories: string[];
+    response_mode: OmniAIAgentConfigResponse["response_mode"];
   } | null>(null);
+  const [confirmAutoReplyOpen, setConfirmAutoReplyOpen] = useState(false);
 
   useEffect(() => {
     if (!config) return;
@@ -74,6 +79,7 @@ export default function OmnichannelSettingsPage() {
       knowledge_base_enabled: config.knowledge_base_enabled,
       automatic_language_detection: config.automatic_language_detection,
       sensitive_categories: config.sensitive_categories ?? [],
+      response_mode: config.response_mode,
     });
   }, [config?.id]);
 
@@ -93,6 +99,27 @@ export default function OmnichannelSettingsPage() {
         ? prev.sensitive_categories.filter((c) => c !== value)
         : [...prev.sensitive_categories, value],
     }));
+  }
+
+  function persistResponseMode(mode: OmniAIAgentConfigResponse["response_mode"]) {
+    updateConfig.mutate(
+      { response_mode: mode },
+      {
+        onSuccess: () => {
+          setForm((prev) => prev && { ...prev, response_mode: mode });
+          toast.success(mode === "AUTO_REPLY" ? "Autorisponditore automatico attivato" : "Autorisponditore automatico disattivato: le risposte torneranno in bozza");
+        },
+        onError: (err) => toast.error(err instanceof ApiError ? err.message : "Impossibile aggiornare la modalità di risposta"),
+      }
+    );
+  }
+
+  function handleToggleAutoReply(next: boolean) {
+    if (next) {
+      setConfirmAutoReplyOpen(true);
+    } else {
+      persistResponseMode("APPROVAL_REQUIRED");
+    }
   }
 
   function handleSave() {
@@ -125,8 +152,48 @@ export default function OmnichannelSettingsPage() {
     <div className="max-w-3xl space-y-6">
       <PageHeader
         title="AI Agent"
-        description="Configura come l'assistente AI genera le proposte di risposta. Ogni risposta richiede sempre l'approvazione di un operatore."
+        description="Configura come l'assistente AI genera le proposte di risposta."
         actions={<Button onClick={handleSave} disabled={updateConfig.isPending}><SaveIcon /> Salva</Button>}
+      />
+
+      <div
+        className={cn(
+          "flex items-center justify-between gap-4 rounded-lg border-2 p-4 transition-colors",
+          form.response_mode === "AUTO_REPLY" ? "border-warning bg-warning/10" : "border-border bg-muted/30"
+        )}
+      >
+        <div className="flex items-start gap-3">
+          {form.response_mode === "AUTO_REPLY" ? (
+            <ZapIcon className="mt-0.5 size-5 shrink-0 text-warning" />
+          ) : (
+            <ShieldCheckIcon className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+          )}
+          <div>
+            <p className="text-base font-semibold">
+              Autorisponditore automatico: {form.response_mode === "AUTO_REPLY" ? "ACCESO" : "SPENTO"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {form.response_mode === "AUTO_REPLY"
+                ? "L'AI invia le risposte da sola, senza attendere la tua approvazione."
+                : "Ogni risposta dell'AI resta in bozza finché non la approvi tu, dall'Inbox."}
+              {" "}Gli argomenti sensibili (sotto) richiedono comunque sempre revisione umana, in entrambi i casi.
+            </p>
+          </div>
+        </div>
+        <Switch checked={form.response_mode === "AUTO_REPLY"} onCheckedChange={handleToggleAutoReply} disabled={updateConfig.isPending} />
+      </div>
+
+      <ConfirmDialog
+        open={confirmAutoReplyOpen}
+        onOpenChange={setConfirmAutoReplyOpen}
+        title="Accendere l'autorisponditore automatico?"
+        description="Da questo momento l'AI invierà le risposte ai clienti da sola, senza che tu debba approvarle una per una. Gli argomenti sensibili (rimborso, legale, medico...) continueranno a restare in bozza per la tua revisione. Puoi spegnerlo in qualsiasi momento."
+        confirmLabel="Sì, accendi"
+        loading={updateConfig.isPending}
+        onConfirm={() => {
+          persistResponseMode("AUTO_REPLY");
+          setConfirmAutoReplyOpen(false);
+        }}
       />
 
       <div className="space-y-4 rounded-lg border p-4">
@@ -222,9 +289,6 @@ export default function OmnichannelSettingsPage() {
           </div>
         </div>
 
-        <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
-          Ogni risposta generata dall&apos;AI resta sempre in stato &quot;da approvare&quot; finché un operatore non la invia manualmente: l&apos;invio automatico (AUTO_REPLY) non è supportato in questa versione.
-        </p>
       </div>
     </div>
   );

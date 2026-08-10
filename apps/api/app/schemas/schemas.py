@@ -795,9 +795,10 @@ class OmniAIAgentConfigUpdate(BaseModel):
     max_context_messages: Optional[int] = Field(None, ge=1, le=100)
     knowledge_base_enabled: Optional[bool] = None
     automatic_language_detection: Optional[bool] = None
-    # response_mode intentionally NOT settable to "AUTO_REPLY" here - validated
-    # server-side (see api/v1/omnichannel.py) so full autonomous sending stays
-    # opt-in and reversible, never a silent default.
+    # MANUAL, APPROVAL_REQUIRED (default), AUTO_REPLY - validated server-side
+    # (api/v1/omnichannel.py) and audited on every change (AI_RESPONSE_MODE_
+    # CHANGED). AUTO_REPLY never applies to a sensitive-topic draft regardless
+    # of this setting - see omnichannel_draft_service.py module docstring.
     response_mode: Optional[str] = None
     sensitive_categories: Optional[List[str]] = None
 

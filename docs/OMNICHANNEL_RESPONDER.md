@@ -1,6 +1,6 @@
 # Omnichannel Responder
 
-Modulo separato e indipendente: inbox unificata multicanale (Telegram, WhatsApp, Instagram, Facebook) con proposte di risposta generate dall'AI che **non vengono mai inviate automaticamente** — un operatore deve sempre approvarle, modificarle o scartarle prima dell'invio reale. Non modifica né duplica alcuna tabella/funzionalità esistente: l'unico collegamento con il resto della piattaforma è `owner_id` (FK verso `administrators.id`, la stessa identità che fa login nella dashboard). Per lo schema dati generale vedi [DATABASE.md](./DATABASE.md); per il resto delle funzionalità della piattaforma vedi [FUNCTIONALITY.md](./FUNCTIONALITY.md).
+Modulo separato e indipendente: inbox unificata multicanale (Telegram, WhatsApp, Instagram, Facebook) con proposte di risposta generate dall'AI. Per **default** ogni bozza resta "da approvare" finché un operatore non la invia manualmente; l'amministratore può attivare esplicitamente l'**autorisponditore automatico** (AUTO_REPLY, vedi §5) dalla pagina AI Agent — con un interruttore ben visibile e una conferma esplicita prima di accenderlo — nel qual caso l'AI invia le risposte da sola. In entrambi i casi, gli argomenti sensibili (rimborso, legale, medico...) richiedono **sempre** revisione umana esplicita, senza eccezioni: questa è l'unica regola che nessuna impostazione può disattivare. Non modifica né duplica alcuna tabella/funzionalità esistente: l'unico collegamento con il resto della piattaforma è `owner_id` (FK verso `administrators.id`, la stessa identità che fa login nella dashboard). Per lo schema dati generale vedi [DATABASE.md](./DATABASE.md); per il resto delle funzionalità della piattaforma vedi [FUNCTIONALITY.md](./FUNCTIONALITY.md).
 
 Questo file è scritto per essere sufficiente, da solo, a ricostruire il modulo identico su un altro server (schema dati, endpoint, decisioni architetturali e i loro perché) senza dover rileggere il codice riga per riga.
 
@@ -168,7 +168,7 @@ Configurazione dell'assistente AI. Una riga per `owner_id` (vincolo unico), crea
 | `max_context_messages` | int | quanti messaggi recenti della conversazione includere nel contesto (default 20) |
 | `knowledge_base_enabled` | bool | se disattivato, la ricerca nella Knowledge Base viene saltata |
 | `automatic_language_detection` | bool | |
-| `response_mode` | string | `MANUAL`, `APPROVAL_REQUIRED`, `AUTO_REPLY` — **`AUTO_REPLY` è bloccato lato API** (`PUT /ai-agent` risponde 400 se richiesto): il campo esiste per une futura implementazione ma nessun percorso di codice in questa v1 invia mai automaticamente, quindi impostarlo non avrebbe alcun effetto — bloccato per evitare di far credere il contrario |
+| `response_mode` | string | `MANUAL`, `APPROVAL_REQUIRED` (default per ogni nuovo owner), `AUTO_REPLY`. Cambiato solo esplicitamente dalla pagina AI Agent (interruttore con conferma prima di accendere), mai di default. Ogni cambio produce un `OmniAuditLog` dedicato (`AI_RESPONSE_MODE_CHANGED`, con `from`/`to` in `metadata_json`). `MANUAL` è accettato dallo schema ma non ha ancora un comportamento distinto da `APPROVAL_REQUIRED` in questa v1 (la generazione della bozza AI avviene sempre) |
 | `sensitive_categories_json` | JSONB, nullable | vedi §6 |
 
 ### `omni_knowledge_documents` / `omni_knowledge_chunks`
@@ -239,19 +239,31 @@ Implementazioni:
      - integrations/omnichannel/ai.py::generate_ai_reply() → chiamata OpenAI (chat/completions, testo puro)
      - status = HUMAN_REVIEW_REQUIRED (se categoria sensibile) altrimenti PENDING_APPROVAL
      - conversation.status = WAITING_APPROVAL
-     - crea una omni_notifications ("Bozza AI pronta")
-7. Operatore apre la conversazione, vede la bozza, può:
+
+     SE OmniAIAgentConfig.response_mode == "AUTO_REPLY" E la bozza NON è HUMAN_REVIEW_REQUIRED:
+     6b. OmnichannelDraftService.approve_and_send(db, draft.id, admin=None) viene chiamato
+         subito, dallo stesso task Celery, con lo STESSO percorso di codice (stesso row-lock
+         anti-doppio-invio, stesso stato SENDING→SENT) che userebbe un click umano - non
+         esiste un secondo percorso di invio parallelo. `admin=None` produce un audit log
+         "AI_AUTO_SENT" invece di "AI_APPROVED" e nessuna notifica "Bozza AI pronta" (sostituita
+         da una notifica "L'AI ha risposto automaticamente", informativa, non un'azione da fare).
+         Se l'invio fallisce (es. token canale scaduto), la bozza torna comunque "FAILED" e
+         resta visibile/rigenerabile in Inbox come nel percorso manuale - non sparisce silenziosamente.
+
+     ALTRIMENTI (default, response_mode = APPROVAL_REQUIRED): crea una omni_notifications
+     ("Bozza AI pronta") e si ferma qui, in attesa di un operatore.
+7. Operatore apre la conversazione (se non già inviata automaticamente al passo 6b), vede la bozza, può:
      PATCH /drafts/{id}          → modifica il testo (status → EDITED)
      POST /drafts/{id}/regenerate → richiama generate_ai_reply da zero (anche da stato FAILED)
      POST /drafts/{id}/reject     → status REJECTED, conversation torna OPEN
-     POST /drafts/{id}/approve    → SOLO qui può partire un invio reale, vedi §7
-8. Approvazione riuscita:
+     POST /drafts/{id}/approve    → SOLO qui (o al passo 6b) può partire un invio reale, vedi §7
+8. Approvazione riuscita (manuale o automatica):
      - Connector.send_message() con il testo finale (edited_text se presente, altrimenti original_ai_text)
      - nuovo omni_messages (direction=outbound, sender_type=ai o operator se il testo era stato modificato)
      - draft.status = SENT, conversation.status = WAITING_CUSTOMER
 ```
 
-L'operatore può anche scrivere un messaggio libero, bypassando completamente il workflow AI (`POST /conversations/{id}/messages`) — utile per rispondere subito senza aspettare/usare l'AI.
+L'operatore può anche scrivere un messaggio libero, bypassando completamente il workflow AI (`POST /conversations/{id}/messages`) — utile per rispondere subito senza aspettare/usare l'AI, indipendentemente da `response_mode`.
 
 ---
 
@@ -297,7 +309,7 @@ Tutti gli endpoint sotto `/api/v1/omnichannel-responder/` (eccetto il webhook Te
 | Clienti | `GET\|PATCH /customers/{id}` |
 | Tag | `GET\|POST /tags` |
 | Bozze AI | `PATCH /drafts/{id}`, `POST /drafts/{id}/approve\|regenerate\|reject` |
-| AI Agent | `GET\|PUT /ai-agent` (`PUT` rifiuta `response_mode: AUTO_REPLY`, vedi §3) |
+| AI Agent | `GET\|PUT /ai-agent` (`PUT` valida `response_mode` contro i 3 valori ammessi e registra un `AI_RESPONSE_MODE_CHANGED` ad ogni cambio, vedi §3) |
 | Knowledge Base | `GET\|POST /knowledge-base`, `DELETE /knowledge-base/{id}` |
 | Notifiche | `GET /notifications`, `POST /notifications/{id}/read` |
 | Analytics | `GET /analytics` — conteggi + `ai_acceptance_rate`/`ai_edit_rate`/`ai_rejection_rate` (bozze approvate senza modifiche / modificate / scartate, sul totale delle bozze arrivate a uno stato finale) |
@@ -313,7 +325,7 @@ Schema Pydantic completo in fondo a `app/schemas/schemas.py` (sezione `# Omnicha
 
 - **`page.tsx`** — inbox a 3 colonne (`_components/conversation-list.tsx`, `chat-panel.tsx`, `customer-panel.tsx`, `ai-draft-card.tsx`). La bozza AI attiva (se presente) appare inline nella chat con i pulsanti Approva e invia / Copia / Rigenera / Scarta, textarea modificabile. Ogni riga della lista conversazioni mostra lo `StatusBadge` dello stato (`NEW`/`OPEN`/`AI_PROCESSING`/`WAITING_APPROVAL`/`WAITING_CUSTOMER`/`RESOLVED`/`ARCHIVED`/`SPAM`) su una riga propria, ben visibile, non solo aprendo la conversazione — così si vede a colpo d'occhio quali richiedono un'azione (`WAITING_APPROVAL`) senza doverle aprire una per una.
 - **`channels/page.tsx`** — lista canali, dialog di creazione, registrazione webhook Telegram, strumento "Simula messaggio" sui canali mock.
-- **`settings/page.tsx`** — configurazione AI Agent (prompt, tono, lingua, argomenti, categorie sensibili a chip cliccabili).
+- **`settings/page.tsx`** — configurazione AI Agent (prompt, tono, lingua, argomenti, categorie sensibili a chip cliccabili). In cima alla pagina, un riquadro ben visibile (bordo/sfondo colorato quando acceso, icona diversa) con l'interruttore per l'**autorisponditore automatico** (`response_mode`): a differenza degli altri campi si salva **subito** al click (non con il pulsante "Salva" generico, per non lasciarlo in uno stato "modificato ma non salvato" ambiguo su un'impostazione così delicata), e accenderlo richiede una conferma esplicita in un dialog dedicato — spegnerlo invece è immediato, senza conferma.
 - **`knowledge-base/page.tsx`** — CRUD documenti testuali.
 
 **Nessun WebSocket/SSE**: l'intero progetto non ha alcuna infrastruttura realtime preesistente (verificato prima di iniziare). L'inbox si aggiorna via **polling** con TanStack Query (`refetchInterval`: 8s per la lista conversazioni, 4s per la conversazione aperta, 15s per le notifiche) — coerente con il resto della dashboard, nessuna nuova infrastruttura introdotta per questo modulo. Se in futuro serve un aggiornamento realtime, andrebbe introdotto come una scelta architetturale a parte, non implicita in questo modulo.
@@ -348,9 +360,9 @@ Per testare senza un bot reale: crea un canale di tipo `Test (mock)`, poi usa l'
 - **Isolamento dati**: ogni query filtra per `owner_id`, vedi §2. Nessun endpoint accetta un `owner_id` dal client — è sempre derivato dall'admin autenticato.
 - **Token canale cifrati a riposo**: stesso `EncryptionService` (Fernet) usato per i token Buffer, mai restituiti da nessun endpoint.
 - **Webhook Telegram non autenticato ma verificato**: header secret-token confrontato con un valore casuale per-canale (§8), non un segreto condiviso globale.
-- **AI mai in grado di inviare da sola**: nessun percorso di codice chiama `Connector.send_message` se non `OmnichannelDraftService.approve_and_send`, raggiungibile solo da un endpoint autenticato dopo un'azione esplicita dell'operatore (§5, §7).
-- **`AUTO_REPLY` bloccato lato API** anche se il campo esiste nello schema (§3) — evita che un admin lo imposti pensando che abbia effetto, quando nessun codice lo implementa ancora.
-- **Categorie sensibili**: forzano sempre revisione umana esplicita (`HUMAN_REVIEW_REQUIRED`), mai un invio "quasi automatico" su temi delicati (§6).
+- **Un solo percorso di invio**: nessun percorso di codice chiama `Connector.send_message` se non `OmnichannelDraftService.approve_and_send` — sia che parta da un click umano (`admin` valorizzato) sia che parta dall'autorisponditore automatico (`admin=None`, vedi §5), è la stessa funzione, con lo stesso row-lock anti-doppio-invio.
+- **`AUTO_REPLY` è opt-in, mai il default**: ogni nuovo `OmniAIAgentConfig` nasce con `response_mode="APPROVAL_REQUIRED"` (§3); passare ad `AUTO_REPLY` richiede un'azione esplicita dell'amministratore dalla pagina AI Agent, con una conferma dedicata prima di attivarlo, ed è sempre reversibile con un click. Ogni cambio produce un audit log dedicato (`AI_RESPONSE_MODE_CHANGED`).
+- **Categorie sensibili sempre più forti di `AUTO_REPLY`**: una bozza `HUMAN_REVIEW_REQUIRED` non viene mai auto-inviata, indipendentemente da `response_mode` — il controllo è esplicito nel codice (`generate_draft_for_message`), non delegato a un'impostazione che potrebbe essere disattivata per errore.
 
 ---
 
@@ -360,7 +372,8 @@ Per testare senza un bot reale: crea un canale di tipo `Test (mock)`, poi usa l'
 - **Knowledge Base per parole chiave, non embedding vettoriali** (§6) — funzionale per pochi documenti, non scala a una knowledge base grande quanto un vero RAG.
 - **Nessun WebSocket/SSE**: aggiornamento via polling (§10), coerente col resto della piattaforma ma non istantaneo (fino a qualche secondo di ritardo).
 - **Nessun lock a livello di conversazione** per messaggi in arrivo quasi simultanei (§7) — mitigato ma non eliminato dal fatto che il contesto è sempre letto fresco dal database.
-- **`response_mode: AUTO_REPLY` non implementato**, solo bloccato esplicitamente (§3, §12) — il campo esiste per un'estensione futura.
+- **`response_mode: MANUAL` non ha ancora un comportamento distinto** da `APPROVAL_REQUIRED` — la bozza AI viene sempre generata ad ogni messaggio in arrivo; `MANUAL` (nessuna generazione AI, solo risposta manuale) non è ancora implementato, solo accettato dallo schema.
+- **Nessuna eccezione di orario/giorno per l'autorisponditore**: acceso o spento, `AUTO_REPLY` vale sempre, 24 ore su 24 - non esiste ancora una fascia oraria configurabile (es. "autorisponditore solo fuori orario ufficio").
 - **Download allegati non implementato**: `Connector.download_attachment()` esiste nell'interfaccia ma nessuna implementazione la usa ancora — un messaggio con foto/video/audio viene salvato con `message_type` corretto e il riferimento file Telegram in `metadata_json`, ma il file non viene scaricato/servito.
 - **Nessun round-robin/team di assegnazione**: solo assegnazione manuale (`assigned_admin_id`), niente logica di smistamento automatico per reparto/lingua/canale.
 - **Nessun merge contatti**: se un cliente scrive la prima volta con dati diversi (es. nome cambiato), non viene proposto automaticamente alcun merge tra `omni_customers` esistenti.

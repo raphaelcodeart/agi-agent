@@ -15,6 +15,16 @@ Concurrency notes (spec sections 64/65):
   build_conversation_messages), so a burst of near-simultaneous inbound
   messages can't make the AI answer from stale context - each generation
   task, whenever it actually runs, sees everything committed so far.
+
+Auto-reply (OmniAIAgentConfig.response_mode == "AUTO_REPLY"): approve_and_send
+accepts admin=None for this case, and generate_draft_for_message calls it
+itself right after generation, with the exact same status-guarded/row-locked
+path a human click would use - there is no separate "auto send" code path to
+audit. The one rule that response_mode can never override: a draft flagged
+HUMAN_REVIEW_REQUIRED (sensitive topic, see integrations/omnichannel/ai.py::
+detect_sensitive_category) is never auto-sent, full stop - only
+PENDING_APPROVAL drafts are eligible, checked before approve_and_send is ever
+called for this path.
 """
 import uuid
 from datetime import datetime, timezone
@@ -92,14 +102,33 @@ class OmnichannelDraftService:
         ))
 
         conversation.status = "WAITING_APPROVAL"
-        OmnichannelService.create_notification(
-            db, owner_id, None, "ai_ready", "Bozza AI pronta per l'approvazione",
-            (draft.original_ai_text or "")[:200], "conversation", conversation.id,
-        )
-        OmnichannelService.log_audit(db, owner_id, None, "AI_GENERATED", "ai_draft", draft.id, {"sensitive_category": sensitive_category})
+
+        # Auto-reply only ever fires for a plain PENDING_APPROVAL draft - a
+        # sensitive-topic HUMAN_REVIEW_REQUIRED draft is never eligible,
+        # regardless of response_mode (see module docstring).
+        should_auto_send = not sensitive_category and agent_config.response_mode == "AUTO_REPLY"
+        if not should_auto_send:
+            OmnichannelService.create_notification(
+                db, owner_id, None, "ai_ready", "Bozza AI pronta per l'approvazione",
+                (draft.original_ai_text or "")[:200], "conversation", conversation.id,
+            )
+        OmnichannelService.log_audit(db, owner_id, None, "AI_GENERATED", "ai_draft", draft.id, {"sensitive_category": sensitive_category, "auto_reply": should_auto_send})
 
         db.commit()
         db.refresh(draft)
+
+        if should_auto_send:
+            try:
+                OmnichannelDraftService.approve_and_send(db, draft.id, admin=None)
+                OmnichannelService.create_notification(
+                    db, owner_id, None, "ai_auto_sent", "L'AI ha risposto automaticamente",
+                    (draft.original_ai_text or "")[:200], "conversation", conversation.id,
+                )
+                db.commit()
+            except ValueError:
+                pass  # approve_and_send already left the draft in FAILED state and committed that itself
+            db.refresh(draft)
+
         return draft
 
     @staticmethod
@@ -159,7 +188,8 @@ class OmnichannelDraftService:
         return draft
 
     @staticmethod
-    def approve_and_send(db: Session, draft_id: uuid.UUID, admin: Administrator) -> Tuple[OmniAIDraft, OmniMessage]:
+    def approve_and_send(db: Session, draft_id: uuid.UUID, admin: Optional[Administrator]) -> Tuple[OmniAIDraft, OmniMessage]:
+        """admin=None means this is an AUTO_REPLY send, not a human click - see module docstring."""
         # Row lock: guards against a double "Approve & Send" click racing on the
         # same draft (spec section 65). Held only for this short status-check
         # and flip, never across the outbound network call below.
@@ -199,7 +229,7 @@ class OmnichannelDraftService:
         except ConnectorError as e:
             draft.status = "FAILED"
             draft.failure_reason = e.message
-            OmnichannelService.log_audit(db, draft.owner_id, admin.id, "MESSAGE_FAILED", "ai_draft", draft.id, {"error": e.message})
+            OmnichannelService.log_audit(db, draft.owner_id, admin.id if admin else None, "MESSAGE_FAILED", "ai_draft", draft.id, {"error": e.message})
             db.commit()
             raise ValueError(e.message)
 
@@ -220,15 +250,16 @@ class OmnichannelDraftService:
         draft.status = "SENT"
         if not draft.approved_at:
             draft.approved_at = now
-        draft.approved_by = admin.id
+        draft.approved_by = admin.id if admin else None
         draft.sent_at = now
 
         conversation.status = "WAITING_CUSTOMER"
         conversation.last_message_at = now
         conversation.unread_count = 0
 
-        OmnichannelService.log_audit(db, draft.owner_id, admin.id, "AI_APPROVED", "ai_draft", draft.id)
-        OmnichannelService.log_audit(db, draft.owner_id, admin.id, "MESSAGE_SENT", "message", outbound_message.id)
+        approval_action = "AI_APPROVED" if admin else "AI_AUTO_SENT"
+        OmnichannelService.log_audit(db, draft.owner_id, admin.id if admin else None, approval_action, "ai_draft", draft.id)
+        OmnichannelService.log_audit(db, draft.owner_id, admin.id if admin else None, "MESSAGE_SENT", "message", outbound_message.id)
 
         db.commit()
         db.refresh(draft)

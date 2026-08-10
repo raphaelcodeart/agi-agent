@@ -432,12 +432,23 @@ def get_ai_agent_config(db: Session = Depends(get_db), admin: Administrator = De
 def update_ai_agent_config(payload: OmniAIAgentConfigUpdate, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
     config = OmnichannelService.get_or_create_ai_agent_config(db, admin.id)
     updates = payload.model_dump(exclude_unset=True)
-    if updates.get("response_mode") == "AUTO_REPLY":
-        raise HTTPException(status_code=400, detail="AUTO_REPLY non è ancora supportato: ogni risposta richiede sempre approvazione umana in questa versione")
 
+    if "response_mode" in updates and updates["response_mode"] not in ("MANUAL", "APPROVAL_REQUIRED", "AUTO_REPLY"):
+        raise HTTPException(status_code=400, detail=f"response_mode non valido: {updates['response_mode']}")
+
+    previous_response_mode = config.response_mode
     field_map = {"allowed_topics": "allowed_topics_json", "forbidden_topics": "forbidden_topics_json", "sensitive_categories": "sensitive_categories_json"}
     for field, value in updates.items():
         setattr(config, field_map.get(field, field), value)
+
+    # response_mode toggles whether the AI can send messages to real customers
+    # on its own - worth its own explicit, easy-to-find audit entry beyond the
+    # generic SETTINGS_CHANGED below.
+    if "response_mode" in updates and updates["response_mode"] != previous_response_mode:
+        OmnichannelService.log_audit(
+            db, admin.id, admin.id, "AI_RESPONSE_MODE_CHANGED", "ai_agent_config", config.id,
+            {"from": previous_response_mode, "to": updates["response_mode"]},
+        )
 
     OmnichannelService.log_audit(db, admin.id, admin.id, "SETTINGS_CHANGED", "ai_agent_config", config.id)
     db.commit()

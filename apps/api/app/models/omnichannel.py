@@ -219,8 +219,11 @@ class OmniAIAgentConfig(Base):
     max_context_messages: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
     knowledge_base_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     automatic_language_detection: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    # MANUAL, APPROVAL_REQUIRED, AUTO_REPLY - AUTO_REPLY must never be reachable
-    # from a fresh install; nothing in this module sets it automatically.
+    # MANUAL, APPROVAL_REQUIRED, AUTO_REPLY. Defaults to APPROVAL_REQUIRED for
+    # every new owner (never opted-in silently) - toggled explicitly from the
+    # AI Agent settings page. AUTO_REPLY still never applies to a
+    # HUMAN_REVIEW_REQUIRED (sensitive-topic) draft, see
+    # omnichannel_draft_service.py module docstring.
     response_mode: Mapped[str] = mapped_column(String(30), default="APPROVAL_REQUIRED", nullable=False)
     # Topics that always force HUMAN_REVIEW_REQUIRED instead of a ready-to-send
     # draft (refund, legal, medical, complaint...) - see integrations/omnichannel/ai.py
