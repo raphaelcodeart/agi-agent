@@ -90,7 +90,7 @@ Un account/canale collegato (bot Telegram, futuro numero WhatsApp Business, pagi
 |---|---|---|
 | `channel` | string | `telegram`, `whatsapp`, `instagram`, `facebook`, `mock` |
 | `status` | string | `pending`, `connected`, `error`, `disabled` |
-| `access_token_encrypted` | text, nullable | cifrato con lo stesso `EncryptionService` (Fernet) usato per i token Buffer — mai in chiaro, mai restituito dall'API |
+| `access_token_encrypted` | text, nullable | cifrato con lo stesso `EncryptionService` (Fernet) usato per i token Buffer — mai in chiaro, mai restituito dall'API. Per Facebook contiene un blob JSON cifrato `{"page_access_token", "app_secret"}` invece di una singola stringa, vedi §4 |
 | `webhook_secret` | string(64) | generato random alla creazione (`uuid4().hex`); Telegram lo rimanda nell'header `X-Telegram-Bot-Api-Secret-Token` ad ogni richiesta webhook — è così che il webhook (pubblico, non autenticato) verifica che la richiesta venga davvero da Telegram, vedi §8 |
 | `config_json` (colonna `config`) | JSONB, nullable | configurazione libera per canale |
 
@@ -209,11 +209,14 @@ download_attachment(attachment_ref) -> bytes | None           # opzionale, non i
 get_status() -> dict                                          # health check per la pagina Canali
 ```
 
+`verify_webhook` accetta anche un parametro opzionale `body: bytes` (il corpo grezzo, non ancora parsato, della richiesta) — usato solo dai canali che firmano l'intero payload (Facebook, `X-Hub-Signature-256`) invece di un valore statico in un header (Telegram, secret token); la maggior parte delle implementazioni lo ignora.
+
 Implementazioni:
 
-- **`TelegramConnector`** (`connectors/telegram.py`) — l'unico canale reale in questa v1. Chiama l'API Bot di Telegram (`api.telegram.org/bot<token>/...`) via `httpx` diretto, stesso stile di `app/integrations/openai/client.py` (nessun SDK di terze parti). `register_webhook()` (non parte dell'ABC, specifico Telegram) chiama `setWebhook` passando `secret_token` = `omni_channel_accounts.webhook_secret`.
+- **`TelegramConnector`** (`connectors/telegram.py`) — canale reale. Chiama l'API Bot di Telegram (`api.telegram.org/bot<token>/...`) via `httpx` diretto, stesso stile di `app/integrations/openai/client.py` (nessun SDK di terze parti). `register_webhook()` (non parte dell'ABC, specifico Telegram) chiama `setWebhook` passando `secret_token` = `omni_channel_accounts.webhook_secret`.
+- **`FacebookConnector`** (`connectors/facebook.py`) — canale reale, via Graph API (`graph.facebook.com/v19.0`, Send API + Messenger webhooks). A differenza di Telegram, Meta non offre una chiamata "registra webhook": l'amministratore incolla lui stesso URL e Verify Token nella Meta App Dashboard (Messenger → Impostazioni → Webhooks) — la pagina Canali mostra questi due valori già pronti da copiare (`FacebookWebhookInfoDialog`). Richiede **due** segreti distinti, non uno solo come ogni altro canale: il Page Access Token (per inviare) e l'App Secret (per verificare che i webhook in arrivo vengano davvero da Meta, header `X-Hub-Signature-256`, HMAC-SHA256 del body grezzo) — combinati in un unico blob JSON cifrato dentro `access_token_encrypted` (`OmnichannelService.create_channel_account`), nessuna nuova colonna necessaria. `parse_webhook` scarta esplicitamente gli "echo" (`message.is_echo`, i nostri stessi messaggi in uscita rimandati indietro da Meta) e le ricevute di consegna/lettura — solo i messaggi realmente in arrivo dal cliente diventano un `NormalizedIncomingMessage`.
 - **`MockConnector`** (`connectors/mock.py`) — nessuna chiamata esterna. Usato dallo strumento "Simula messaggio" per testare l'intera pipeline (ingest → bozza AI → approvazione → invio) senza credenziali reali.
-- **`WhatsAppConnector` / `InstagramConnector` / `FacebookConnector`** (`connectors/unimplemented.py`) — classi reali, registrate nel registry, ma `send_message` solleva `ConnectorError` con un messaggio esplicito ("non ancora implementato"). Nessun endpoint Meta è stato inventato: implementarli per davvero richiede una Business Verification/App Review di Meta che non può essere completata da codice. Aggiungerli per davvero significa scrivere una nuova classe in un nuovo file e registrarla in `registry.py` — nessun'altra parte del modulo cambia.
+- **`WhatsAppConnector` / `InstagramConnector`** (`connectors/unimplemented.py`) — classi reali, registrate nel registry, ma `send_message` solleva `ConnectorError` con un messaggio esplicito ("non ancora implementato"). Nessun endpoint Meta è stato inventato: implementarli per davvero richiede una Business Verification/App Review di Meta che non può essere completata da codice. Aggiungerli per davvero significa scrivere una nuova classe in un nuovo file (esattamente come fatto per `facebook.py`) e registrarla in `registry.py` — nessun'altra parte del modulo cambia.
 
 `connectors/registry.py::get_connector(channel_account)` è la unica factory: decripta il token (se presente) e istanzia la classe giusta in base a `channel_account.channel`.
 
@@ -316,7 +319,7 @@ Tutti gli endpoint sotto `/api/v1/omnichannel-responder/` (eccetto il webhook Te
 | Knowledge Base | `GET\|POST /knowledge-base`, `DELETE /knowledge-base/{id}` |
 | Notifiche | `GET /notifications`, `POST /notifications/{id}/read` |
 | Analytics | `GET /analytics` — conteggi + `ai_acceptance_rate`/`ai_edit_rate`/`ai_rejection_rate` (bozze approvate senza modifiche / modificate / scartate, sul totale delle bozze arrivate a uno stato finale) |
-| Webhook/dev | `POST /webhooks/telegram/{channel_account_id}` (pubblico), `POST /dev/simulate-message` (vedi §8) |
+| Webhook/dev | `POST /webhooks/telegram/{channel_account_id}` (pubblico), `GET\|POST /webhooks/facebook/{channel_account_id}` (pubblico — `GET` è l'handshake di verifica di Meta, `POST` riceve i messaggi), `POST /dev/simulate-message` (vedi §8) |
 
 Schema Pydantic completo in fondo a `app/schemas/schemas.py` (sezione `# Omnichannel Responder`).
 
@@ -345,7 +348,7 @@ Un pulsante di refresh manuale (icona ⟳) è disponibile accanto alla ricerca c
 
 ---
 
-## 11. Configurazione e come collegare Telegram
+## 11. Configurazione e come collegare Telegram / Facebook
 
 **Nessuna nuova variabile `.env` obbligatoria.** Il modulo riusa `OPENAI_API_KEY`/`OPENAI_MODEL` (o la chiave configurata dalla pagina Impostazioni, stessa precedenza di [DATABASE.md §9](./DATABASE.md#9-impostazioni-ai)) e il `DATABASE_URL`/`REDIS_URL` già esistenti.
 
@@ -357,6 +360,16 @@ Per collegare un bot Telegram:
 4. Scrivi al bot da Telegram: il messaggio deve comparire nell'Inbox entro pochi secondi, seguito dalla bozza AI (se una chiave OpenAI è configurata).
 
 Per testare senza un bot reale: crea un canale di tipo `Test (mock)`, poi usa l'icona ▶ "Simula messaggio" sulla sua riga.
+
+Per collegare una Pagina Facebook (Messenger) — più passaggi di Telegram, alcuni richiedono l'approvazione di Meta:
+
+1. Su [developers.facebook.com](https://developers.facebook.com) crea un'app (tipo "Business"), aggiungi il prodotto **Messenger**.
+2. Collega la tua Pagina Facebook all'app e genera un **Page Access Token** (Messenger → Impostazioni Messenger → Generate Token, sotto "Access Tokens").
+3. Copia l'**App Secret** da App Dashboard → Impostazioni → Basic.
+4. Dashboard → Omnichannel Responder → Canali → "Nuovo canale" → tipo `Facebook Messenger`, incolla Page Access Token e App Secret.
+5. Sulla riga del canale appena creato, icona ℹ️ "Info webhook" → incolla l'URL pubblico HTTPS di questa API → copia l'**URL di callback** e il **Verify Token** mostrati.
+6. Su Meta: Messenger → Impostazioni → Webhooks → "Aggiungi URL callback", incolla i due valori, poi **iscrivi la Pagina all'evento `messages`** nella stessa schermata (passaggio facile da dimenticare — senza, il webhook risulta verificato ma non arriva mai nulla).
+7. **Prima di poter rispondere a clienti reali** (chiunque non sia un Tester/Admin dell'app), l'app deve superare l'**App Review** di Meta per il permesso `pages_messaging` — richiede Business Verification, può richiedere giorni. Finché l'app è in modalità sviluppo, puoi comunque testare scrivendo alla Pagina da un account aggiunto come Tester/Admin nell'app Meta.
 
 ---
 
@@ -375,7 +388,8 @@ Per testare senza un bot reale: crea un canale di tipo `Test (mock)`, poi usa l'
 
 ## 13. Limiti noti di questa v1
 
-- **Solo Telegram è un canale reale.** WhatsApp/Instagram/Facebook sono connettori-stub che rifiutano chiaramente l'invio (§4) — richiedono una Business Verification/App Review di Meta non completabile da codice.
+- **Telegram e Facebook Messenger sono canali reali.** WhatsApp/Instagram restano connettori-stub che rifiutano chiaramente l'invio (§4) — richiedono una Business Verification/App Review di Meta non completabile da codice. Facebook stesso, prima di poter rispondere a clienti reali (non solo Tester/Admin dell'app), richiede la stessa App Review per `pages_messaging` (§11) — il codice è pronto e verificato, ma l'approvazione di Meta è un passaggio esterno che l'amministratore deve completare per conto proprio.
+- **Nessun profilo Instagram gestito tramite Facebook Messenger**: il connettore Facebook parla solo con l'inbox della Pagina, non con Instagram Direct anche se le due sono collegate nella stessa app Meta — resta un canale a parte (`InstagramConnector`, ancora uno stub).
 - **Knowledge Base per parole chiave, non embedding vettoriali** (§6) — funzionale per pochi documenti, non scala a una knowledge base grande quanto un vero RAG.
 - **Nessun WebSocket/SSE**: aggiornamento via polling (§10), coerente col resto della piattaforma ma non istantaneo (fino a qualche secondo di ritardo).
 - **Nessun lock a livello di conversazione** per messaggi in arrivo quasi simultanei (§7) — mitigato ma non eliminato dal fatto che il contesto è sempre letto fresco dal database.

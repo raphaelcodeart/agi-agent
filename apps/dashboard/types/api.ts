@@ -615,6 +615,8 @@ export interface OmniChannelAccountCreate {
   name: string;
   external_account_id?: string;
   access_token?: string;
+  /** Facebook only: Meta App Secret, used to verify webhook signatures. */
+  app_secret?: string;
   config?: Record<string, unknown>;
 }
 

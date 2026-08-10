@@ -36,8 +36,14 @@ class Connector(ABC):
         self.access_token = access_token
 
     @abstractmethod
-    def verify_webhook(self, headers: Dict[str, str], path_secret: str) -> bool:
-        """Validates that an inbound webhook request actually came from the channel provider."""
+    def verify_webhook(self, headers: Dict[str, str], path_secret: str, body: bytes = b"") -> bool:
+        """
+        Validates that an inbound webhook request actually came from the
+        channel provider. `body` (the raw, unparsed request bytes) is only
+        used by channels that sign the payload itself (e.g. Facebook's
+        X-Hub-Signature-256 HMAC) rather than a static per-request header
+        value (e.g. Telegram's secret token) - most implementations ignore it.
+        """
         raise NotImplementedError
 
     @abstractmethod

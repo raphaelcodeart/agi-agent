@@ -32,7 +32,7 @@ class TelegramConnector(Connector):
             raise ConnectorError("Nessun bot token configurato per questo canale Telegram")
         return f"{TELEGRAM_API_BASE}/bot{self.access_token}"
 
-    def verify_webhook(self, headers: Dict[str, str], path_secret: str) -> bool:
+    def verify_webhook(self, headers: Dict[str, str], path_secret: str, body: bytes = b"") -> bool:
         # Telegram echoes back the secret_token configured via setWebhook in
         # this header on every request - see register_webhook() below.
         return headers.get("x-telegram-bot-api-secret-token") == self.channel_account.webhook_secret

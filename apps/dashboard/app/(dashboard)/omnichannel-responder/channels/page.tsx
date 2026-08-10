@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, Trash2Icon, WebhookIcon, PlayIcon, RadioIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, WebhookIcon, InfoIcon, PlayIcon, RadioIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -17,6 +17,7 @@ import { ChannelIcon, channelLabel } from "../_components/channel-icon";
 import { CreateChannelDialog } from "./_components/create-channel-dialog";
 import { RegisterWebhookDialog } from "./_components/register-webhook-dialog";
 import { SimulateMessageDialog } from "./_components/simulate-message-dialog";
+import { FacebookWebhookInfoDialog } from "./_components/facebook-webhook-info-dialog";
 
 export default function OmnichannelChannelsPage() {
   const { data: accounts, isLoading } = useChannelAccounts();
@@ -24,8 +25,10 @@ export default function OmnichannelChannelsPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [webhookAccountId, setWebhookAccountId] = useState<string | null>(null);
+  const [facebookInfoAccountId, setFacebookInfoAccountId] = useState<string | null>(null);
   const [simulateAccountId, setSimulateAccountId] = useState<string | null>(null);
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
+  const facebookInfoAccount = accounts?.find((a) => a.id === facebookInfoAccountId);
 
   return (
     <div>
@@ -82,6 +85,11 @@ export default function OmnichannelChannelsPage() {
                           <WebhookIcon />
                         </Button>
                       )}
+                      {account.channel === "facebook" && (
+                        <Button size="icon-sm" variant="ghost" title="Info webhook" onClick={() => setFacebookInfoAccountId(account.id)}>
+                          <InfoIcon />
+                        </Button>
+                      )}
                       {account.channel === "mock" && (
                         <Button size="icon-sm" variant="ghost" title="Simula messaggio" onClick={() => setSimulateAccountId(account.id)}>
                           <PlayIcon />
@@ -105,6 +113,14 @@ export default function OmnichannelChannelsPage() {
       )}
       {simulateAccountId && (
         <SimulateMessageDialog open={!!simulateAccountId} onOpenChange={(open) => !open && setSimulateAccountId(null)} channelAccountId={simulateAccountId} />
+      )}
+      {facebookInfoAccount && (
+        <FacebookWebhookInfoDialog
+          open={!!facebookInfoAccountId}
+          onOpenChange={(open) => !open && setFacebookInfoAccountId(null)}
+          channelAccountId={facebookInfoAccount.id}
+          verifyToken={facebookInfoAccount.webhook_secret}
+        />
       )}
       <ConfirmDialog
         open={!!deleteAccountId}

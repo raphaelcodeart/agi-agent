@@ -5,6 +5,7 @@ Omnichannel Responder module. Draft/approval workflow lives in
 omnichannel_draft_service.py - kept separate because it has its own
 concurrency/idempotency concerns (see that file's docstring).
 """
+import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -43,12 +44,22 @@ class OmnichannelService:
 
     @staticmethod
     def create_channel_account(db: Session, owner_id: uuid.UUID, payload: OmniChannelAccountCreate) -> OmniChannelAccount:
+        # Facebook needs two secrets (Page Access Token to send, App Secret to
+        # verify inbound signatures) where every other channel needs one -
+        # combined into a single encrypted JSON blob so the schema/column
+        # stays the same shape for every channel. See connectors/facebook.py.
+        if payload.channel == "facebook" and payload.access_token:
+            secret_payload = json.dumps({"page_access_token": payload.access_token, "app_secret": payload.app_secret or ""})
+            access_token_encrypted = EncryptionService.encrypt(secret_payload)
+        else:
+            access_token_encrypted = EncryptionService.encrypt(payload.access_token) if payload.access_token else None
+
         account = OmniChannelAccount(
             owner_id=owner_id,
             channel=payload.channel,
             name=payload.name,
             external_account_id=payload.external_account_id,
-            access_token_encrypted=EncryptionService.encrypt(payload.access_token) if payload.access_token else None,
+            access_token_encrypted=access_token_encrypted,
             config_json=payload.config,
             status="pending",
         )

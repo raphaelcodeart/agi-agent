@@ -1,18 +1,18 @@
 """
-Inbound entrypoints for the Omnichannel Responder: the real Telegram webhook
-(unauthenticated - Telegram can't send our JWT, verified instead via the
-per-channel-account secret token, see TelegramConnector.verify_webhook) and
-the admin-only "simulate message" dev tool (spec section 51), which only
-works against channel_accounts of type 'mock' so it can never be pointed at
-a real customer channel by mistake.
+Inbound entrypoints for the Omnichannel Responder: the real Telegram and
+Facebook Messenger webhooks (unauthenticated - neither provider can send our
+JWT, each verified its own way, see TelegramConnector/FacebookConnector.
+verify_webhook) and the admin-only "simulate message" dev tool (spec section
+51), which only works against channel_accounts of type 'mock' so it can
+never be pointed at a real customer channel by mistake.
 
 Kept in its own router/file, separate from api/v1/omnichannel.py, because
-its auth model is fundamentally different (no admin JWT on the Telegram
-path) - never processes anything slow inline, just ingests the message and
-hands off to Celery (spec section 30).
+its auth model is fundamentally different (no admin JWT on these paths) -
+never processes anything slow inline, just ingests the message and hands
+off to Celery (spec section 30).
 """
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
@@ -55,6 +55,49 @@ async def telegram_webhook(channel_account_id: uuid.UUID, request: Request, db: 
     connector = get_connector(account)
     headers = {k.lower(): v for k, v in request.headers.items()}
     if not connector.verify_webhook(headers, account.webhook_secret):
+        raise HTTPException(status_code=403, detail="Webhook verification failed")
+
+    payload = await request.json()
+    messages = connector.parse_webhook(payload)
+    _ingest_and_trigger(db, account, messages)
+    return {"ok": True}
+
+
+@router.get("/webhooks/facebook/{channel_account_id}")
+async def facebook_webhook_verify(channel_account_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    """
+    Meta's one-time subscription handshake (configured from the App
+    Dashboard's Messenger > Webhooks screen, not something this backend
+    calls on its own like Telegram's setWebhook - see docs/
+    OMNICHANNEL_RESPONDER.md §11). Meta sends hub.mode=subscribe,
+    hub.verify_token (must match channel_account.webhook_secret - the admin
+    pastes it into the Meta dashboard) and hub.challenge, which must be
+    echoed back verbatim as plain text for the subscription to succeed.
+    """
+    account = db.query(OmniChannelAccount).filter(
+        OmniChannelAccount.id == channel_account_id, OmniChannelAccount.channel == "facebook"
+    ).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    params = request.query_params
+    if params.get("hub.mode") == "subscribe" and params.get("hub.verify_token") == account.webhook_secret:
+        return Response(content=params.get("hub.challenge", ""), media_type="text/plain")
+    raise HTTPException(status_code=403, detail="Webhook verification failed")
+
+
+@router.post("/webhooks/facebook/{channel_account_id}")
+async def facebook_webhook_receive(channel_account_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    account = db.query(OmniChannelAccount).filter(
+        OmniChannelAccount.id == channel_account_id, OmniChannelAccount.channel == "facebook"
+    ).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    connector = get_connector(account)
+    headers = {k.lower(): v for k, v in request.headers.items()}
+    raw_body = await request.body()
+    if not connector.verify_webhook(headers, account.webhook_secret, body=raw_body):
         raise HTTPException(status_code=403, detail="Webhook verification failed")
 
     payload = await request.json()

@@ -10,7 +10,7 @@ from app.integrations.omnichannel.connectors.base import Connector, NormalizedIn
 
 
 class MockConnector(Connector):
-    def verify_webhook(self, headers: Dict[str, str], path_secret: str) -> bool:
+    def verify_webhook(self, headers: Dict[str, str], path_secret: str, body: bytes = b"") -> bool:
         return True
 
     def parse_webhook(self, payload: Dict[str, Any]) -> List[NormalizedIncomingMessage]:

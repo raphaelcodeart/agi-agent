@@ -13,22 +13,24 @@ import type { OmniChannel } from "@/types/api";
 
 const CHANNEL_OPTIONS: { value: OmniChannel; label: string; available: boolean }[] = [
   { value: "telegram", label: "Telegram", available: true },
+  { value: "facebook", label: "Facebook Messenger", available: true },
   { value: "mock", label: "Test (mock, nessun account reale)", available: true },
   { value: "whatsapp", label: "WhatsApp Business (non ancora disponibile)", available: false },
   { value: "instagram", label: "Instagram Direct (non ancora disponibile)", available: false },
-  { value: "facebook", label: "Facebook Messenger (non ancora disponibile)", available: false },
 ];
 
 export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [channel, setChannel] = useState<OmniChannel>("telegram");
   const [name, setName] = useState("");
   const [accessToken, setAccessToken] = useState("");
+  const [appSecret, setAppSecret] = useState("");
   const createChannelAccount = useCreateChannelAccount();
 
   function reset() {
     setChannel("telegram");
     setName("");
     setAccessToken("");
+    setAppSecret("");
   }
 
   function handleSubmit() {
@@ -36,8 +38,12 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
       toast.error("Inserisci un nome per il canale");
       return;
     }
+    if (channel === "facebook" && (!accessToken.trim() || !appSecret.trim())) {
+      toast.error("Per Facebook servono sia il Page Access Token sia l'App Secret");
+      return;
+    }
     createChannelAccount.mutate(
-      { channel, name, access_token: accessToken || undefined },
+      { channel, name, access_token: accessToken || undefined, app_secret: channel === "facebook" ? appSecret : undefined },
       {
         onSuccess: () => {
           toast.success("Canale creato");
@@ -85,6 +91,22 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
                 Crealo con @BotFather su Telegram. Dopo la creazione, registra il webhook dalla lista canali.
               </p>
             </div>
+          )}
+
+          {channel === "facebook" && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Page Access Token</Label>
+                <Input value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="EAAxxxxx..." type="password" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>App Secret</Label>
+                <Input value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="App Dashboard → Impostazioni → Basic" type="password" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Entrambi si trovano nell&apos;app Meta collegata alla tua Pagina Facebook (developers.facebook.com). Dopo la creazione, apri &quot;Info webhook&quot; dalla lista canali per l&apos;URL e il token da incollare nelle impostazioni Messenger dell&apos;app.
+              </p>
+            </>
           )}
         </div>
 
