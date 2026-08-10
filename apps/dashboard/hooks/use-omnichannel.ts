@@ -132,6 +132,14 @@ export function useSendManualMessage(conversationId: string) {
   });
 }
 
+export function useGenerateDraft(conversationId: string) {
+  const invalidate = useInvalidateConversation(conversationId);
+  return useMutation({
+    mutationFn: () => omnichannelService.generateDraft(conversationId),
+    onSuccess: invalidate,
+  });
+}
+
 export function useSendBroadcast() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -41,8 +41,14 @@ def _ingest_and_trigger(db: Session, account: OmniChannelAccount, messages: list
         if message:
             # Blocked customers: the message is still saved (ingest_message
             # already filed the conversation into SPAM) but never gets an AI
-            # draft - see OmniCustomer.is_blocked docstring.
-            if not message.conversation.customer.is_blocked:
+            # draft - see OmniCustomer.is_blocked docstring. Same for
+            # auto_generate_draft=False (OmniAIAgentConfig): ingest_message
+            # already filed the conversation into OPEN instead of
+            # AI_PROCESSING for that case - the operator triggers generation
+            # manually via POST /conversations/{id}/generate-draft instead.
+            customer = message.conversation.customer
+            agent_config = OmnichannelService.get_or_create_ai_agent_config(db, account.owner_id)
+            if not customer.is_blocked and agent_config.auto_generate_draft:
                 generate_ai_draft_task.delay(str(message.id))
             triggered.append(message)
     return triggered

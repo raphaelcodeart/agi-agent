@@ -99,6 +99,10 @@ export function sendManualMessage(conversationId: string, text: string): Promise
   return apiClient.post<OmniMessageResponse>(`${BASE}/conversations/${conversationId}/messages`, { text });
 }
 
+export function generateDraft(conversationId: string): Promise<OmniAIDraftResponse> {
+  return apiClient.post<OmniAIDraftResponse>(`${BASE}/conversations/${conversationId}/generate-draft`);
+}
+
 export function sendBroadcast(payload: OmniBroadcastRequest): Promise<OmniBroadcastResult> {
   return apiClient.post<OmniBroadcastResult>(`${BASE}/broadcast`, payload);
 }

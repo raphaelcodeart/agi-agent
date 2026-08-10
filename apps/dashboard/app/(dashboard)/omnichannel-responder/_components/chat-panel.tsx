@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { SendIcon, StickyNoteIcon, CheckCircle2Icon, ArchiveIcon, SparklesIcon, Trash2Icon } from "lucide-react";
+import { SendIcon, StickyNoteIcon, CheckCircle2Icon, ArchiveIcon, SparklesIcon, Trash2Icon, WandIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { useArchiveConversation, useConversationDetail, useDeleteConversation, useResolveConversation, useAddNote, useSendManualMessage } from "@/hooks/use-omnichannel";
+import { useArchiveConversation, useConversationDetail, useDeleteConversation, useGenerateDraft, useResolveConversation, useAddNote, useSendManualMessage } from "@/hooks/use-omnichannel";
 import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ export function ChatPanel({ conversationId, onDeleted }: { conversationId: strin
   const resolveConversation = useResolveConversation(conversationId ?? "");
   const archiveConversation = useArchiveConversation(conversationId ?? "");
   const deleteConversation = useDeleteConversation();
+  const generateDraft = useGenerateDraft(conversationId ?? "");
 
   if (!conversationId) {
     return (
@@ -46,6 +47,18 @@ export function ChatPanel({ conversationId, onDeleted }: { conversationId: strin
   }
 
   const activeDraft = [...conversation.drafts].reverse().find((d) => !["SENT", "REJECTED"].includes(d.status));
+  const lastMessage = conversation.messages[conversation.messages.length - 1];
+  // Only offered when there's genuinely nothing to review yet and the ball
+  // is in our court (customer wrote last) - covers OmniAIAgentConfig.
+  // auto_generate_draft=False (no automatic generation happened) as well as
+  // a draft that was explicitly rejected/already sent for an earlier message.
+  const canGenerateDraft = !activeDraft && lastMessage?.sender_type === "customer";
+
+  function handleGenerateDraft() {
+    generateDraft.mutate(undefined, {
+      onError: (err) => toast.error(err instanceof ApiError ? err.message : "Impossibile generare la bozza AI"),
+    });
+  }
 
   function handleSend() {
     if (!composerText.trim()) return;
@@ -143,6 +156,14 @@ export function ChatPanel({ conversationId, onDeleted }: { conversationId: strin
         ))}
 
         {activeDraft && <AIDraftCard conversationId={conversation.id} draft={activeDraft} />}
+        {canGenerateDraft && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed p-3">
+            <p className="text-xs text-muted-foreground">Nessuna bozza AI generata automaticamente per questo messaggio.</p>
+            <Button size="sm" variant="outline" onClick={handleGenerateDraft} disabled={generateDraft.isPending}>
+              <WandIcon className={generateDraft.isPending ? "animate-pulse" : ""} /> Genera risposta AI
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="border-t p-3">

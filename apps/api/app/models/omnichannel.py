@@ -224,6 +224,19 @@ class OmniAIAgentConfig(Base):
     max_context_messages: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
     knowledge_base_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     automatic_language_detection: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Orthogonal to response_mode below - this controls WHEN a draft gets
+    # generated, response_mode controls what happens to it once it exists.
+    # True (default, current/original behavior): every inbound message
+    # immediately enqueues generate_ai_draft_task. False: no draft is
+    # generated automatically (saves an OpenAI call on every single inbound
+    # message when the operator doesn't always want to use AI) - the
+    # operator triggers it on demand from the chat
+    # (POST /conversations/{id}/generate-draft), and from that point on the
+    # exact same downstream logic applies (approval, or auto-send if
+    # response_mode=AUTO_REPLY) - there is no second/different code path,
+    # see omnichannel_draft_service.py::generate_draft_for_message, called
+    # identically either way.
+    auto_generate_draft: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # MANUAL, APPROVAL_REQUIRED, AUTO_REPLY. Defaults to APPROVAL_REQUIRED for
     # every new owner (never opted-in silently) - toggled explicitly from the
     # AI Agent settings page. AUTO_REPLY still never applies to a

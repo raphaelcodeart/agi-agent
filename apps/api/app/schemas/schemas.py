@@ -808,6 +808,7 @@ class OmniAIAgentConfigResponse(BaseModel):
     max_context_messages: int
     knowledge_base_enabled: bool
     automatic_language_detection: bool
+    auto_generate_draft: bool
     response_mode: str
     sensitive_categories: Optional[List[str]] = Field(None, validation_alias="sensitive_categories_json", serialization_alias="sensitive_categories")
 
@@ -830,6 +831,7 @@ class OmniAIAgentConfigUpdate(BaseModel):
     max_context_messages: Optional[int] = Field(None, ge=1, le=100)
     knowledge_base_enabled: Optional[bool] = None
     automatic_language_detection: Optional[bool] = None
+    auto_generate_draft: Optional[bool] = None
     # MANUAL, APPROVAL_REQUIRED (default), AUTO_REPLY - validated server-side
     # (api/v1/omnichannel.py) and audited on every change (AI_RESPONSE_MODE_
     # CHANGED). AUTO_REPLY never applies to a sensitive-topic draft regardless

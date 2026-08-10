@@ -171,9 +171,16 @@ class OmnichannelService:
         conversation.unread_count = (conversation.unread_count or 0) + 1
         # A blocked customer's messages are still recorded (nothing silently
         # lost) but filed straight into SPAM instead of triggering AI
-        # processing - the caller (_ingest_and_trigger) checks is_blocked
-        # separately before enqueuing generate_ai_draft_task.
-        conversation.status = "SPAM" if customer.is_blocked else "AI_PROCESSING"
+        # processing. If auto_generate_draft is off, the conversation just
+        # goes to OPEN (needs attention, but no AI is running) instead of
+        # AI_PROCESSING - the caller (_ingest_and_trigger) makes the matching
+        # decision on whether to actually enqueue generate_ai_draft_task,
+        # checking the exact same two conditions.
+        if customer.is_blocked:
+            conversation.status = "SPAM"
+        else:
+            agent_config = OmnichannelService.get_or_create_ai_agent_config(db, owner_id)
+            conversation.status = "AI_PROCESSING" if agent_config.auto_generate_draft else "OPEN"
         customer.last_contact_at = now
         if normalized.customer_display_name and not customer.name:
             customer.name = normalized.customer_display_name

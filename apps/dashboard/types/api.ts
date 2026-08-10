@@ -762,6 +762,7 @@ export interface OmniAIAgentConfigResponse {
   max_context_messages: number;
   knowledge_base_enabled: boolean;
   automatic_language_detection: boolean;
+  auto_generate_draft: boolean;
   response_mode: "MANUAL" | "APPROVAL_REQUIRED" | "AUTO_REPLY";
   sensitive_categories: string[] | null;
 }

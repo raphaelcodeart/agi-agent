@@ -379,6 +379,48 @@ def send_manual_message(conversation_id: uuid.UUID, payload: OmniMessageCreate, 
     return message
 
 
+@router.post("/conversations/{conversation_id}/generate-draft", response_model=OmniAIDraftResponse, status_code=status.HTTP_201_CREATED)
+def generate_draft_on_demand(conversation_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """
+    Manual trigger for AI Agent config.auto_generate_draft=False: generates a
+    draft for the latest inbound customer message in this conversation, on
+    the operator's explicit request instead of automatically. Calls the
+    exact same generate_draft_for_message() an automatic ingest would have
+    used - no separate/simplified code path, so sensitive-topic detection,
+    AUTO_REPLY, everything behaves identically either way (see
+    OmniAIAgentConfig.auto_generate_draft docstring).
+    """
+    conversation = _owned_conversation(db, admin, conversation_id)
+    if conversation.customer.is_blocked:
+        raise HTTPException(status_code=400, detail="Questo cliente è bloccato: non è possibile generare risposte AI per lui")
+
+    latest_inbound = (
+        db.query(OmniMessage)
+        .filter(OmniMessage.conversation_id == conversation.id, OmniMessage.direction == "inbound")
+        .order_by(OmniMessage.created_at.desc())
+        .first()
+    )
+    if not latest_inbound:
+        raise HTTPException(status_code=400, detail="Nessun messaggio del cliente per cui generare una risposta")
+
+    # Idempotent: if a non-rejected draft already exists for this exact
+    # message (e.g. a second click), return it instead of generating a
+    # duplicate and spending another OpenAI call for nothing.
+    existing = (
+        db.query(OmniAIDraft)
+        .filter(OmniAIDraft.source_message_id == latest_inbound.id, OmniAIDraft.status != "REJECTED")
+        .order_by(OmniAIDraft.created_at.desc())
+        .first()
+    )
+    if existing:
+        return existing
+
+    draft = OmnichannelDraftService.generate_draft_for_message(db, latest_inbound.id)
+    if not draft:
+        raise HTTPException(status_code=500, detail="Impossibile generare la bozza")
+    return draft
+
+
 # Hard cap on a single broadcast request - keeps this a synchronous,
 # immediate-feedback request (the admin sees exactly who succeeded/failed
 # right away) instead of needing a background task + polling. Deliberately

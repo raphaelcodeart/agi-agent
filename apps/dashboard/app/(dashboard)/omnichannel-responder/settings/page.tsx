@@ -58,6 +58,7 @@ export default function OmnichannelSettingsPage() {
     temperature: number; company_description: string; allowed_topics: string; forbidden_topics: string;
     signature: string; max_context_messages: number; knowledge_base_enabled: boolean;
     automatic_language_detection: boolean; sensitive_categories: string[];
+    auto_generate_draft: boolean;
     response_mode: OmniAIAgentConfigResponse["response_mode"];
   } | null>(null);
   const [confirmAutoReplyOpen, setConfirmAutoReplyOpen] = useState(false);
@@ -79,6 +80,7 @@ export default function OmnichannelSettingsPage() {
       knowledge_base_enabled: config.knowledge_base_enabled,
       automatic_language_detection: config.automatic_language_detection,
       sensitive_categories: config.sensitive_categories ?? [],
+      auto_generate_draft: config.auto_generate_draft,
       response_mode: config.response_mode,
     });
   }, [config?.id]);
@@ -139,6 +141,7 @@ export default function OmnichannelSettingsPage() {
         max_context_messages: form.max_context_messages,
         knowledge_base_enabled: form.knowledge_base_enabled,
         automatic_language_detection: form.automatic_language_detection,
+        auto_generate_draft: form.auto_generate_draft,
         sensitive_categories: form.sensitive_categories,
       },
       {
@@ -272,6 +275,18 @@ export default function OmnichannelSettingsPage() {
         <div className="space-y-1.5">
           <Label>Argomenti vietati (separati da virgola)</Label>
           <Input value={form.forbidden_topics} onChange={(e) => setForm({ ...form, forbidden_topics: e.target.value })} />
+        </div>
+
+        <div className="flex items-center justify-between rounded-md border p-3">
+          <div>
+            <p className="text-sm font-medium">Generazione automatica della bozza AI</p>
+            <p className="text-xs text-muted-foreground">
+              {form.auto_generate_draft
+                ? "Ogni messaggio in arrivo genera subito una proposta di risposta."
+                : "Nessuna proposta automatica: nell'Inbox potrai scrivere tu o generarla con un click quando vuoi (utile per non consumare chiamate AI su conversazioni a cui rispondi sempre a mano)."}
+            </p>
+          </div>
+          <Switch checked={form.auto_generate_draft} onCheckedChange={(v) => setForm({ ...form, auto_generate_draft: v })} />
         </div>
 
         <div className="flex items-center justify-between rounded-md border p-3">
