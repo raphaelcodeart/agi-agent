@@ -34,6 +34,15 @@ export function BroadcastDialog({ open, onOpenChange }: { open: boolean; onOpenC
     setResult(null);
   }
 
+  // Single close path used everywhere (the dialog's own X, "Annulla",
+  // "Chiudi") so the form always resets - a button that called
+  // onOpenChange(false) directly would close the dialog without resetting,
+  // reopening later still showing the previous send's result screen.
+  function handleClose() {
+    onOpenChange(false);
+    reset();
+  }
+
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -60,7 +69,7 @@ export function BroadcastDialog({ open, onOpenChange }: { open: boolean; onOpenC
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) reset(); }}>
+    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(next) : handleClose())}>
       <DialogContent className="max-w-lg">
         {result ? (
           <>
@@ -83,7 +92,7 @@ export function BroadcastDialog({ open, onOpenChange }: { open: boolean; onOpenC
               </div>
             )}
             <DialogFooter>
-              <Button onClick={() => onOpenChange(false)}>Chiudi</Button>
+              <Button onClick={handleClose}>Chiudi</Button>
             </DialogFooter>
           </>
         ) : step === 1 ? (
@@ -98,7 +107,7 @@ export function BroadcastDialog({ open, onOpenChange }: { open: boolean; onOpenC
               Per WhatsApp, Facebook e Instagram, Meta accetta messaggi liberi solo entro 24 ore dall&apos;ultimo messaggio del contatto — a chi ti ha scritto da più tempo l&apos;invio potrebbe essere rifiutato (lo vedrai chiaramente nel riepilogo finale). Su Telegram non c&apos;è questo limite.
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Annulla</Button>
+              <Button variant="outline" onClick={handleClose}>Annulla</Button>
               <Button onClick={() => setStep(2)} disabled={!text.trim()}>Avanti</Button>
             </DialogFooter>
           </>
