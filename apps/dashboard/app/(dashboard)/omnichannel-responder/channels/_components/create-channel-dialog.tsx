@@ -60,7 +60,7 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>Canale</Label>
-            <Select value={channel} onValueChange={(v) => setChannel(v as OmniChannel)}>
+            <Select items={CHANNEL_OPTIONS} value={channel} onValueChange={(v) => setChannel(v as OmniChannel)}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {CHANNEL_OPTIONS.map((opt) => (

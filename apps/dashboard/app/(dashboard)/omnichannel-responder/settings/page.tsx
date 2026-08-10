@@ -15,6 +15,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAIAgentConfig, useUpdateAIAgentConfig } from "@/hooks/use-omnichannel";
 import { ApiError } from "@/lib/api/client";
 
+const TONE_OPTIONS = [
+  { value: "professionale", label: "Professionale" },
+  { value: "amichevole", label: "Amichevole" },
+  { value: "formale", label: "Formale" },
+  { value: "informale", label: "Informale" },
+];
+
+const LANGUAGE_OPTIONS = [
+  { value: "auto", label: "Automatica (segue il cliente)" },
+  { value: "it", label: "Italiano" },
+  { value: "en", label: "Inglese" },
+];
+
 const SENSITIVE_CATEGORY_OPTIONS = [
   { value: "refund", label: "Rimborso" },
   { value: "legal", label: "Questione legale" },
@@ -133,24 +146,23 @@ export default function OmnichannelSettingsPage() {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label>Tono di voce</Label>
-            <Select value={form.tone} onValueChange={(v) => setForm({ ...form, tone: v as string })}>
+            <Select items={TONE_OPTIONS} value={form.tone} onValueChange={(v) => setForm({ ...form, tone: v as string })}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="professionale">Professionale</SelectItem>
-                <SelectItem value="amichevole">Amichevole</SelectItem>
-                <SelectItem value="formale">Formale</SelectItem>
-                <SelectItem value="informale">Informale</SelectItem>
+                {TONE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
             <Label>Lingua di risposta</Label>
-            <Select value={form.language} onValueChange={(v) => setForm({ ...form, language: v as string })}>
+            <Select items={LANGUAGE_OPTIONS} value={form.language} onValueChange={(v) => setForm({ ...form, language: v as string })}>
               <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="auto">Automatica (segue il cliente)</SelectItem>
-                <SelectItem value="it">Italiano</SelectItem>
-                <SelectItem value="en">Inglese</SelectItem>
+                {LANGUAGE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

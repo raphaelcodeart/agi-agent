@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { InboxIcon } from "lucide-react";
+import { InboxIcon, RefreshCwIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/shared/search-input";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterSelect } from "@/components/shared/filter-bar";
 import { useConversations } from "@/hooks/use-omnichannel";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDateTime } from "@/lib/format";
@@ -15,8 +16,7 @@ import { cn } from "@/lib/utils";
 import { ChannelIcon } from "./channel-icon";
 import type { OmniConversationStatus } from "@/types/api";
 
-const STATUS_OPTIONS: { value: OmniConversationStatus | ""; label: string }[] = [
-  { value: "", label: "Tutte" },
+const STATUS_OPTIONS: { value: OmniConversationStatus; label: string }[] = [
   { value: "WAITING_APPROVAL", label: "Bozza da approvare" },
   { value: "AI_PROCESSING", label: "AI in elaborazione" },
   { value: "OPEN", label: "Aperte" },
@@ -36,24 +36,30 @@ export function ConversationList({ selectedId, onSelect }: { selectedId: string 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data: conversations, isLoading } = useConversations({ status: statusFilter, search: debouncedSearch || undefined });
+  const { data: conversations, isLoading, isFetching, refetch } = useConversations({ status: statusFilter, search: debouncedSearch || undefined });
 
   return (
     <div className="flex h-full flex-col border-r">
       <div className="space-y-2 border-b p-3">
-        <SearchInput value={search} onChange={setSearch} placeholder="Cerca cliente, telefono, email..." />
-        <Select value={statusFilter || "__all__"} onValueChange={(v) => setStatusFilter(v === "__all__" ? "" : (v as OmniConversationStatus))}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value || "__all__"} value={opt.value || "__all__"}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <SearchInput value={search} onChange={setSearch} placeholder="Cerca cliente, telefono, email..." className="flex-1" />
+          <Button
+            size="icon-sm"
+            variant="outline"
+            title="Aggiorna adesso (si aggiorna comunque da sola ogni pochi secondi)"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
+          </Button>
+        </div>
+        <FilterSelect
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as OmniConversationStatus | "")}
+          options={STATUS_OPTIONS}
+          placeholder="Stato"
+          allLabel="Tutte"
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto">

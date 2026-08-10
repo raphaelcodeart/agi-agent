@@ -78,7 +78,7 @@ export function CustomerPanel({ conversationId }: { conversationId: string | nul
             </Badge>
           ))}
           {availableTags.length > 0 && (
-            <Select onValueChange={(tagId) => addTag.mutate(tagId as string)}>
+            <Select items={availableTags.map((t) => ({ value: t.id, label: t.name }))} onValueChange={(tagId) => addTag.mutate(tagId as string)}>
               <SelectTrigger size="sm" className="h-6 gap-1 px-2 text-xs">
                 <PlusIcon className="size-3" />
                 <SelectValue placeholder="Aggiungi" />
