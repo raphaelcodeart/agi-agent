@@ -259,6 +259,15 @@ export function useAnalytics() {
   return useQuery({ queryKey: queryKeys.omnichannel.analytics(), queryFn: omnichannelService.getAnalytics });
 }
 
+// Sidebar notification dot - polled app-wide (mounted in AppSidebar, present on every page)
+export function usePendingCount() {
+  return useQuery({
+    queryKey: queryKeys.omnichannel.pendingCount(),
+    queryFn: omnichannelService.getPendingCount,
+    refetchInterval: 20000,
+  });
+}
+
 // Dev simulate tool
 export function useSimulateMessage() {
   const queryClient = useQueryClient();

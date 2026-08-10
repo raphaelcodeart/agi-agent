@@ -214,6 +214,27 @@ def list_conversations(
     return items
 
 
+@router.get("/conversations/pending-count")
+def get_pending_count(db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """
+    Cheap single-query count for the sidebar notification dot: conversations
+    needing attention right now - either a draft waiting for approval, or
+    unread messages (including on an older conversation where the customer
+    asked something new after it had already been dealt with). Registered
+    before /conversations/{conversation_id} so "pending-count" is never
+    misread as a conversation id (it would fail UUID validation anyway).
+    """
+    count = (
+        db.query(OmniConversation)
+        .filter(
+            OmniConversation.owner_id == admin.id,
+            or_(OmniConversation.status == "WAITING_APPROVAL", OmniConversation.unread_count > 0),
+        )
+        .count()
+    )
+    return {"count": count}
+
+
 @router.get("/conversations/{conversation_id}", response_model=OmniConversationDetailResponse)
 def get_conversation_detail(conversation_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
     conversation = _owned_conversation(db, admin, conversation_id)

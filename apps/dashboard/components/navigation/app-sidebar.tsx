@@ -17,6 +17,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { useLogout } from "@/hooks/use-auth";
+import { usePendingCount } from "@/hooks/use-omnichannel";
 import {
   MAIN_NAV_ITEMS,
   BUFFER_NAV_ITEMS,
@@ -26,15 +27,25 @@ import {
   type NavItem,
 } from "@/lib/navigation";
 
-function NavItems({ items, pathname }: { items: NavItem[]; pathname: string }) {
+// Keyed by href - a small red dot on the item's icon, "pending count" shown
+// in the tooltip. Currently only the Omnichannel Responder inbox uses this
+// (new messages / drafts to approve), but any nav item can opt in this way.
+function NavItems({ items, pathname, badgeCounts }: { items: NavItem[]; pathname: string; badgeCounts?: Record<string, number> }) {
   return (
     <SidebarMenu>
       {items.map((item) => {
         const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+        const badgeCount = badgeCounts?.[item.href] ?? 0;
+        const tooltip = badgeCount > 0 ? `${item.label} (${badgeCount} da gestire)` : item.label;
         return (
           <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton isActive={isActive} tooltip={item.label} render={<Link href={item.href} />}>
-              <item.icon />
+            <SidebarMenuButton isActive={isActive} tooltip={tooltip} render={<Link href={item.href} />}>
+              <span className="relative inline-flex">
+                <item.icon />
+                {badgeCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-destructive ring-1 ring-sidebar" />
+                )}
+              </span>
               <span>{item.label}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -48,6 +59,8 @@ export function AppSidebar() {
   const pathname = usePathname();
   const logout = useLogout();
   const isSettingsActive = pathname.startsWith(SETTINGS_NAV_ITEM.href);
+  const { data: pendingCount } = usePendingCount();
+  const omnichannelBadges = { "/omnichannel-responder": pendingCount?.count ?? 0 };
 
   return (
     <Sidebar collapsible="icon">
@@ -92,7 +105,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Omnichannel Responder</SidebarGroupLabel>
           <SidebarGroupContent>
-            <NavItems items={OMNICHANNEL_RESPONDER_NAV_ITEMS} pathname={pathname} />
+            <NavItems items={OMNICHANNEL_RESPONDER_NAV_ITEMS} pathname={pathname} badgeCounts={omnichannelBadges} />
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

@@ -172,6 +172,11 @@ export function getAnalytics(): Promise<OmniAnalyticsResponse> {
   return apiClient.get<OmniAnalyticsResponse>(`${BASE}/analytics`);
 }
 
+// Sidebar notification dot - conversations needing attention (draft to approve or unread)
+export function getPendingCount(): Promise<{ count: number }> {
+  return apiClient.get<{ count: number }>(`${BASE}/conversations/pending-count`);
+}
+
 // Dev tool - only works against 'mock' channel accounts (see backend)
 export function simulateMessage(channelAccountId: string, externalUserId: string, text: string, customerName?: string): Promise<OmniMessageResponse> {
   return apiClient.post<OmniMessageResponse>(`${BASE}/dev/simulate-message`, {

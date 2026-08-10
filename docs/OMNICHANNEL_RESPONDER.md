@@ -308,7 +308,7 @@ Tutti gli endpoint sotto `/api/v1/omnichannel-responder/` (eccetto il webhook Te
 | Area | Endpoint principali |
 |---|---|
 | Canali | `GET/POST /channel-accounts`, `GET /channel-accounts/supported`, `GET /channel-accounts/{id}/status`, `POST /channel-accounts/{id}/register-webhook`, `DELETE /channel-accounts/{id}` |
-| Conversazioni | `GET /conversations` (filtri: `status`, `channel`, `assigned_admin_id`, `tag_id`, `search`), `GET /conversations/{id}`, `POST /conversations/{id}/assign\|resolve\|archive`, `DELETE /conversations/{id}` (eliminazione **definitiva**, cascata su messaggi/bozze/note, vedi §3), `POST\|DELETE /conversations/{id}/tags/{tag_id}`, `POST /conversations/{id}/notes`, `POST /conversations/{id}/messages` (invio manuale, bypassa l'AI) |
+| Conversazioni | `GET /conversations` (filtri: `status`, `channel`, `assigned_admin_id`, `tag_id`, `search`), `GET /conversations/pending-count` (conteggio per la lucina di notifica in sidebar, vedi §10), `GET /conversations/{id}`, `POST /conversations/{id}/assign\|resolve\|archive`, `DELETE /conversations/{id}` (eliminazione **definitiva**, cascata su messaggi/bozze/note, vedi §3), `POST\|DELETE /conversations/{id}/tags/{tag_id}`, `POST /conversations/{id}/notes`, `POST /conversations/{id}/messages` (invio manuale, bypassa l'AI) |
 | Clienti | `GET\|PATCH /customers/{id}`, `POST /customers/{id}/block\|unblock` |
 | Tag | `GET\|POST /tags` |
 | Bozze AI | `PATCH /drafts/{id}`, `POST /drafts/{id}/approve\|regenerate\|reject` |
@@ -334,6 +334,8 @@ Schema Pydantic completo in fondo a `app/schemas/schemas.py` (sezione `# Omnicha
 **Nessun WebSocket/SSE**: l'intero progetto non ha alcuna infrastruttura realtime preesistente (verificato prima di iniziare). L'inbox si aggiorna via **polling** con TanStack Query (`refetchInterval`: 8s per la lista conversazioni, 4s per la conversazione aperta, 15s per le notifiche) — coerente con il resto della dashboard, nessuna nuova infrastruttura introdotta per questo modulo. Se in futuro serve un aggiornamento realtime, andrebbe introdotto come una scelta architetturale a parte, non implicita in questo modulo.
 
 Nuovi file: `services/omnichannel.ts` (chiamate fetch), `hooks/use-omnichannel.ts` (React Query), entrambi seguono esattamente lo stesso pattern di `services/channels.ts` / `hooks/use-channels.ts` già esistenti.
+
+**Lucina di notifica nel menu**: la voce "Inbox" nella sidebar (presente su ogni pagina della dashboard, non solo quelle di questo modulo) mostra un puntino rosso sull'icona quando `GET /conversations/pending-count` (owner-scoped, una singola query `COUNT`) è maggiore di zero — conta le conversazioni con bozza da approvare (`WAITING_APPROVAL`) **o** messaggi non letti (`unread_count > 0`, incluse conversazioni "vecchie" già gestite in cui il cliente ha scritto di nuovo). `components/navigation/app-sidebar.tsx::usePendingCount()` interroga ogni 20s, indipendentemente dal fatto che l'Inbox sia aperta — è per questo che serve un endpoint dedicato leggero (solo un numero) invece di riusare `GET /conversations` per intero. Il tooltip al passaggio del mouse mostra anche il numero esatto ("Inbox (3 da gestire)").
 
 Un pulsante di refresh manuale (icona ⟳) è disponibile accanto alla ricerca conversazioni, giusto per rassicurazione visiva — non necessario funzionalmente (il polling a 8s è già sufficiente), e comunque **impossibile da estendere a un vero "scarica cronologia"**: l'API Bot di Telegram non ha alcun endpoint per recuperare messaggi passati, riceve solo gli eventi arrivati dopo la registrazione del webhook.
 

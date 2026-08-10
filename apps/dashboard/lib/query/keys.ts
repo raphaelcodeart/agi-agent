@@ -47,5 +47,6 @@ export const queryKeys = {
     knowledgeBase: () => ["omnichannel", "knowledge-base"] as const,
     notifications: (unreadOnly?: boolean) => ["omnichannel", "notifications", unreadOnly] as const,
     analytics: () => ["omnichannel", "analytics"] as const,
+    pendingCount: () => ["omnichannel", "pending-count"] as const,
   },
 } as const;
