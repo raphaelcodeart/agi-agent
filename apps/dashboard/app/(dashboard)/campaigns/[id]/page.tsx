@@ -30,6 +30,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   useCampaignDetail,
   useCampaignMetrics,
@@ -126,9 +127,15 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
       {
         accessorKey: "error_message",
         header: "Ultimo errore",
-        cell: ({ row }) => (
-          <span className="line-clamp-1 max-w-56 text-destructive">{row.original.error_message ?? "—"}</span>
-        ),
+        cell: ({ row }) =>
+          row.original.error_message ? (
+            <Tooltip>
+              <TooltipTrigger className="max-w-56 truncate text-left text-destructive">{row.original.error_message}</TooltipTrigger>
+              <TooltipContent className="max-w-64">{row.original.error_message}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
       },
       {
         id: "sent_at",

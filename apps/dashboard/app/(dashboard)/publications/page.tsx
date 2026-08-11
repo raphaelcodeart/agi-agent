@@ -14,6 +14,7 @@ import { Pagination } from "@/components/shared/pagination";
 import { RetryButton } from "@/components/shared/retry-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePublications, useRetryPublication, useRetrySelectedPublications } from "@/hooks/use-publications";
 import { useCampaigns } from "@/hooks/use-campaigns";
 import { useUsers } from "@/hooks/use-users";
@@ -147,9 +148,15 @@ export default function PublicationsPage() {
       {
         accessorKey: "error_message",
         header: "Ultimo errore",
-        cell: ({ row }) => (
-          <span className="line-clamp-1 max-w-56 text-destructive">{row.original.error_message ?? "—"}</span>
-        ),
+        cell: ({ row }) =>
+          row.original.error_message ? (
+            <Tooltip>
+              <TooltipTrigger className="max-w-56 truncate text-left text-destructive">{row.original.error_message}</TooltipTrigger>
+              <TooltipContent className="max-w-64">{row.original.error_message}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
       },
       {
         id: "sent_at",

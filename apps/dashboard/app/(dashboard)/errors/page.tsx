@@ -11,6 +11,7 @@ import { RetryButton } from "@/components/shared/retry-button";
 import { FilterBar, FilterSelect } from "@/components/shared/filter-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePublications, useRetryPublication } from "@/hooks/use-publications";
 import { useCampaigns } from "@/hooks/use-campaigns";
 import { useUsers } from "@/hooks/use-users";
@@ -119,9 +120,15 @@ export default function ErrorsPage() {
       {
         accessorKey: "error_message",
         header: "Messaggio",
-        cell: ({ row }) => (
-          <span className="line-clamp-1 max-w-64 text-destructive">{row.original.error_message ?? "—"}</span>
-        ),
+        cell: ({ row }) =>
+          row.original.error_message ? (
+            <Tooltip>
+              <TooltipTrigger className="max-w-64 truncate text-left text-destructive">{row.original.error_message}</TooltipTrigger>
+              <TooltipContent className="max-w-64">{row.original.error_message}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
       },
       {
         id: "date",
