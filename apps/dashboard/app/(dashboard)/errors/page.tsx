@@ -183,7 +183,7 @@ export default function ErrorsPage() {
               { value: "linkedin", label: "LinkedIn" },
               { value: "tiktok", label: "TikTok" },
               { value: "youtube", label: "YouTube" },
-              { value: "x", label: "X" },
+              { value: "twitter", label: "X" },
               { value: "threads", label: "Threads" },
             ]}
           />

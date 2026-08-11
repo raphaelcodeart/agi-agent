@@ -75,7 +75,7 @@ class MockBufferClient(BaseBufferClient):
             return [
                 {
                     "id": "chan_x_agency",
-                    "platform": "x",
+                    "platform": "twitter",
                     "name": "Lisbon Marketing X",
                     "username": "@lisbonmarketing",
                     "avatar_url": "https://media.example.com/avatars/agency_x.png",

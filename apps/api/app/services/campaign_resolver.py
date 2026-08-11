@@ -17,7 +17,11 @@ from app.models.audit import AuditLog
 # falls back to default_text (max 5000 chars, no platform cap), which would otherwise
 # only be caught after a real, wasted Buffer API call. Platforms not listed here have
 # no separately documented limit in this codebase, so none is invented (AGENTS.md rule 14).
-PLATFORM_TEXT_LIMITS = {"x": 280, "threads": 500}
+# Keyed by "twitter" - Buffer's own API reports X/Twitter channels with
+# service/platform="twitter" (see prod_client.py list_channels), never "x", confirmed
+# against this deployment's production data (2026-08-11). Using "x" here silently
+# disabled this check for every real X/Twitter channel - see resolve_text_for_channel.
+PLATFORM_TEXT_LIMITS = {"twitter": 280, "threads": 500}
 
 # Hard per-platform video-duration limit enforced by Buffer's own documented specs
 # (support.buffer.com/article/616, "Sharing videos through Buffer": "X/Twitter videos
@@ -27,7 +31,7 @@ PLATFORM_TEXT_LIMITS = {"x": 280, "threads": 500}
 # two aren't checked here at all: prod_client.py always publishes their videos as a
 # normal feed "post" (never a Reel), which tolerates much longer clips than a Reel
 # does, so there's no realistic duration problem to guard against for them.
-PLATFORM_VIDEO_MAX_DURATION_SECONDS = {"x": 140.0}
+PLATFORM_VIDEO_MAX_DURATION_SECONDS = {"twitter": 140.0}
 
 # Instagram channels Buffer reports with channel_type="profile" (a personal,
 # non-Business/Creator account - value observed directly from Buffer's own API via
@@ -148,7 +152,7 @@ class CampaignResolver:
             return campaign.linkedin_text
         elif platform == "tiktok" and campaign.tiktok_text:
             return campaign.tiktok_text
-        elif platform == "x" and campaign.x_text:
+        elif platform == "twitter" and campaign.x_text:
             return campaign.x_text
         elif platform == "threads" and campaign.threads_text:
             return campaign.threads_text

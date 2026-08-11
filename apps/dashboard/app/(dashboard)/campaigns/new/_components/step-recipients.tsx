@@ -18,7 +18,7 @@ const MODE_LABELS: Record<(typeof targetingModeValues)[number], { label: string;
   selected_platforms: { label: "Piattaforme selezionate", description: "Pubblica solo su determinate piattaforme." },
 };
 
-const PLATFORMS = ["instagram", "facebook", "linkedin", "tiktok", "youtube", "x", "threads"];
+const PLATFORMS = ["instagram", "facebook", "linkedin", "tiktok", "youtube", "twitter", "threads"];
 
 function PlatformCheckboxList({
   selected,

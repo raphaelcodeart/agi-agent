@@ -162,7 +162,7 @@ def seed_database():
         chan_sintra_x = SocialChannel(
             buffer_organization_id=org_sintra.id,
             external_channel_id="chan_sintra_x",
-            platform="x",
+            platform="twitter",
             name="Sintra Castle B&B Twitter",
             username="@sintrabnb",
             avatar_url="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=80&h=80&fit=crop",

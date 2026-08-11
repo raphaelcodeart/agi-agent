@@ -75,7 +75,7 @@ export type SocialPlatform =
   | "linkedin"
   | "tiktok"
   | "youtube"
-  | "x"
+  | "twitter"
   | "threads";
 
 export interface SocialChannelResponse {
