@@ -20,6 +20,15 @@ class ProductionBufferClient(BaseBufferClient):
 
     BASE_URL = "https://api.buffer.com"
 
+    # Instagram rejects a video sent with metadata.instagram.type="post" once it
+    # exceeds this length, with the exact error "Video must be no longer than 1
+    # minute for Instagram Posts" - observed directly from a real Buffer API
+    # response on this deployment (campaign launch, 2026-08-14), not a documented
+    # Buffer spec page, per AGENTS.md rule 8. A Reel has no such ceiling, so
+    # create_post() switches type to "reel" above this threshold instead of
+    # always sending "post" (see the instagram branch below).
+    INSTAGRAM_POST_MAX_VIDEO_DURATION_SECONDS = 60.0
+
     def _request(self, api_key: str, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
         payload = {"query": query, "variables": variables or {}}
@@ -141,6 +150,7 @@ class ProductionBufferClient(BaseBufferClient):
         scheduled_at: Optional[datetime] = None,
         platform: Optional[str] = None,
         youtube_title: Optional[str] = None,
+        video_duration_seconds: Optional[float] = None,
     ) -> Dict[str, Any]:
         post_input: Dict[str, Any] = {
             "channelId": channel_id,
@@ -163,12 +173,21 @@ class ProductionBufferClient(BaseBufferClient):
         elif platform == "instagram":
             # InstagramPostMetadataInput.type and .shouldShareToFeed are both required
             # on create (see developers.buffer.com/types/InstagramPostMetadataInput.html).
-            # type selects post/story/reel (PostType enum); the platform has no
-            # per-campaign post-type setting yet, so this defaults to a standard feed
-            # "post" (also implying shouldShareToFeed=true) rather than story/reel.
+            # type selects post/story/reel (PostType enum). Instagram feed "post" videos
+            # are capped at INSTAGRAM_POST_MAX_VIDEO_DURATION_SECONDS (see constant
+            # above); a Reel tolerates much longer clips, so videos over that length are
+            # sent as a Reel instead, keeping shouldShareToFeed=true so it still shows up
+            # in the main feed like a post would. Images and videos at/under the limit
+            # (or with unknown duration, matching the previous fail-open default) keep
+            # the standard feed "post".
+            is_long_video = (
+                media_type == "video"
+                and video_duration_seconds is not None
+                and video_duration_seconds > self.INSTAGRAM_POST_MAX_VIDEO_DURATION_SECONDS
+            )
             post_input["metadata"] = {
                 "instagram": {
-                    "type": "post",
+                    "type": "reel" if is_long_video else "post",
                     "shouldShareToFeed": True,
                 }
             }

@@ -82,6 +82,7 @@ def process_publication_task(self, publication_id_str: str) -> None:
             media_url = None
             thumbnail_url = None
             media_type = None
+            video_duration_seconds = None
 
             campaign = pub.campaign
             if campaign.media_file_id:
@@ -89,8 +90,10 @@ def process_publication_task(self, publication_id_str: str) -> None:
                 if media_file and media_file.processing_status == "ready":
                     media_url = media_file.public_url
                     media_type = "video" if "video" in media_file.mime_type else "image"
-                    if media_type == "video" and media_file.metadata_json:
-                        thumbnail_url = media_file.metadata_json.get("thumbnail_url")
+                    if media_type == "video":
+                        video_duration_seconds = media_file.duration_seconds
+                        if media_file.metadata_json:
+                            thumbnail_url = media_file.metadata_json.get("thumbnail_url")
 
             # Buffer fetches media by URL when the post goes out, so it must be public
             # HTTPS - see https://developers.buffer.com/guides/hosting-media.html. This
@@ -119,6 +122,7 @@ def process_publication_task(self, publication_id_str: str) -> None:
                 scheduled_at=pub.scheduled_at,
                 platform=platform,
                 youtube_title=youtube_title,
+                video_duration_seconds=video_duration_seconds,
             )
 
             external_post_id = res.get("id")

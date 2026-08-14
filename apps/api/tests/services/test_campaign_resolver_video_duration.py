@@ -42,9 +42,10 @@ def test_image_media_is_never_checked():
 
 
 def test_instagram_has_no_proactive_video_limit():
-    # Instagram/Facebook are handled reactively (reel fallback) in
-    # app/tasks/publication.py, not proactively here - see
-    # PLATFORM_VIDEO_MAX_DURATION_SECONDS.
+    # Instagram is handled reactively instead: prod_client.create_post() switches
+    # to metadata.instagram.type="reel" for videos over
+    # INSTAGRAM_POST_MAX_VIDEO_DURATION_SECONDS rather than this function blocking
+    # the channel proactively - see PLATFORM_VIDEO_MAX_DURATION_SECONDS.
     error = CampaignResolver.compute_video_duration_validation_error(
         "instagram", _media_file(duration_seconds=9999.0)
     )

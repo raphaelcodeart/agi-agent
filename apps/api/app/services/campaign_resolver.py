@@ -26,11 +26,14 @@ PLATFORM_TEXT_LIMITS = {"twitter": 280, "threads": 500}
 # Hard per-platform video-duration limit enforced by Buffer's own documented specs
 # (support.buffer.com/article/616, "Sharing videos through Buffer": "X/Twitter videos
 # must be between 0.5 seconds to 140 seconds long", verified 2026-08). Only X/Twitter
-# has a stable, Buffer-documented figure here - Instagram/Facebook have no equivalent
-# Buffer-side number we could verify, so none is invented (AGENTS.md rule 14). Those
-# two aren't checked here at all: prod_client.py always publishes their videos as a
-# normal feed "post" (never a Reel), which tolerates much longer clips than a Reel
-# does, so there's no realistic duration problem to guard against for them.
+# has a stable, Buffer-documented figure here, so it's the only one proactively
+# blocked pre-launch (AGENTS.md rule 14: no invented limits for other platforms).
+# Instagram isn't listed here even though it does have a duration ceiling
+# (INSTAGRAM_POST_MAX_VIDEO_DURATION_SECONDS in prod_client.py, 60s for feed
+# "post" videos): prod_client.create_post() reacts to it automatically by
+# switching metadata.instagram.type to "reel" for longer videos instead of
+# rejecting the channel, so there's nothing to block here. Facebook has no
+# equivalent branching yet and always publishes as a normal feed "post".
 PLATFORM_VIDEO_MAX_DURATION_SECONDS = {"twitter": 140.0}
 
 # Instagram channels Buffer reports with channel_type="profile" (a personal,
