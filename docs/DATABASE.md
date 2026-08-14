@@ -4,6 +4,8 @@ Spiegazione di tutte le tabelle del progetto, cosa rappresentano e come sono col
 
 Le tabelle sono create dalle migration Alembic in `apps/api/alembic/versions/` (vedi [DEPLOYMENT.md §5](./DEPLOYMENT.md#5-creare-il-database-e-le-tabelle)) a partire dai modelli SQLAlchemy in `apps/api/app/models/`. Questo file descrive lo stato attuale dello schema; se modifichi i modelli, aggiorna anche questo documento (vedi AGENTS.md, regola 20: "Document architectural changes").
 
+Per un dump SQL di sola struttura (nessun dato), pronto da leggere in un unico file senza dover consultare le migration una per una, vedi **[schema.sql](./schema.sql)** — è una fotografia statica generata con `pg_dump --schema-only`, utile come riferimento rapido; le migration Alembic restano comunque l'unica fonte di verità per creare/aggiornare il database (il file stesso lo ricorda in testa).
+
 Le tabelle del modulo Blog Writer AI (`blog_writer_*`) sono documentate separatamente in [BLOG_WRITER.md](./BLOG_WRITER.md#2-schema-database), essendo un modulo isolato con proprio schema.
 
 Le tabelle del modulo Omnichannel Responder (`omni_*`, 15 tabelle) sono documentate separatamente in [OMNICHANNEL_RESPONDER.md](./OMNICHANNEL_RESPONDER.md#3-schema-database) — anch'esso un modulo isolato con proprio schema, collegato al resto della piattaforma solo tramite `owner_id` (FK verso `administrators.id`).
