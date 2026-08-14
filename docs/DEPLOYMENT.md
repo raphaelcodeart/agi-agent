@@ -6,8 +6,29 @@ Se sei Claude Code e stai leggendo questo file per eseguire un deploy: vai alla 
 
 ---
 
+## 0. Due scenari diversi: leggi qui prima di iniziare
+
+Questa guida serve per **due obiettivi diversi**, che richiedono passi diversi — capire subito quale ti serve evita di saltare (o fare inutilmente) un passo importante.
+
+**Scenario A — Installazione nuova, vuota** (es. offrire lo stesso prodotto a un altro cliente da zero, un ambiente di test/staging): vuoi solo la **struttura** — stesso software, stesso schema database, nessun dato/utente/campagna esistente. Ti bastano `git clone` di questo repository e le sezioni **1 → 9** di questa guida, nell'ordine. Non serve nessun dump di dati: le migration Alembic (sezione 5) ricreano lo schema da sole, partendo da un database vuoto. Se lo chiedi a Claude Code, basta: *"clona questo repo su un nuovo server e fai il deploy seguendo docs/DEPLOYMENT.md"*.
+
+**Scenario B — Migrazione/duplicazione di *questo* server con tutto il contenuto attuale** (utenti, connessioni Buffer già collegate, campagne, cronologia pubblicazioni, media caricati): lo scenario A da solo **non basta**, perché `git clone` porta solo codice e schema, non i dati reali. Serve in aggiunta:
+1. Tutti i passi dello scenario A (1 → 9) sul server nuovo, **fermandoti prima di creare l'amministratore** (sezione 6) — verrà ripristinato dal backup insieme al resto.
+2. Un backup dei dati dal server **di origine**: `./scripts/backup-db.sh` (sezione 10).
+3. Copiare quel file `.sql` (non solo la struttura: contiene i dati veri) sul server nuovo e ripristinarlo con `./scripts/restore-db.sh <file>` (sezione 10) — a questo punto utenti, campagne e cronologia esistono già, l'account amministratore incluso, non va ricreato a mano.
+4. Copiare a parte anche i **file media** (foto/video caricati): vivono in un volume Docker (`media_storage`), non sono né in git né nel dump database — vedi "problemi noti" punto 5 nella sezione 12.
+5. Le **connessioni Buffer** viaggiano già cifrate dentro il dump (punto 2-3 sopra), quindi non serve che gli utenti ricolleghino nulla — a differenza dello scenario A, dove ogni utente riparte da zero e deve incollare di nuovo la propria chiave API Buffer.
+6. Dominio/HTTPS (sezione 9) va comunque rifatto per il nuovo IP/hostname, in entrambi gli scenari — non è mai portabile automaticamente da un server all'altro.
+
+Se lo chiedi a Claude Code, specifica esplicitamente lo scenario B, ad esempio: *"clona questo repo sul nuovo server, fai il deploy seguendo docs/DEPLOYMENT.md, poi ripristina anche l'ultimo backup con restore-db.sh e copia la cartella media dal vecchio server"* — senza questa precisazione, Claude Code segue lo scenario A (installazione vuota) per default, come descritto nella sezione 13.
+
+`docs/schema.sql` (dump di sola struttura, senza dati) non serve per **nessuno** dei due scenari: è solo una lettura di riferimento rapida, vedi [DATABASE.md](./DATABASE.md).
+
+---
+
 ## Indice
 
+0. [Due scenari diversi: leggi qui prima di iniziare](#0-due-scenari-diversi-leggi-qui-prima-di-iniziare)
 1. [Cosa serve prima di iniziare](#1-cosa-serve-prima-di-iniziare)
 2. [Installare Docker sul server](#2-installare-docker-sul-server)
 3. [Portare i file del progetto sul server](#3-portare-i-file-del-progetto-sul-server)
@@ -387,8 +408,9 @@ Nessuno di questi blocca l'avvio della dashboard, degli utenti, delle campagne o
 
 Se l'utente ti chiede di fare il deploy su un server a cui hai accesso (es. via terminale SSH collegato), segui questo ordine e **fermati a chiedere conferma prima di ogni passo distruttivo** (sovrascrivere `.env` esistente, `alembic upgrade` su un database con dati veri, `restore-db.sh`, force-push):
 
+0. Determina quale scenario della [sezione 0](#0-due-scenari-diversi-leggi-qui-prima-di-iniziare) vale: se l'utente non lo specifica, **assumi lo scenario A** (installazione nuova vuota, nessun ripristino dati) e dillo esplicitamente nella tua risposta, così può correggerti se intendeva lo scenario B (migrazione con dati) — non indovinare in base al contesto, chiedi se è ambiguo.
 1. Verifica cosa esiste già sul server prima di agire: `docker --version`, presenza di una cartella del progetto, un `.env` già configurato, container già in esecuzione (`docker compose ps`). Non sovrascrivere nulla di esistente senza chiedere.
-2. Segui le sezioni 2 → 8 in ordine. Salta i passi già completati (es. se Docker è già installato, salta la sezione 2).
+2. Segui le sezioni 2 → 8 in ordine. Salta i passi già completati (es. se Docker è già installato, salta la sezione 2). Se lo scenario è B, salta la creazione dell'admin al passo 6 (sezione 0, punto 1) — arriverà dal ripristino del backup.
 3. Per la sezione 4 (`.env`): se il file esiste già, NON rigenerarlo — leggilo e verifica solo che le variabili richieste siano presenti. Se manca, generalo con i comandi indicati e mostra all'utente cosa hai messo (tranne i segreti, di quelli conferma solo che sono stati generati).
 4. Per la sezione 5: se `apps/api/alembic/versions/` contiene già dei file, **non generare una nuova migration iniziale** — esegui solo `alembic upgrade head`. Genera una nuova migration solo se l'utente ha modificato i modelli SQLAlchemy e te lo chiede esplicitamente.
 5. Dopo ogni `docker compose up -d`, verifica lo stato con `docker compose ps` e i log (`docker compose logs --tail 50 <servizio>`) prima di dichiarare il passo riuscito.
