@@ -171,6 +171,8 @@ Una campagna di pubblicazione: testo, media opzionale, quando/come pubblicare, e
 | Colonna | Tipo | Note |
 |---|---|---|
 | `default_text` | string | testo di default, sovrascrivibile per piattaforma |
+| `media_file_id` | UUID (FK → media_files, SET NULL), nullable | foto/video allegato alla campagna, vedi [§6](#6-media) |
+| `article_id` | UUID (FK → blog_writer_articles, SET NULL), nullable | valorizzata solo se la campagna nasce da "Usa per campagna social" nel modulo Blog Writer — puramente informativa, nessun comportamento di pubblicazione dipende da questo campo. Vedi [BLOG_WRITER.md](./BLOG_WRITER.md#campaignsarticle_id) |
 | `instagram_text`, `facebook_text`, `linkedin_text`, `tiktok_text`, `x_text`, `threads_text` | string, nullable | override di testo per piattaforma specifica |
 | `youtube_title`, `youtube_description` | string, nullable | YouTube richiede un titolo strutturato separato dal testo/descrizione (vedi `campaign_resolver.py`) |
 | `publishing_mode` | string | `immediate`, `scheduled`, `buffer_queue`, `draft`, `approval` |
