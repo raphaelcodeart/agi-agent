@@ -3,9 +3,11 @@
 -- "social_publisher" — generato con:
 --   pg_dump -U postgres -d social_publisher --schema-only --no-owner --no-privileges
 --
--- Snapshot generato: 2026-08-14 23:02 UTC, dal server di produzione di questo
--- progetto, alla revisione Alembic "c3d4e5f6a7b8" (`SELECT version_num FROM
--- alembic_version;`).
+-- Snapshot generato: 2026-08-15 01:51 UTC, dal server di produzione di questo
+-- progetto, alla revisione Alembic "6ad75c20ec09" (head) - `SELECT version_num
+-- FROM alembic_version;`. Include le colonne users.referral_link e
+-- campaigns.include_referral_link, e il fix dell'indice
+-- omni_ai_agent_configs/omni_tags applicati in questa stessa sessione.
 --
 -- QUESTO FILE NON È LA FONTE DI VERITÀ DELLO SCHEMA. Lo sono le migration in
 -- apps/api/alembic/versions/ (vedi docs/DEPLOYMENT.md §5): per creare il
@@ -269,7 +271,8 @@ CREATE TABLE public.campaigns (
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     metadata jsonb,
-    article_id uuid
+    article_id uuid,
+    include_referral_link boolean NOT NULL
 );
 
 
@@ -685,7 +688,8 @@ CREATE TABLE public.users (
     notes character varying(1000),
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
-    deleted_at timestamp with time zone
+    deleted_at timestamp with time zone,
+    referral_link character varying(1000)
 );
 
 
@@ -946,14 +950,6 @@ ALTER TABLE ONLY public.campaign_targets
 
 
 --
--- Name: omni_ai_agent_configs uq_omni_ai_agent_config_owner; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.omni_ai_agent_configs
-    ADD CONSTRAINT uq_omni_ai_agent_config_owner UNIQUE (owner_id);
-
-
---
 -- Name: omni_customer_identities uq_omni_identity_owner_channel_external; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1053,6 +1049,13 @@ CREATE UNIQUE INDEX ix_administrators_email ON public.administrators USING btree
 
 
 --
+-- Name: ix_omni_ai_agent_configs_owner_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX ix_omni_ai_agent_configs_owner_id ON public.omni_ai_agent_configs USING btree (owner_id);
+
+
+--
 -- Name: ix_omni_ai_drafts_owner_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1134,6 +1137,13 @@ CREATE INDEX ix_omni_messages_owner_id ON public.omni_messages USING btree (owne
 --
 
 CREATE INDEX ix_omni_notifications_owner_id ON public.omni_notifications USING btree (owner_id);
+
+
+--
+-- Name: ix_omni_tags_owner_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_omni_tags_owner_id ON public.omni_tags USING btree (owner_id);
 
 
 --
