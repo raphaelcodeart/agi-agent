@@ -144,7 +144,22 @@ function NewCampaignForm() {
   async function goNext() {
     const fields = WIZARD_STEP_FIELDS[step - 1];
     const valid = fields.length === 0 || (await form.trigger(fields));
-    if (valid) setStep((s) => Math.min(WIZARD_STEPS.length, s + 1));
+    if (valid) {
+      setStep((s) => Math.min(WIZARD_STEPS.length, s + 1));
+      return;
+    }
+    // Errors are already shown inline under each field, but if the field
+    // with the problem is on a platform tab the admin isn't currently
+    // looking at (e.g. X while viewing Instagram), clicking "Avanti" would
+    // otherwise just silently do nothing with no visible explanation.
+    const messages = new Set(
+      fields.map((f) => form.formState.errors[f]?.message).filter((m): m is string => !!m)
+    );
+    if (messages.size > 0) {
+      messages.forEach((message) => toast.error(message));
+    } else {
+      toast.error("Correggi gli errori evidenziati prima di continuare");
+    }
   }
 
   function goBack() {

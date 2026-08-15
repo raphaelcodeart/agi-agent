@@ -178,6 +178,10 @@ class AISettingsUpdateRequest(BaseModel):
 
 class AIGenerateTextRequest(BaseModel):
     topic: str = Field(..., min_length=3, max_length=1000)
+    # Current state of the wizard's "Includi link referral" checkbox at
+    # generation time - shrinks the x_text/threads_text targets asked of the
+    # model so generated text already leaves room (see openai/client.py).
+    include_referral_link: bool = False
 
 
 class AIGenerateTextResponse(BaseModel):

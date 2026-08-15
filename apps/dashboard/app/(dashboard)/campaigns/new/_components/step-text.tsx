@@ -1,4 +1,5 @@
 import type { UseFormReturn } from "react-hook-form";
+import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -48,7 +49,7 @@ export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }
         <p className="text-sm text-muted-foreground">
           Scrivi il testo a mano oppure genera una bozza con AI da un argomento e poi modificala.
         </p>
-        <AIGenerateDialog onGenerated={handleGenerated} />
+        <AIGenerateDialog onGenerated={handleGenerated} includeReferralLink={includeReferralLink} />
       </div>
 
       <FormField
@@ -73,7 +74,27 @@ export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }
           <FormItem>
             <label className="flex items-start gap-2 rounded-md border p-3">
               <FormControl>
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} className="mt-0.5" />
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked);
+                    if (!checked) return;
+                    // Turning it on can immediately make already-typed X/Threads
+                    // text too long for the new reduced limit - warn right away
+                    // instead of only discovering it silently when "Avanti"
+                    // doesn't advance.
+                    const overLimit = (["x_text", "threads_text"] as const).filter((f) => {
+                      const limit = PLATFORM_HARD_LIMITS[f] - REFERRAL_LINK_RESERVED_CHARS;
+                      return (form.getValues(f) ?? "").length > limit;
+                    });
+                    if (overLimit.length > 0) {
+                      const labels = overLimit.map((f) => (f === "x_text" ? "X" : "Threads")).join(" e ");
+                      toast.warning(`Il testo per ${labels} è già troppo lungo per lasciare spazio al link referral - riducilo prima di continuare.`);
+                      form.trigger(overLimit);
+                    }
+                  }}
+                  className="mt-0.5"
+                />
               </FormControl>
               <span>
                 <span className="block text-sm font-medium text-foreground">Includi link referral personale</span>

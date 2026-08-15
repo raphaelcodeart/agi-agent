@@ -23,9 +23,10 @@ import type { AIGenerateTextResponse } from "@/types/api";
 
 interface AIGenerateDialogProps {
   onGenerated: (result: AIGenerateTextResponse) => void;
+  includeReferralLink: boolean;
 }
 
-export function AIGenerateDialog({ onGenerated }: AIGenerateDialogProps) {
+export function AIGenerateDialog({ onGenerated, includeReferralLink }: AIGenerateDialogProps) {
   const [open, setOpen] = useState(false);
   const [topic, setTopic] = useState("");
   const generate = useGenerateCampaignText();
@@ -33,7 +34,7 @@ export function AIGenerateDialog({ onGenerated }: AIGenerateDialogProps) {
 
   function handleGenerate() {
     if (!topic.trim()) return;
-    generate.mutate(topic.trim(), {
+    generate.mutate({ topic: topic.trim(), includeReferralLink }, {
       onSuccess: (result) => {
         onGenerated(result);
         toast.success("Testo generato: rivedi e modifica prima di lanciare la campagna");
@@ -66,6 +67,12 @@ export function AIGenerateDialog({ onGenerated }: AIGenerateDialogProps) {
               Descrivi l&apos;argomento: verranno compilati automaticamente il testo predefinito e le versioni
               specifiche per ogni piattaforma (rispettando le lunghezze consentite). Potrai comunque modificare
               tutto a mano dopo.
+              {includeReferralLink && (
+                <span className="mt-1 block text-xs">
+                  &quot;Includi link referral&quot; è attivo: i testi per X e Threads verranno generati più corti
+                  per lasciare spazio al link.
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">

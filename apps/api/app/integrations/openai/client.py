@@ -59,6 +59,17 @@ HARD_LIMITS: Dict[str, int] = {
     "youtube_description": 5000,
 }
 
+# Mirrors REFERRAL_LINK_RESERVED_CHARS in apps/dashboard/lib/validation/campaigns.ts
+# - keep both in sync if either changes. Space for the fixed "\n\nISCRIVITI QUI: "
+# label (17 chars, see campaign_resolver.py resolve_text_for_channel) plus a
+# modest assumption for the link itself. When the campaign wizard's "Includi
+# link referral" is already on at generation time, x_text/threads_text targets
+# are reduced by this before asking the model, so the generated text already
+# leaves room instead of the admin discovering it's too long only after
+# toggling the option on (real incident, 2026-08-15: an ordinary 168-char
+# generated X/Twitter text blocked the wizard the moment referral was enabled).
+REFERRAL_LINK_RESERVED_CHARS = 60
+
 SYSTEM_PROMPT = """Sei un social media copywriter. Dato un argomento in italiano, scrivi contenuti pronti per essere pubblicati su più piattaforme social, nella stessa lingua della richiesta dell'utente.
 
 Rispondi SOLO con un oggetto JSON con esattamente queste chiavi, tutte stringhe:
@@ -89,16 +100,37 @@ def _truncate(text: str, limit: int) -> str:
     return truncated.rstrip()
 
 
-def generate_campaign_text(api_key: str, model: str, topic: str) -> Dict[str, str]:
+def generate_campaign_text(
+    api_key: str, model: str, topic: str, include_referral_link: bool = False
+) -> Dict[str, str]:
     """
     Calls OpenAI's Chat Completions API to draft campaign copy for every
     platform-specific text field from a single topic description. Returns a
     dict with exactly the keys in FIELD_TARGETS, each truncated to HARD_LIMITS
     as a safety net regardless of what the model returned.
+
+    include_referral_link: pass the wizard's current "Includi link referral"
+    state (not whether a link exists on any specific user - the caller can't
+    know which recipients will get one yet at generation time). When true,
+    x_text/threads_text targets and hard limits shrink by
+    REFERRAL_LINK_RESERVED_CHARS so the generated text leaves room for it.
     """
+    field_targets = dict(FIELD_TARGETS)
+    hard_limits = dict(HARD_LIMITS)
+    if include_referral_link:
+        for field in ("x_text", "threads_text"):
+            field_targets[field] = max(1, FIELD_TARGETS[field] - REFERRAL_LINK_RESERVED_CHARS)
+            hard_limits[field] = max(1, HARD_LIMITS[field] - REFERRAL_LINK_RESERVED_CHARS)
+
     system_prompt = SYSTEM_PROMPT.format(
-        targets=", ".join(f"{k}={v}" for k, v in FIELD_TARGETS.items())
+        targets=", ".join(f"{k}={v}" for k, v in field_targets.items())
     )
+    if include_referral_link:
+        system_prompt += (
+            "\n\nA ogni testo generato verrà aggiunto automaticamente, dopo la tua risposta, un link "
+            "personale in fondo (circa 60 caratteri in più) - i target sopra per x_text e threads_text "
+            "sono già ridotti per lasciare spazio a questo link: non aggiungerlo tu stesso nel testo."
+        )
 
     try:
         response = httpx.post(
@@ -141,7 +173,7 @@ def generate_campaign_text(api_key: str, model: str, topic: str) -> Dict[str, st
         raise OpenAIApiError(f"Risposta OpenAI non valida: {str(e)}")
 
     result: Dict[str, str] = {}
-    for field, limit in HARD_LIMITS.items():
+    for field, limit in hard_limits.items():
         value = parsed.get(field)
         result[field] = _truncate(str(value).strip(), limit) if value else ""
 

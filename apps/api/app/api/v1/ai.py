@@ -30,7 +30,7 @@ def generate_campaign_text_endpoint(
         )
 
     try:
-        result = generate_campaign_text(api_key, model, payload.topic)
+        result = generate_campaign_text(api_key, model, payload.topic, payload.include_referral_link)
     except OpenAIApiError as e:
         raise HTTPException(status_code=502, detail=e.message)
 
