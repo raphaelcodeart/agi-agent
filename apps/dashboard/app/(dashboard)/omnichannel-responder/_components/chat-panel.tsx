@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { SendIcon, StickyNoteIcon, CheckCircle2Icon, ArchiveIcon, SparklesIcon, Trash2Icon, WandIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -159,9 +160,18 @@ export function ChatPanel({ conversationId, onDeleted }: { conversationId: strin
 
         {activeDraft && <AIDraftCard conversationId={conversation.id} draft={activeDraft} />}
         {canGenerateDraft && (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed p-3">
-            <p className="text-xs text-muted-foreground">Nessuna bozza AI generata automaticamente per questo messaggio.</p>
-            <Button size="sm" variant="outline" onClick={handleGenerateDraft} disabled={generateDraft.isPending}>
+          <div className="flex items-start justify-between gap-3 rounded-lg border border-dashed p-3">
+            <p className="text-xs text-muted-foreground">
+              Nessuna bozza AI generata automaticamente per questo messaggio.
+              <br />
+              Per rendere questa funzionalità automatica,{" "}
+              <Link href="/omnichannel-responder/settings" className="text-primary underline underline-offset-2">
+                clicca qui
+              </Link>{" "}
+              e accendi &quot;Generazione automatica della bozza AI&quot; — ricordati di premere Salva dopo averla
+              attivata, altrimenti la modifica non viene applicata.
+            </p>
+            <Button size="sm" variant="outline" className="shrink-0" onClick={handleGenerateDraft} disabled={generateDraft.isPending}>
               <WandIcon className={generateDraft.isPending ? "animate-pulse" : ""} /> Genera risposta AI
             </Button>
           </div>
