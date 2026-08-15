@@ -62,3 +62,25 @@ def test_update_name_only_does_not_touch_credentials():
     assert account.name == "Renamed"
     assert account.access_token_encrypted == "unchanged-blob"
     assert account.external_account_id == "keep-me"
+
+
+def test_toggle_disables_a_connected_channel():
+    account = _account()
+    account.status = "connected"
+    OmnichannelService.toggle_channel_account_status(_FakeDb(), account)
+    assert account.status == "disabled"
+
+
+def test_toggle_re_enables_a_disabled_channel():
+    account = _account()
+    account.status = "disabled"
+    OmnichannelService.toggle_channel_account_status(_FakeDb(), account)
+    assert account.status == "connected"
+
+
+def test_toggle_twice_returns_to_the_original_status():
+    account = _account()
+    account.status = "connected"
+    OmnichannelService.toggle_channel_account_status(_FakeDb(), account)
+    OmnichannelService.toggle_channel_account_status(_FakeDb(), account)
+    assert account.status == "connected"

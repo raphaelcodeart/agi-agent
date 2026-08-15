@@ -70,6 +70,13 @@ async def telegram_webhook(channel_account_id: uuid.UUID, request: Request, db: 
     if not connector.verify_webhook(headers, account.webhook_secret):
         raise HTTPException(status_code=403, detail="Webhook verification failed")
 
+    if account.status == "disabled":
+        # Admin has this channel switched off (channels/page.tsx toggle) -
+        # acknowledge to Telegram so it stops retrying, but don't ingest.
+        # Signature is still verified above first, so this never becomes a
+        # way to probe a channel_account_id's disabled state unauthenticated.
+        return {"ok": True}
+
     payload = await request.json()
     messages = connector.parse_webhook(payload)
     _ingest_and_trigger(db, account, messages)
@@ -110,6 +117,12 @@ async def _meta_webhook_receive(channel: str, channel_account_id: uuid.UUID, req
     raw_body = await request.body()
     if not connector.verify_webhook(headers, account.webhook_secret, body=raw_body):
         raise HTTPException(status_code=403, detail="Webhook verification failed")
+
+    if account.status == "disabled":
+        # Same reasoning as the Telegram webhook above: admin switched this
+        # channel off, acknowledge (Meta expects 200) but don't ingest -
+        # after signature verification, never before.
+        return {"ok": True}
 
     payload = await request.json()
     messages = connector.parse_webhook(payload)

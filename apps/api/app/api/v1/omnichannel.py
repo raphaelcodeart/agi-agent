@@ -131,6 +131,16 @@ def update_channel_account(account_id: uuid.UUID, payload: OmniChannelAccountUpd
     return account
 
 
+@router.post("/channel-accounts/{account_id}/toggle", response_model=OmniChannelAccountResponse)
+def toggle_channel_account(account_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """On/off switch to temporarily stop receiving messages from a channel (e.g. pause a Telegram bot for a few days) without deleting it - see OmnichannelService.toggle_channel_account_status."""
+    account = _owned_channel_account(db, admin, account_id)
+    account = OmnichannelService.toggle_channel_account_status(db, account)
+    OmnichannelService.log_audit(db, admin.id, admin.id, "SETTINGS_CHANGED", "channel_account", account.id, {"action": "status_toggled", "status": account.status})
+    db.commit()
+    return account
+
+
 @router.get("/channel-accounts/{account_id}/status")
 def get_channel_account_status(account_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
     account = _owned_channel_account(db, admin, account_id)

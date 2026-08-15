@@ -43,6 +43,10 @@ export function updateChannelAccount(id: string, payload: OmniChannelAccountUpda
   return apiClient.put<OmniChannelAccountResponse>(`${BASE}/channel-accounts/${id}`, payload);
 }
 
+export function toggleChannelAccount(id: string): Promise<OmniChannelAccountResponse> {
+  return apiClient.post<OmniChannelAccountResponse>(`${BASE}/channel-accounts/${id}/toggle`);
+}
+
 export function getChannelAccountStatus(id: string): Promise<{ status: string; [key: string]: unknown }> {
   return apiClient.get(`${BASE}/channel-accounts/${id}/status`);
 }

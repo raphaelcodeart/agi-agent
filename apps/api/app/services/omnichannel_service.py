@@ -107,6 +107,22 @@ class OmnichannelService:
         return account
 
     @staticmethod
+    def toggle_channel_account_status(db: Session, account: OmniChannelAccount) -> OmniChannelAccount:
+        """
+        On/off switch for receiving messages (channels/page.tsx toggle) -
+        reuses the `status` column's "disabled" value (already documented on
+        the model, previously never actually set or checked anywhere) rather
+        than a new field. omnichannel_webhooks.py skips ingestion when status
+        is "disabled", after signature verification, but the GET
+        subscription handshake (_meta_webhook_verify) is unaffected - that's
+        one-time setup, not "receiving messages".
+        """
+        account.status = "connected" if account.status == "disabled" else "disabled"
+        db.commit()
+        db.refresh(account)
+        return account
+
+    @staticmethod
     def _find_or_create_customer(db: Session, owner_id: uuid.UUID, channel: str, external_user_id: str, display_name: Optional[str]) -> OmniCustomer:
         identity = (
             db.query(OmniCustomerIdentity)

@@ -31,6 +31,14 @@ export function useUpdateChannelAccount() {
   });
 }
 
+export function useToggleChannelAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => omnichannelService.toggleChannelAccount(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.omnichannel.channelAccounts() }),
+  });
+}
+
 export function useDeleteChannelAccount() {
   const queryClient = useQueryClient();
   return useMutation({

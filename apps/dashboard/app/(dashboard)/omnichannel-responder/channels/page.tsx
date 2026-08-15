@@ -7,10 +7,11 @@ import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useChannelAccounts, useDeleteChannelAccount } from "@/hooks/use-omnichannel";
+import { useChannelAccounts, useDeleteChannelAccount, useToggleChannelAccount } from "@/hooks/use-omnichannel";
 import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/format";
 import { ChannelIcon, channelLabel } from "../_components/channel-icon";
@@ -26,6 +27,7 @@ const META_CHANNELS: OmniChannel[] = ["facebook", "instagram", "whatsapp"];
 export default function OmnichannelChannelsPage() {
   const { data: accounts, isLoading } = useChannelAccounts();
   const deleteChannelAccount = useDeleteChannelAccount();
+  const toggleChannelAccount = useToggleChannelAccount();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [webhookAccountId, setWebhookAccountId] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export default function OmnichannelChannelsPage() {
                 <TableHead>Canale</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Stato</TableHead>
+                <TableHead>Ricezione</TableHead>
                 <TableHead>Creato</TableHead>
                 <TableHead className="text-right">Azioni</TableHead>
               </TableRow>
@@ -83,6 +86,22 @@ export default function OmnichannelChannelsPage() {
                   </TableCell>
                   <TableCell>{account.name}</TableCell>
                   <TableCell><StatusBadge status={account.status} /></TableCell>
+                  <TableCell>
+                    {account.channel !== "mock" && (
+                      <Switch
+                        checked={account.status !== "disabled"}
+                        disabled={toggleChannelAccount.isPending}
+                        title={account.status === "disabled" ? "Riattiva la ricezione messaggi" : "Sospendi la ricezione messaggi"}
+                        onCheckedChange={() =>
+                          toggleChannelAccount.mutate(account.id, {
+                            onSuccess: (updated) =>
+                              toast.success(updated.status === "disabled" ? `${updated.name}: ricezione sospesa` : `${updated.name}: ricezione riattivata`),
+                            onError: (err) => toast.error(err instanceof ApiError ? err.message : "Impossibile cambiare lo stato del canale"),
+                          })
+                        }
+                      />
+                    )}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{formatDateTime(account.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
