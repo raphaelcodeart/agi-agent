@@ -33,6 +33,7 @@ export interface UserResponse {
   company_name: string | null;
   status: UserStatus;
   notes: string | null;
+  referral_link: string | null;
   created_at: string;
   updated_at: string;
   groups: GroupResponse[];
@@ -167,6 +168,7 @@ export interface CampaignCreatePayload {
   timezone: string;
   targeting_mode: TargetingMode;
   targeting_params: Record<string, unknown>;
+  include_referral_link: boolean;
 }
 
 export interface CampaignResponse {
@@ -185,6 +187,7 @@ export interface CampaignResponse {
   scheduled_at: string | null;
   timezone: string;
   targeting_mode: TargetingMode;
+  include_referral_link: boolean;
   metadata_json?: Record<string, unknown> | null;
   status: CampaignStatus;
   media_file_id: string | null;

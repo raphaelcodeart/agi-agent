@@ -22,6 +22,7 @@ export interface UserPayload {
   company_name?: string | null;
   status: UserStatus;
   notes?: string | null;
+  referral_link?: string | null;
   group_ids?: string[] | null;
 }
 

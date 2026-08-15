@@ -55,6 +55,7 @@ function NewCampaignForm() {
       youtube_description: "",
       x_text: "",
       threads_text: "",
+      include_referral_link: false,
       media_file_id: null,
       article_id: null,
       targeting_mode: "all_active_channels",

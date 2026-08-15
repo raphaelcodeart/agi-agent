@@ -26,6 +26,10 @@ class User(Base):
     company_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="active", nullable=False) # active, inactive, suspended
     notes: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    # Personal referral/promoter link, pasted verbatim into a campaign's resolved
+    # text when Campaign.include_referral_link is on (see campaign_resolver.py).
+    # Optional: a user with no link set just gets the campaign text unchanged.
+    referral_link: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

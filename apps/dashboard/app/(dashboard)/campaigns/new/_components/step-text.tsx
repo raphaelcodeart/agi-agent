@@ -2,6 +2,7 @@ import type { UseFormReturn } from "react-hook-form";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
   FormField,
@@ -56,6 +57,28 @@ export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }
             </FormControl>
             <FormDescription>{(field.value ?? "").length}/5000 caratteri</FormDescription>
             <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="include_referral_link"
+        render={({ field }) => (
+          <FormItem>
+            <label className="flex items-start gap-2 rounded-md border p-3">
+              <FormControl>
+                <Checkbox checked={field.value} onCheckedChange={field.onChange} className="mt-0.5" />
+              </FormControl>
+              <span>
+                <span className="block text-sm font-medium text-foreground">Includi link referral personale</span>
+                <FormDescription>
+                  Se attivo, per ogni destinatario viene aggiunto in fondo al testo il suo link referral
+                  personale (configurato nella pagina Utenti) — solo il suo, mai quello di altri. Chi non ha un
+                  link configurato riceve il testo invariato, esattamente come con questa opzione spenta.
+                </FormDescription>
+              </span>
+            </label>
           </FormItem>
         )}
       />

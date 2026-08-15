@@ -110,6 +110,7 @@ Un "utente" qui è un **cliente/amico** della piattaforma — la persona il cui 
 | `id` | UUID (PK) | |
 | `email` | string, univoca | |
 | `status` | string | `active`, `inactive`, `suspended` — solo utenti `active` sono targetabili da una campagna |
+| `referral_link` | string, nullable | link personale/da promoter di questo utente, configurabile dalla pagina Utenti (icona 🔗 "Configura referral"). Usato solo se una campagna ha `include_referral_link=true` (vedi §7); un utente senza link configurato non è in nessun modo bloccato, riceve semplicemente il testo campagna invariato |
 | `deleted_at` | timestamp, nullable | soft delete: mai cancellazione fisica di un utente con storico |
 
 ### `user_groups` / `user_group_association`
@@ -180,6 +181,7 @@ Una campagna di pubblicazione: testo, media opzionale, quando/come pubblicare, e
 | `publishing_mode` | string | `immediate`, `scheduled`, `buffer_queue`, `draft`, `approval` |
 | `scheduled_at` / `timezone` | timestamp UTC / string | l'orario è sempre salvato in UTC; `timezone` conserva il fuso orario scelto dall'utente per mostrarlo correttamente in dashboard (le date lato utente devono preservare il fuso selezionato, vedi `AGENTS.md`) |
 | `targeting_mode` | string | `all_active_channels`, `selected_users`, `selected_groups`, `selected_channels`, `selected_platforms` |
+| `include_referral_link` | bool, default `false` | se `true`, `resolve_text_for_channel` (`campaign_resolver.py`) aggiunge in fondo al testo risolto per ogni canale il `referral_link` dell'utente **proprietario di quel canale specifico** (mai di un altro utente — la risoluzione avviene per canale, ognuno carica solo il proprio `BufferConnection.user`). Un utente senza `referral_link` configurato non viene escluso né genera errore: il testo resta invariato per lui, esattamente come con questa opzione spenta. Il testo con link incluso passa comunque per lo stesso controllo `PLATFORM_TEXT_LIMITS` di sempre (es. 280 caratteri per X/Twitter): un link che fa sforare il limite fa fallire solo quel target, non l'intera campagna |
 | `metadata_json` (colonna `metadata`) | JSONB | parametri di targeting effettivi (es. `channel_ids`), salvati per permettere a `poll_and_queue_scheduled_publications` di rilanciare una campagna programmata con la stessa selezione |
 | `status` | string | `draft`, `preparing`, `queued`, `running`, `paused`, `partially_completed`, `completed`, `failed`, `cancelled` |
 

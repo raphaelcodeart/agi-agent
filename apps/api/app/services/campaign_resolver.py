@@ -136,37 +136,58 @@ class CampaignResolver:
         return query.all()
 
     @staticmethod
-    def resolve_text_for_channel(campaign: Campaign, channel: SocialChannel, channel_override_text: str = None) -> str:
+    def resolve_text_for_channel(
+        campaign: Campaign,
+        channel: SocialChannel,
+        channel_override_text: str = None,
+        referral_link: Optional[str] = None,
+    ) -> str:
         """
         Text resolution order of priority:
         1. Channel-specific text override
         2. Platform-specific campaign text
         3. Default campaign text
+
+        Then, if campaign.include_referral_link is on: appends the caller-supplied
+        referral_link (the *owning user's own* User.referral_link - the caller is
+        responsible for loading the right one, this method never looks it up
+        itself, so a channel can never end up with another user's link). A user
+        with no referral_link configured (referral_link=None/empty here) leaves
+        the text exactly as before this feature existed - no placeholder, no
+        error. Deliberately the *last* step: PLATFORM_TEXT_LIMITS validation in
+        launch_campaign runs on the value this returns, so an appended link that
+        pushes a target over its platform's character limit is caught the same
+        way an over-limit plain text already is today.
         """
         if channel_override_text:
-            return channel_override_text
+            text = channel_override_text
+        else:
+            platform = channel.platform.lower().strip()
+            if platform == "instagram" and campaign.instagram_text:
+                text = campaign.instagram_text
+            elif platform == "facebook" and campaign.facebook_text:
+                text = campaign.facebook_text
+            elif platform == "linkedin" and campaign.linkedin_text:
+                text = campaign.linkedin_text
+            elif platform == "tiktok" and campaign.tiktok_text:
+                text = campaign.tiktok_text
+            elif platform == "twitter" and campaign.x_text:
+                text = campaign.x_text
+            elif platform == "threads" and campaign.threads_text:
+                text = campaign.threads_text
+            elif platform == "youtube":
+                # YouTube's title is sent as structured metadata
+                # (YoutubePostMetadataInput.title, resolved separately in the
+                # publication task from campaign.youtube_title), not folded into
+                # the post text - this is just the video description body.
+                text = campaign.youtube_description or campaign.default_text
+            else:
+                text = campaign.default_text
 
-        platform = channel.platform.lower().strip()
-        if platform == "instagram" and campaign.instagram_text:
-            return campaign.instagram_text
-        elif platform == "facebook" and campaign.facebook_text:
-            return campaign.facebook_text
-        elif platform == "linkedin" and campaign.linkedin_text:
-            return campaign.linkedin_text
-        elif platform == "tiktok" and campaign.tiktok_text:
-            return campaign.tiktok_text
-        elif platform == "twitter" and campaign.x_text:
-            return campaign.x_text
-        elif platform == "threads" and campaign.threads_text:
-            return campaign.threads_text
-        
-        # YouTube's title is sent as structured metadata (YoutubePostMetadataInput.title,
-        # resolved separately in the publication task from campaign.youtube_title), not
-        # folded into the post text - this is just the video description body.
-        if platform == "youtube":
-            return campaign.youtube_description or campaign.default_text
+        if campaign.include_referral_link and referral_link:
+            text = f"{text}\n\nISCRIVITI QUI: {referral_link}"
 
-        return campaign.default_text
+        return text
 
     @staticmethod
     def compute_video_duration_validation_error(
@@ -302,10 +323,13 @@ class CampaignResolver:
         for chan in channels:
             conn = chan.buffer_organization.buffer_connection
             user_id = conn.user_id
-            
-            # Resolve text
+
+            # Resolve text - conn.user is this channel's *own* owning user, loaded
+            # fresh per channel in this loop, so referral_link can never leak
+            # across users even when a campaign targets channels from many users
+            # at once.
             override_text = channel_overrides.get(str(chan.id))
-            resolved_text = cls.resolve_text_for_channel(campaign, chan, override_text)
+            resolved_text = cls.resolve_text_for_channel(campaign, chan, override_text, conn.user.referral_link)
 
             # Catch platform text-length violations here instead of letting them reach
             # Buffer as a wasted, confusing API call - see PLATFORM_TEXT_LIMITS above.

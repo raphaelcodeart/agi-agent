@@ -51,6 +51,7 @@ class UserCreate(BaseModel):
     company_name: Optional[str] = Field(None, max_length=255)
     status: str = Field("active", description="active, inactive, suspended")
     notes: Optional[str] = Field(None, max_length=1000)
+    referral_link: Optional[str] = Field(None, max_length=1000)
     group_ids: Optional[List[uuid.UUID]] = None
 
 class UserUpdate(BaseModel):
@@ -59,6 +60,7 @@ class UserUpdate(BaseModel):
     company_name: Optional[str] = Field(None, max_length=255)
     status: Optional[str] = None
     notes: Optional[str] = Field(None, max_length=1000)
+    referral_link: Optional[str] = Field(None, max_length=1000)
     group_ids: Optional[List[uuid.UUID]] = None
 
 class UserResponse(BaseModel):
@@ -68,6 +70,7 @@ class UserResponse(BaseModel):
     company_name: Optional[str]
     status: str
     notes: Optional[str]
+    referral_link: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     groups: List[GroupResponse] = []
@@ -209,6 +212,10 @@ class CampaignCreate(BaseModel):
     # Set only when this campaign was created via Blog Writer's "Usa per campagna
     # social" - purely informational (see Campaign.article_id), never required.
     article_id: Optional[uuid.UUID] = None
+    # Off by default. When on, each target's resolved text gets that target's
+    # owning user's own referral_link appended (see campaign_resolver.py) - a
+    # user with no referral_link configured is unaffected either way.
+    include_referral_link: bool = False
 
 class CampaignResponse(BaseModel):
     id: uuid.UUID
@@ -226,6 +233,7 @@ class CampaignResponse(BaseModel):
     scheduled_at: Optional[datetime]
     timezone: str
     targeting_mode: str
+    include_referral_link: bool = False
     # Targeting params used at launch (e.g. {"channel_ids": [...]}), needed to
     # reproduce the same recipient selection when duplicating a campaign.
     metadata_json: Optional[Dict[str, Any]] = None

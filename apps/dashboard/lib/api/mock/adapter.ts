@@ -80,6 +80,7 @@ export function createUser(payload: UserPayload): Promise<UserResponse> {
     company_name: payload.company_name ?? null,
     status: payload.status,
     notes: payload.notes ?? null,
+    referral_link: payload.referral_link ?? null,
     created_at: nowIso(),
     updated_at: nowIso(),
     groups: mockGroups.filter((g) => payload.group_ids?.includes(g.id)),
@@ -103,6 +104,7 @@ export function updateUser(id: string, payload: Partial<UserPayload>): Promise<U
     ...(payload.company_name !== undefined && { company_name: payload.company_name }),
     ...(payload.status !== undefined && { status: payload.status }),
     ...(payload.notes !== undefined && { notes: payload.notes }),
+    ...(payload.referral_link !== undefined && { referral_link: payload.referral_link }),
     updated_at: nowIso(),
   });
   if (payload.group_ids) {
@@ -287,6 +289,7 @@ export function createCampaign(payload: CampaignCreatePayload): Promise<Campaign
     scheduled_at: payload.scheduled_at ?? null,
     timezone: payload.timezone,
     targeting_mode: payload.targeting_mode,
+    include_referral_link: payload.include_referral_link,
     status: "draft",
     media_file_id: payload.media_file_id ?? null,
     started_at: null,

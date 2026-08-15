@@ -59,6 +59,7 @@ def create_user(
         company_name=payload.company_name,
         status=payload.status,
         notes=payload.notes,
+        referral_link=payload.referral_link,
     )
     
     if payload.group_ids:

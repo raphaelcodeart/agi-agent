@@ -32,6 +32,7 @@ export const campaignWizardSchema = z
     youtube_description: z.string().max(5000).optional().or(z.literal("")),
     x_text: z.string().max(280).optional().or(z.literal("")),
     threads_text: z.string().max(500).optional().or(z.literal("")),
+    include_referral_link: z.boolean(),
 
     // Step 3 - Media
     media_file_id: z.string().optional().nullable(),
@@ -122,6 +123,7 @@ export function toCampaignCreatePayload(values: CampaignWizardValues): CampaignC
     youtube_description: values.youtube_description || null,
     x_text: values.x_text || null,
     threads_text: values.threads_text || null,
+    include_referral_link: values.include_referral_link,
     media_file_id: values.media_file_id || null,
     article_id: values.article_id || null,
     publishing_mode: values.publishing_mode,
@@ -151,6 +153,7 @@ export function campaignToWizardDefaults(campaign: CampaignResponse): Partial<Ca
     youtube_description: campaign.youtube_description ?? "",
     x_text: campaign.x_text ?? "",
     threads_text: campaign.threads_text ?? "",
+    include_referral_link: campaign.include_referral_link,
     media_file_id: campaign.media_file_id,
     targeting_mode: campaign.targeting_mode,
     user_ids: asStringArray(params.user_ids),

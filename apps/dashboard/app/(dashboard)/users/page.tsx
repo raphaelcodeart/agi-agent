@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PlusIcon, PencilIcon } from "lucide-react";
+import { PlusIcon, PencilIcon, LinkIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { SearchInput } from "@/components/shared/search-input";
@@ -17,6 +17,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { formatDateTime } from "@/lib/format";
 import type { UserResponse, UserStatus } from "@/types/api";
 import { UserFormDialog } from "./_components/user-form-dialog";
+import { ReferralLinkDialog } from "./_components/referral-link-dialog";
 
 const LIMIT = 20;
 
@@ -26,6 +27,7 @@ export default function UsersPage() {
   const [skip, setSkip] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserResponse | undefined>(undefined);
+  const [referralUser, setReferralUser] = useState<UserResponse | undefined>(undefined);
 
   const debouncedSearch = useDebounce(search, 300);
   const usersQuery = useUsers({
@@ -93,6 +95,16 @@ export default function UsersPage() {
         header: "",
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setReferralUser(row.original)}
+              aria-label="Configura referral"
+              title={row.original.referral_link ? "Link referral configurato" : "Configura referral"}
+              className={row.original.referral_link ? "text-primary" : undefined}
+            >
+              <LinkIcon className="size-3.5" />
+            </Button>
             <Button variant="ghost" size="icon-sm" onClick={() => openEdit(row.original)} aria-label="Modifica">
               <PencilIcon className="size-3.5" />
             </Button>
@@ -162,6 +174,13 @@ export default function UsersPage() {
       )}
 
       <UserFormDialog open={formOpen} onOpenChange={setFormOpen} user={editingUser} />
+      {referralUser && (
+        <ReferralLinkDialog
+          open={!!referralUser}
+          onOpenChange={(open) => !open && setReferralUser(undefined)}
+          user={referralUser}
+        />
+      )}
     </div>
   );
 }

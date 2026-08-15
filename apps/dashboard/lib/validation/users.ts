@@ -13,6 +13,17 @@ export const userFormSchema = z.object({
 
 export type UserFormValues = z.infer<typeof userFormSchema>;
 
+export const referralLinkFormSchema = z.object({
+  referral_link: z
+    .string()
+    .max(1000)
+    .refine((value) => value === "" || z.url().safeParse(value).success, {
+      message: "Inserisci un URL valido (es. https://...)",
+    }),
+});
+
+export type ReferralLinkFormValues = z.infer<typeof referralLinkFormSchema>;
+
 export const groupFormSchema = z.object({
   name: z.string().min(1, "Il nome è obbligatorio").max(100),
   description: z.string().max(500).optional().or(z.literal("")),

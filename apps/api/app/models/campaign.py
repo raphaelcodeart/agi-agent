@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
-from sqlalchemy import String, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import String, DateTime, ForeignKey, UniqueConstraint, Boolean
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.session import Base
@@ -35,6 +35,12 @@ class Campaign(Base):
     scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     timezone: Mapped[str] = mapped_column(String(100), default="UTC", nullable=False)
     targeting_mode: Mapped[str] = mapped_column(String(50), default="all_active_channels", nullable=False) # all_active_channels, selected_users, selected_groups, selected_channels, selected_platforms
+    # Off by default: when on, resolve_text_for_channel appends the resolving
+    # channel's owning User.referral_link (if that user has one set) to the
+    # resolved text of every target - each channel always gets its own owning
+    # user's link, never another user's, since resolution happens per target.
+    # If off, text resolution is identical to before this field existed.
+    include_referral_link: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Targeting params matching targeting_mode (e.g. user_ids/group_ids/channel_ids),
     # persisted so poll_and_queue_scheduled_publications can re-launch a scheduled
     # campaign with the same selection later.
