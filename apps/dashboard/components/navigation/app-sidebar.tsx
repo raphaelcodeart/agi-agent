@@ -77,17 +77,17 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel>Social Publisher Buffer</SidebarGroupLabel>
           <SidebarGroupContent>
-            <NavItems items={MAIN_NAV_ITEMS} pathname={pathname} />
+            <NavItems items={BUFFER_NAV_ITEMS} pathname={pathname} />
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel>Social Publisher Buffer</SidebarGroupLabel>
           <SidebarGroupContent>
-            <NavItems items={BUFFER_NAV_ITEMS} pathname={pathname} />
+            <NavItems items={MAIN_NAV_ITEMS} pathname={pathname} />
           </SidebarGroupContent>
         </SidebarGroup>
 
