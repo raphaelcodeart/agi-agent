@@ -27,16 +27,16 @@ export const PLATFORM_HARD_LIMITS: Record<"x_text" | "threads_text", number> = {
 };
 
 // Space reserved for "\n\nISCRIVITI QUI: {link}" (17 chars of fixed label,
-// see resolve_text_for_channel in campaign_resolver.py) plus a generous
-// assumption for the link itself (real referral_link values can technically
-// be up to 1000 chars, but no realistic URL - including a long UTM-tagged
-// one - needs anywhere near that; 150 chars covers virtually every real case
-// without making the X/Twitter box unusably small). This is a *soft*,
-// UI-only guardrail to guide typing before launch - the actual backstop
-// remains the backend's PLATFORM_TEXT_LIMITS check on the resolved text
-// (with the link already appended) at launch time, which still excludes
+// see resolve_text_for_channel in campaign_resolver.py) plus an assumption
+// for the link itself. Deliberately modest (43 chars for the link, not the
+// full 1000 the field technically allows): a first version reserved 150 and
+// it blocked completely ordinary 168-char X/Twitter text the moment the
+// toggle was switched on - real referral links are typically short URLs, and
+// this is a *soft*, UI-only guardrail, not the real safety check. The actual
+// backstop remains the backend's PLATFORM_TEXT_LIMITS check on the resolved
+// text (with the link already appended) at launch time, which still excludes
 // just that one target if a user's real link is longer than assumed here.
-export const REFERRAL_LINK_RESERVED_CHARS = 170;
+export const REFERRAL_LINK_RESERVED_CHARS = 60;
 
 export const campaignWizardSchema = z
   .object({
