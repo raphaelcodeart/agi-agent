@@ -86,6 +86,8 @@ Migration unica: `a1b2c3d4e5f6_add_omnichannel_responder_module.py` (down_revisi
 ### `omni_channel_accounts`
 Un account/canale collegato (bot Telegram, futuro numero WhatsApp Business, pagina Instagram/Facebook...).
 
+**Bug reale corretto il 2026-08-15**: `DELETE /channel-accounts/{id}` falliva con `500 Internal Server Error` ogni volta che il canale aveva almeno una conversazione collegata — funzionava solo dopo aver cancellato a mano tutte le conversazioni di quel canale. Causa: la relazione `OmniChannelAccount.conversations` (in `models/omnichannel.py`) non aveva `passive_deletes=True` — comportamento di default di SQLAlchemy quando cancelli il genitore: prova a impostare a `NULL` la colonna `channel_account_id` di ogni conversazione collegata *prima* di procedere, invece di lasciar fare al database. Ma quella colonna è `NOT NULL`, quindi l'operazione falliva con un `IntegrityError` mai gestito. Il vincolo `ON DELETE CASCADE` a livello di database (verificato via `pg_constraint`) c'era già ed era corretto — bastava dire a SQLAlchemy di fidarsene invece di gestire la cosa lui stesso in Python. Stesso bug latente corretto anche su `OmniCustomer.conversations` (mai riscontrato perché oggi non esiste un endpoint per cancellare un cliente, ma la stessa causa ci sarebbe stata). L'endpoint ha anche un backstop difensivo (`try/except IntegrityError` → `409` invece di `500`) per qualunque vincolo imprevisto futuro, ma non è quello il fix reale.
+
 | Colonna | Tipo | Note |
 |---|---|---|
 | `channel` | string | `telegram`, `whatsapp`, `instagram`, `facebook`, `mock` |

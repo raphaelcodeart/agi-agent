@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import insert, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
@@ -180,9 +181,21 @@ def register_channel_webhook(account_id: uuid.UUID, public_base_url: str, db: Se
 
 @router.delete("/channel-accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_channel_account(account_id: uuid.UUID, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """
+    Cascades to every conversation/message/draft/note for this channel at
+    the database level (see OmniChannelAccount.conversations' passive_deletes
+    docstring in models/omnichannel.py for why that matters here). The
+    try/except is a defensive backstop, not the actual fix - it turns any
+    unforeseen future FK constraint into a clear 409 instead of a raw 500,
+    it doesn't paper over the passive_deletes bug itself.
+    """
     account = _owned_channel_account(db, admin, account_id)
     db.delete(account)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Impossibile eliminare il canale: dati collegati non rimovibili automaticamente.")
     return
 
 

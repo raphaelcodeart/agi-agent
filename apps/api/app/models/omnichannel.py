@@ -50,7 +50,17 @@ class OmniChannelAccount(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
-    conversations: Mapped[List["OmniConversation"]] = relationship("OmniConversation", back_populates="channel_account")
+    # passive_deletes=True: without it, SQLAlchemy's default ORM behavior when
+    # deleting the parent is to load this collection and try to null out each
+    # child's channel_account_id before/instead of deleting - but that column
+    # is NOT NULL, so it fails with an unhandled IntegrityError (surfaced as a
+    # raw 500) the moment any conversation exists for this channel. The FK
+    # already has ondelete="CASCADE" at the database level (see
+    # OmniConversation.channel_account_id below) - this tells SQLAlchemy to
+    # trust that entirely instead of managing it in Python. Real bug, found
+    # and fixed 2026-08-15: deleting a channel account failed until every one
+    # of its conversations was deleted by hand first.
+    conversations: Mapped[List["OmniConversation"]] = relationship("OmniConversation", back_populates="channel_account", passive_deletes=True)
 
 
 # ==============================================================================
@@ -85,7 +95,11 @@ class OmniCustomer(Base):
     last_contact_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     identities: Mapped[List["OmniCustomerIdentity"]] = relationship("OmniCustomerIdentity", back_populates="customer", cascade="all, delete-orphan")
-    conversations: Mapped[List["OmniConversation"]] = relationship("OmniConversation", back_populates="customer")
+    # Same passive_deletes reasoning as OmniChannelAccount.conversations above
+    # - customer_id is also NOT NULL with ondelete="CASCADE" at the DB level;
+    # without this, deleting a customer with any conversation would hit the
+    # identical bug.
+    conversations: Mapped[List["OmniConversation"]] = relationship("OmniConversation", back_populates="customer", passive_deletes=True)
 
 
 class OmniCustomerIdentity(Base):
