@@ -59,6 +59,14 @@ export function useGroups() {
   });
 }
 
+export function useGroupUsers(groupId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.groups.users(groupId ?? ""),
+    queryFn: () => usersService.listGroupUsers(groupId as string),
+    enabled: !!groupId,
+  });
+}
+
 export function useCreateGroup() {
   const queryClient = useQueryClient();
   return useMutation({

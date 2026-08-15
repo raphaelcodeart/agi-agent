@@ -7,12 +7,14 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { CardGridSkeleton } from "@/components/shared/loading-skeleton";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useGroups } from "@/hooks/use-users";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { GroupResponse } from "@/types/api";
 import { GroupFormDialog } from "./_components/group-form-dialog";
+import { GroupMembersDialog } from "./_components/group-members-dialog";
 
 const GROUP_TONES = [
   "bg-chart-1/12 text-chart-1",
@@ -26,6 +28,7 @@ export default function GroupsPage() {
   const groupsQuery = useGroups();
   const [formOpen, setFormOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<GroupResponse | undefined>(undefined);
+  const [membersGroup, setMembersGroup] = useState<GroupResponse | undefined>(undefined);
 
   function openCreate() {
     setEditingGroup(undefined);
@@ -82,8 +85,17 @@ export default function GroupsPage() {
                   </Button>
                 </CardAction>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">{group.description || "Nessuna descrizione"}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant="secondary">
+                    {group.user_count} {group.user_count === 1 ? "utente" : "utenti"}
+                  </Badge>
+                  <Button variant="outline" size="sm" onClick={() => setMembersGroup(group)}>
+                    <UsersRoundIcon className="size-3.5" />
+                    Vedi utenti
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">Creato il {formatDateTime(group.created_at)}</p>
               </CardContent>
             </Card>
@@ -92,6 +104,13 @@ export default function GroupsPage() {
       )}
 
       <GroupFormDialog open={formOpen} onOpenChange={setFormOpen} group={editingGroup} />
+      {membersGroup && (
+        <GroupMembersDialog
+          open={!!membersGroup}
+          onOpenChange={(open) => !open && setMembersGroup(undefined)}
+          group={membersGroup}
+        />
+      )}
     </div>
   );
 }

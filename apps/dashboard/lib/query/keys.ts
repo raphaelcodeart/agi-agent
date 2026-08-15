@@ -6,6 +6,7 @@ export const queryKeys = {
   },
   groups: {
     list: () => ["groups", "list"] as const,
+    users: (groupId: string) => ["groups", "users", groupId] as const,
   },
   bufferConnections: {
     list: () => ["buffer-connections", "list"] as const,

@@ -209,7 +209,7 @@ Prefisso comune `/api/v1`. Elenco completo per router — per i dettagli di requ
 - **`/campaigns`**: `GET /`, `POST /`, `POST /preview-targets`, `POST /{id}/launch`, `GET /{id}`, `GET /{id}/metrics`, `POST /{id}/pause`, `POST /{id}/resume`, `POST /{id}/cancel`, `DELETE /{id}`
 - **`/publications`**: `GET /`, `GET /{id}`, `GET /{id}/metrics`, `POST /{id}/retry`, `POST /retry-selected`, `POST /retry-campaign-failures/{campaign_id}`, `POST /{id}/cancel`, `POST /{id}/skip`
 - **`/media`**: `GET /`, `POST /upload`, `GET /{id}`, `PATCH /{id}` (rinomina solo `original_filename`, non tocca il file fisico), `DELETE /{id}`
-- **`/users`**: `GET /`, `POST /`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}` (soft delete), `GET /groups/list`, `POST /groups`, `PUT /groups/{id}`
+- **`/users`**: `GET /`, `POST /`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}` (soft delete), `GET /groups/list` (ogni gruppo annotato con `user_count`, i membri non soft-eliminati - conteggio transitorio calcolato in `list_groups`, non una colonna reale su `UserGroup`), `POST /groups`, `PUT /groups/{id}`, `GET /groups/{id}/users` (elenco membri, usato dal popup "Vedi utenti" nella pagina Gruppi)
 - **`/settings`**: `GET /`, `PUT /`, `GET /health`, `GET /ai`, `PUT /ai`, `DELETE /ai` (credenziali OpenAI, vedi §5)
 - **`/ai`**: `POST /generate-campaign-text` (bozza testi campagna via OpenAI, richiede una chiave configurata — vedi `/settings/ai` sopra)
 

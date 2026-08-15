@@ -51,6 +51,11 @@ export function listGroups(): Promise<GroupResponse[]> {
   return apiClient.get<GroupResponse[]>("/users/groups/list");
 }
 
+export function listGroupUsers(groupId: string): Promise<UserResponse[]> {
+  if (isMockApiEnabled()) return mock.listGroupUsers(groupId);
+  return apiClient.get<UserResponse[]>(`/users/groups/${groupId}/users`);
+}
+
 export interface GroupPayload {
   name: string;
   description?: string | null;

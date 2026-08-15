@@ -24,6 +24,7 @@ export interface GroupResponse {
   name: string;
   description: string | null;
   created_at: string;
+  user_count: number;
 }
 
 export interface UserResponse {

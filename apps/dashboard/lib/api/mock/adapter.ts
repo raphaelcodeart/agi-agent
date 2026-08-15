@@ -130,6 +130,7 @@ export function createGroup(payload: GroupPayload): Promise<GroupResponse> {
     name: payload.name,
     description: payload.description ?? null,
     created_at: nowIso(),
+    user_count: 0,
   };
   mockGroups.push(group);
   return delay(group);
@@ -141,6 +142,11 @@ export function updateGroup(groupId: string, payload: GroupPayload): Promise<Gro
   if (payload.name !== undefined) group.name = payload.name;
   if (payload.description !== undefined) group.description = payload.description ?? null;
   return delay(group);
+}
+
+export function listGroupUsers(groupId: string): Promise<UserResponse[]> {
+  if (!mockGroups.some((g) => g.id === groupId)) notFound("Group");
+  return delay(mockUsers.filter((u) => u.groups.some((g) => g.id === groupId)));
 }
 
 // ---------------------------------------------------------------------------

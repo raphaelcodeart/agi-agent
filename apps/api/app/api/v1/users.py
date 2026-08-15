@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import or_
 from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
@@ -139,8 +139,36 @@ def list_groups(
     db: Session = Depends(get_db),
     admin: Administrator = Depends(get_current_admin)
 ):
-    """List all user groups."""
-    return db.query(UserGroup).all()
+    """
+    List all user groups, each annotated with user_count (active members,
+    i.e. excluding soft-deleted users - same rule as list_users below).
+    selectinload avoids an N+1 query (one extra query for all groups' members
+    combined, instead of one per group); user_count is a transient attribute
+    set here for response serialization only, not a real column on UserGroup.
+    """
+    groups = db.query(UserGroup).options(selectinload(UserGroup.users)).all()
+    for group in groups:
+        group.user_count = sum(1 for u in group.users if u.deleted_at is None)
+    return groups
+
+
+@router.get("/groups/{group_id}/users", response_model=List[UserResponse])
+def list_group_users(
+    group_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin)
+):
+    """List the (non-deleted) members of a specific group, for the group card's member popup."""
+    group = db.query(UserGroup).filter(UserGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    return (
+        db.query(User)
+        .filter(User.groups.any(UserGroup.id == group_id), User.deleted_at.is_(None))
+        .order_by(User.name)
+        .all()
+    )
 
 
 @router.post("/groups", response_model=GroupResponse, status_code=status.HTTP_201_CREATED)

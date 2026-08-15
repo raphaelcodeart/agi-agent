@@ -41,6 +41,9 @@ class GroupResponse(BaseModel):
     name: str
     description: Optional[str]
     created_at: datetime
+    # Active (non-soft-deleted) member count - set as a transient attribute by
+    # list_groups (api/v1/users.py), not a real column on UserGroup.
+    user_count: int = 0
 
     class Config:
         from_attributes = True

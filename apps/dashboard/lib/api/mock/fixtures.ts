@@ -18,9 +18,9 @@ import type {
 const now = new Date().toISOString();
 
 export const mockGroups: GroupResponse[] = [
-  { id: "grp-hotels", name: "Hotels", description: "Algarve & Lisbon hospitality clients", created_at: now },
-  { id: "grp-restaurants", name: "Restaurants", description: "Dining and bistro customers", created_at: now },
-  { id: "grp-premium", name: "Premium Clients", description: "VIP priority subscribers", created_at: now },
+  { id: "grp-hotels", name: "Hotels", description: "Algarve & Lisbon hospitality clients", created_at: now, user_count: 2 },
+  { id: "grp-restaurants", name: "Restaurants", description: "Dining and bistro customers", created_at: now, user_count: 1 },
+  { id: "grp-premium", name: "Premium Clients", description: "VIP priority subscribers", created_at: now, user_count: 1 },
 ];
 
 export const mockUsers: UserResponse[] = [
