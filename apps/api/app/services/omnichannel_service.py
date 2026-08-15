@@ -23,7 +23,7 @@ from app.models.omnichannel import (
     OmniMessage,
     OmniNotification,
 )
-from app.schemas.schemas import OmniChannelAccountCreate
+from app.schemas.schemas import OmniChannelAccountCreate, OmniChannelAccountUpdate
 
 # Conversation statuses that should be reopened (not appended to silently) when
 # a new inbound message arrives.
@@ -67,6 +67,41 @@ class OmnichannelService:
             status="pending",
         )
         db.add(account)
+        db.commit()
+        db.refresh(account)
+        return account
+
+    @staticmethod
+    def update_channel_account(db: Session, account: OmniChannelAccount, payload: OmniChannelAccountUpdate) -> OmniChannelAccount:
+        """
+        Completes/rotates credentials on an existing channel account - see
+        OmniChannelAccountUpdate docstring for why this exists (WhatsApp/Meta
+        channels can only be created with real credentials in hand today, but
+        the webhook_secret an admin needs for Meta's Webhooks screen is only
+        generated once the row exists, and channel-account creation has no
+        other way to get it early).
+        """
+        if payload.name is not None:
+            account.name = payload.name
+        if payload.external_account_id is not None:
+            account.external_account_id = payload.external_account_id
+        if payload.config is not None:
+            account.config_json = payload.config
+
+        is_meta = account.channel in ("facebook", "instagram", "whatsapp")
+        if payload.access_token:
+            if is_meta:
+                secret_payload = json.dumps({"access_token": payload.access_token, "app_secret": payload.app_secret or ""})
+                account.access_token_encrypted = EncryptionService.encrypt(secret_payload)
+            else:
+                account.access_token_encrypted = EncryptionService.encrypt(payload.access_token)
+        elif payload.app_secret and is_meta:
+            # App Secret rotated without retyping the access_token - merge into
+            # the existing encrypted blob rather than requiring both every time.
+            existing = json.loads(EncryptionService.decrypt(account.access_token_encrypted)) if account.access_token_encrypted else {}
+            existing["app_secret"] = payload.app_secret
+            account.access_token_encrypted = EncryptionService.encrypt(json.dumps(existing))
+
         db.commit()
         db.refresh(account)
         return account

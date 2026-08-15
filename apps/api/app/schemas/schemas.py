@@ -626,6 +626,21 @@ class OmniChannelAccountCreate(BaseModel):
     config: Optional[Dict[str, Any]] = None
 
 
+class OmniChannelAccountUpdate(BaseModel):
+    """
+    Fills in/rotates credentials after creation - e.g. a WhatsApp channel
+    created with no credentials yet just to get its webhook_secret for
+    Meta's Webhooks screen, completed once real Cloud API credentials exist.
+    None/omitted = leave unchanged, same convention as AISettingsUpdateRequest:
+    a blank access_token never silently wipes an already-configured one.
+    """
+    name: Optional[str] = None
+    external_account_id: Optional[str] = None
+    access_token: Optional[str] = Field(None, description="Plaintext token/secret - only re-encrypted if provided")
+    app_secret: Optional[str] = Field(None, description="Facebook/Instagram/WhatsApp only")
+    config: Optional[Dict[str, Any]] = None
+
+
 class OmniChannelAccountResponse(BaseModel):
     id: uuid.UUID
     channel: str

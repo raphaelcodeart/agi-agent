@@ -625,6 +625,15 @@ export interface OmniChannelAccountCreate {
   config?: Record<string, unknown>;
 }
 
+export interface OmniChannelAccountUpdate {
+  name?: string;
+  external_account_id?: string;
+  /** Only re-encrypted if provided - omit/blank to leave the current credential unchanged. */
+  access_token?: string;
+  app_secret?: string;
+  config?: Record<string, unknown>;
+}
+
 export interface OmniCustomerIdentityResponse {
   id: string;
   channel: OmniChannel;

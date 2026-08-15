@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, Trash2Icon, WebhookIcon, InfoIcon, PlayIcon, RadioIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, WebhookIcon, InfoIcon, PlayIcon, RadioIcon, KeyIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -18,6 +18,7 @@ import { CreateChannelDialog } from "./_components/create-channel-dialog";
 import { RegisterWebhookDialog } from "./_components/register-webhook-dialog";
 import { SimulateMessageDialog } from "./_components/simulate-message-dialog";
 import { MetaWebhookInfoDialog } from "./_components/meta-webhook-info-dialog";
+import { EditCredentialsDialog } from "./_components/edit-credentials-dialog";
 import type { OmniChannel } from "@/types/api";
 
 const META_CHANNELS: OmniChannel[] = ["facebook", "instagram", "whatsapp"];
@@ -31,7 +32,9 @@ export default function OmnichannelChannelsPage() {
   const [metaInfoAccountId, setMetaInfoAccountId] = useState<string | null>(null);
   const [simulateAccountId, setSimulateAccountId] = useState<string | null>(null);
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
+  const [editCredentialsAccountId, setEditCredentialsAccountId] = useState<string | null>(null);
   const metaInfoAccount = accounts?.find((a) => a.id === metaInfoAccountId);
+  const editCredentialsAccount = accounts?.find((a) => a.id === editCredentialsAccountId);
 
   return (
     <div>
@@ -98,6 +101,11 @@ export default function OmnichannelChannelsPage() {
                           <PlayIcon />
                         </Button>
                       )}
+                      {account.channel !== "mock" && (
+                        <Button size="icon-sm" variant="ghost" title="Modifica credenziali" onClick={() => setEditCredentialsAccountId(account.id)}>
+                          <KeyIcon />
+                        </Button>
+                      )}
                       <Button size="icon-sm" variant="ghost" className="text-destructive hover:text-destructive" title="Elimina" onClick={() => setDeleteAccountId(account.id)}>
                         <Trash2Icon />
                       </Button>
@@ -124,6 +132,13 @@ export default function OmnichannelChannelsPage() {
           channel={metaInfoAccount.channel}
           channelAccountId={metaInfoAccount.id}
           verifyToken={metaInfoAccount.webhook_secret}
+        />
+      )}
+      {editCredentialsAccount && (
+        <EditCredentialsDialog
+          open={!!editCredentialsAccountId}
+          onOpenChange={(open) => !open && setEditCredentialsAccountId(null)}
+          account={editCredentialsAccount}
         />
       )}
       <ConfirmDialog

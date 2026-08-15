@@ -9,6 +9,7 @@ import type {
   OmniBroadcastResult,
   OmniChannelAccountCreate,
   OmniChannelAccountResponse,
+  OmniChannelAccountUpdate,
   OmniConversationDetailResponse,
   OmniConversationListItem,
   OmniConversationStatus,
@@ -36,6 +37,10 @@ export function listSupportedChannels(): Promise<string[]> {
 
 export function createChannelAccount(payload: OmniChannelAccountCreate): Promise<OmniChannelAccountResponse> {
   return apiClient.post<OmniChannelAccountResponse>(`${BASE}/channel-accounts`, payload);
+}
+
+export function updateChannelAccount(id: string, payload: OmniChannelAccountUpdate): Promise<OmniChannelAccountResponse> {
+  return apiClient.put<OmniChannelAccountResponse>(`${BASE}/channel-accounts/${id}`, payload);
 }
 
 export function getChannelAccountStatus(id: string): Promise<{ status: string; [key: string]: unknown }> {

@@ -52,14 +52,12 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
       toast.error("Inserisci un nome per il canale");
       return;
     }
-    if (isMeta && (!accessToken.trim() || !appSecret.trim())) {
-      toast.error("Servono sia l'Access Token sia l'App Secret");
-      return;
-    }
-    if (channel === "whatsapp" && !phoneNumberId.trim()) {
-      toast.error("Serve il Phone Number ID");
-      return;
-    }
+    // Credentials are optional at creation time for Meta channels (Facebook/
+    // Instagram/WhatsApp) on purpose: Meta's own Webhooks screen needs this
+    // channel's webhook_secret to exist before you can even reach the screen
+    // where you'd get the real Access Token/App Secret/Phone Number ID from
+    // Meta's API Setup - not having one shouldn't block having the other.
+    // Fill them in later via "Modifica credenziali" on the channel row.
     createChannelAccount.mutate(
       {
         channel,
@@ -70,7 +68,12 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
       },
       {
         onSuccess: () => {
-          toast.success("Canale creato");
+          const missingCreds = isMeta && (!accessToken.trim() || !appSecret.trim() || (channel === "whatsapp" && !phoneNumberId.trim()));
+          toast.success(
+            missingCreds
+              ? "Canale creato — apri ℹ️ \"Info webhook\" per il Verify Token, poi torna qui a completare le credenziali con \"Modifica credenziali\""
+              : "Canale creato"
+          );
           reset();
           onOpenChange(false);
         },

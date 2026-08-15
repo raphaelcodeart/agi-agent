@@ -40,6 +40,7 @@ from app.services.omnichannel_draft_service import OmnichannelDraftService
 from app.core.config import settings
 from app.schemas.schemas import (
     OmniChannelAccountCreate,
+    OmniChannelAccountUpdate,
     OmniChannelAccountResponse,
     OmniConversationListItem,
     OmniConversationDetailResponse,
@@ -112,6 +113,20 @@ def create_channel_account(payload: OmniChannelAccountCreate, db: Session = Depe
         raise HTTPException(status_code=400, detail=f"Canale non supportato: {payload.channel}")
     account = OmnichannelService.create_channel_account(db, admin.id, payload)
     OmnichannelService.log_audit(db, admin.id, admin.id, "SETTINGS_CHANGED", "channel_account", account.id, {"action": "created", "channel": account.channel})
+    db.commit()
+    return account
+
+
+@router.put("/channel-accounts/{account_id}", response_model=OmniChannelAccountResponse)
+def update_channel_account(account_id: uuid.UUID, payload: OmniChannelAccountUpdate, db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """
+    Fills in or rotates a channel account's credentials after creation - e.g.
+    a WhatsApp/Meta channel created with blank credentials just to obtain its
+    webhook_secret for Meta's Webhooks screen (see OmniChannelAccountUpdate).
+    """
+    account = _owned_channel_account(db, admin, account_id)
+    account = OmnichannelService.update_channel_account(db, account, payload)
+    OmnichannelService.log_audit(db, admin.id, admin.id, "SETTINGS_CHANGED", "channel_account", account.id, {"action": "updated", "channel": account.channel})
     db.commit()
     return account
 
