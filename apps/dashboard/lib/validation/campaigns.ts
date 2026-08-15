@@ -17,6 +17,27 @@ export const targetingModeValues = [
   "selected_platforms",
 ] as const;
 
+// Hard per-platform text limits actually enforced by Buffer (mirrors
+// PLATFORM_TEXT_LIMITS in campaign_resolver.py) - only X/Twitter and Threads
+// have one; Instagram/Facebook/LinkedIn/TikTok don't, so their boxes stay at
+// the generous 5000-char UI cap regardless of the referral link toggle.
+export const PLATFORM_HARD_LIMITS: Record<"x_text" | "threads_text", number> = {
+  x_text: 280,
+  threads_text: 500,
+};
+
+// Space reserved for "\n\nISCRIVITI QUI: {link}" (17 chars of fixed label,
+// see resolve_text_for_channel in campaign_resolver.py) plus a generous
+// assumption for the link itself (real referral_link values can technically
+// be up to 1000 chars, but no realistic URL - including a long UTM-tagged
+// one - needs anywhere near that; 150 chars covers virtually every real case
+// without making the X/Twitter box unusably small). This is a *soft*,
+// UI-only guardrail to guide typing before launch - the actual backstop
+// remains the backend's PLATFORM_TEXT_LIMITS check on the resolved text
+// (with the link already appended) at launch time, which still excludes
+// just that one target if a user's real link is longer than assumed here.
+export const REFERRAL_LINK_RESERVED_CHARS = 170;
+
 export const campaignWizardSchema = z
   .object({
     // Step 1 - Info
@@ -54,6 +75,19 @@ export const campaignWizardSchema = z
     timezone: z.string().min(1),
   })
   .superRefine((data, ctx) => {
+    if (data.include_referral_link) {
+      (Object.keys(PLATFORM_HARD_LIMITS) as (keyof typeof PLATFORM_HARD_LIMITS)[]).forEach((field) => {
+        const limit = PLATFORM_HARD_LIMITS[field] - REFERRAL_LINK_RESERVED_CHARS;
+        const length = (data[field] ?? "").length;
+        if (length > limit) {
+          ctx.addIssue({
+            code: "custom",
+            message: `Con il link referral attivo restano ${limit} caratteri disponibili (${PLATFORM_HARD_LIMITS[field]} del limite piattaforma meno lo spazio riservato al link) - ${length - limit} di troppo`,
+            path: [field],
+          });
+        }
+      });
+    }
     if (data.publishing_mode === "scheduled" && !data.scheduled_at) {
       ctx.addIssue({
         code: "custom",
@@ -95,7 +129,7 @@ export type CampaignWizardValues = z.infer<typeof campaignWizardSchema>;
 
 export const WIZARD_STEP_FIELDS: (keyof CampaignWizardValues)[][] = [
   ["title"],
-  ["default_text"],
+  ["default_text", "x_text", "threads_text", "include_referral_link"],
   ["media_file_id"],
   ["targeting_mode", "user_ids", "group_ids", "channel_ids", "platform_names"],
   ["publishing_mode", "scheduled_at", "timezone"],

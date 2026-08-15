@@ -11,7 +11,11 @@ import {
   FormDescription,
   FormMessage,
 } from "@/components/ui/form";
-import type { CampaignWizardValues } from "@/lib/validation/campaigns";
+import {
+  type CampaignWizardValues,
+  PLATFORM_HARD_LIMITS,
+  REFERRAL_LINK_RESERVED_CHARS,
+} from "@/lib/validation/campaigns";
 import { AIGenerateDialog } from "./ai-generate-dialog";
 import type { AIGenerateTextResponse } from "@/types/api";
 
@@ -20,11 +24,12 @@ const PLATFORM_TABS: { value: keyof CampaignWizardValues; label: string; maxLeng
   { value: "facebook_text", label: "Facebook", maxLength: 5000 },
   { value: "linkedin_text", label: "LinkedIn", maxLength: 5000 },
   { value: "tiktok_text", label: "TikTok", maxLength: 5000 },
-  { value: "x_text", label: "X", maxLength: 280 },
-  { value: "threads_text", label: "Threads", maxLength: 500 },
+  { value: "x_text", label: "X", maxLength: PLATFORM_HARD_LIMITS.x_text },
+  { value: "threads_text", label: "Threads", maxLength: PLATFORM_HARD_LIMITS.threads_text },
 ];
 
 export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }) {
+  const includeReferralLink = form.watch("include_referral_link");
   function handleGenerated(result: AIGenerateTextResponse) {
     form.setValue("default_text", result.default_text, { shouldDirty: true, shouldValidate: true });
     form.setValue("instagram_text", result.instagram_text, { shouldDirty: true, shouldValidate: true });
@@ -75,7 +80,9 @@ export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }
                 <FormDescription>
                   Se attivo, per ogni destinatario viene aggiunto in fondo al testo il suo link referral
                   personale (configurato nella pagina Utenti) — solo il suo, mai quello di altri. Chi non ha un
-                  link configurato riceve il testo invariato, esattamente come con questa opzione spenta.
+                  link configurato riceve il testo invariato, esattamente come con questa opzione spenta. I box
+                  con un limite reale (X, Threads) si riducono di {REFERRAL_LINK_RESERVED_CHARS} caratteri per
+                  lasciare sempre spazio al link.
                 </FormDescription>
               </span>
             </label>
@@ -94,31 +101,39 @@ export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }
             ))}
             <TabsTrigger value="youtube">YouTube</TabsTrigger>
           </TabsList>
-          {PLATFORM_TABS.map((tab) => (
-            <TabsContent key={tab.value} value={tab.value} className="pt-3">
-              <FormField
-                control={form.control}
-                name={tab.value}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <Textarea
-                        rows={3}
-                        maxLength={tab.maxLength}
-                        placeholder={`Testo specifico per ${tab.label} (lascia vuoto per usare il testo predefinito)`}
-                        {...field}
-                        value={(field.value as string) ?? ""}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {((field.value as string) ?? "").length}/{tab.maxLength} caratteri
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </TabsContent>
-          ))}
+          {PLATFORM_TABS.map((tab) => {
+            const hasHardLimit = tab.value === "x_text" || tab.value === "threads_text";
+            const effectiveMax =
+              hasHardLimit && includeReferralLink ? tab.maxLength - REFERRAL_LINK_RESERVED_CHARS : tab.maxLength;
+            return (
+              <TabsContent key={tab.value} value={tab.value} className="pt-3">
+                <FormField
+                  control={form.control}
+                  name={tab.value}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormControl>
+                        <Textarea
+                          rows={3}
+                          maxLength={effectiveMax}
+                          placeholder={`Testo specifico per ${tab.label} (lascia vuoto per usare il testo predefinito)`}
+                          {...field}
+                          value={(field.value as string) ?? ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {((field.value as string) ?? "").length}/{effectiveMax} caratteri
+                        {hasHardLimit && includeReferralLink && (
+                          <> (ridotto da {tab.maxLength} per lasciare spazio al link referral)</>
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+            );
+          })}
           <TabsContent value="youtube" className="space-y-3 pt-3">
             <FormField
               control={form.control}
