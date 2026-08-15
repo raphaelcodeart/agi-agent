@@ -240,6 +240,7 @@ class ProductionBufferClient(BaseBufferClient):
               post {
                 id
                 dueAt
+                externalLink
               }
             }
             ... on MutationError {
@@ -260,7 +261,16 @@ class ProductionBufferClient(BaseBufferClient):
             "media_url": media_url,
             "scheduled_at": post.get("dueAt"),
             "published_at": None,
-            "url": None,
+            # Post.externalLink (developers.buffer.com/types/Post.html, "The
+            # external URL of the post at the destination service" - verified
+            # directly against Buffer's live API, 2026-08-15, both via docs and
+            # a real read-only query). Almost always null right here: Buffer's
+            # own Post.status stays "scheduled" on its side until it actually
+            # delivers the post to the destination network, which happens some
+            # time after this mutation returns - same "not available yet, not a
+            # bug" pattern as metrics below. get_post_metrics backfills this
+            # once it's actually populated.
+            "url": post.get("externalLink"),
         }
 
     def get_post_status(self, api_key: str, external_post_id: str) -> Dict[str, Any]:
@@ -291,13 +301,14 @@ class ProductionBufferClient(BaseBufferClient):
               unit
             }
             metricsUpdatedAt
+            externalLink
           }
         }
         """
         data = self._request(api_key, query, {"input": {"id": external_post_id}})
         post = data.get("post")
         if not post:
-            return {"metrics": [], "metrics_updated_at": None}
+            return {"metrics": [], "metrics_updated_at": None, "external_link": None}
 
         return {
             "metrics": [
@@ -310,4 +321,9 @@ class ProductionBufferClient(BaseBufferClient):
                 for m in (post.get("metrics") or [])
             ],
             "metrics_updated_at": post.get("metricsUpdatedAt"),
+            # See create_post()'s "url" field above for what this is and why it's
+            # often still null even long after publish - callers (publications.py,
+            # campaigns.py) backfill Publication.external_post_url with this once
+            # it's non-null, since metrics are checked well after create_post.
+            "external_link": post.get("externalLink"),
         }

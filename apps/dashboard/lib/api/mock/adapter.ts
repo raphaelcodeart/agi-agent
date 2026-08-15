@@ -464,6 +464,7 @@ export function getPublication(id: string): Promise<PublicationDetailResponse> {
     channel_name: channel?.name ?? "—",
     channel_platform: channel?.platform ?? "—",
     user_name: user?.name ?? "—",
+    channel_external_link: channel?.external_link ?? null,
   });
 }
 

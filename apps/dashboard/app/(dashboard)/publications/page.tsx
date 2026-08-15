@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { RotateCcwIcon } from "lucide-react";
+import { RotateCcwIcon, ExternalLinkIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -64,8 +64,8 @@ export default function PublicationsPage() {
   }, [usersQuery.data]);
 
   const channelInfo = useMemo(() => {
-    const map = new Map<string, { name: string; platform: string }>();
-    channelsQuery.data?.forEach((c) => map.set(c.id, { name: c.name, platform: c.platform }));
+    const map = new Map<string, { name: string; platform: string; external_link: string | null }>();
+    channelsQuery.data?.forEach((c) => map.set(c.id, { name: c.name, platform: c.platform, external_link: c.external_link }));
     return map;
   }, [channelsQuery.data]);
 
@@ -166,25 +166,35 @@ export default function PublicationsPage() {
       {
         id: "actions",
         header: "",
-        cell: ({ row }) => (
-          <div className="flex justify-end gap-1">
-            {["failed", "cancelled", "retry_wait", "queued"].includes(row.original.status) && (
-              <RetryButton
-                loading={retryPublication.isPending}
-                onRetry={() =>
-                  retryPublication.mutate(row.original.id, {
-                    onSuccess: () => toast.success("Pubblicazione riaccodata"),
-                    onError: (error) =>
-                      toast.error(error instanceof ApiError ? error.detail : "Retry non riuscito"),
-                  })
-                }
-              />
-            )}
-            <Button variant="ghost" size="sm" asChild>
-              <Link href={`/publications/${row.original.id}`}>Dettaglio</Link>
-            </Button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const postUrl = row.original.external_post_url ?? channelInfo.get(row.original.social_channel_id)?.external_link;
+          return (
+            <div className="flex justify-end gap-1">
+              {["failed", "cancelled", "retry_wait", "queued"].includes(row.original.status) && (
+                <RetryButton
+                  loading={retryPublication.isPending}
+                  onRetry={() =>
+                    retryPublication.mutate(row.original.id, {
+                      onSuccess: () => toast.success("Pubblicazione riaccodata"),
+                      onError: (error) =>
+                        toast.error(error instanceof ApiError ? error.detail : "Retry non riuscito"),
+                    })
+                  }
+                />
+              )}
+              {postUrl && (
+                <Button variant="ghost" size="icon-sm" asChild aria-label="Vedi online" title="Vedi online">
+                  <a href={postUrl} target="_blank" rel="noreferrer">
+                    <ExternalLinkIcon className="size-3.5" />
+                  </a>
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/publications/${row.original.id}`}>Dettaglio</Link>
+              </Button>
+            </div>
+          );
+        },
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps

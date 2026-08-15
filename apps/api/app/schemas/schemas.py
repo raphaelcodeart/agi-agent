@@ -350,6 +350,12 @@ class PublicationDetailResponse(BaseModel):
     channel_name: str
     channel_platform: str
     user_name: str
+    # Public profile/page URL of the destination channel itself (SocialChannel.
+    # external_link, populated by Buffer sync) - shown as a fallback "view
+    # profile" link when publication.external_post_url isn't populated yet
+    # (see campaign_resolver docs / prod_client.py get_post_metrics comments on
+    # why the specific-post link can take a while to become available).
+    channel_external_link: Optional[str] = None
 
 
 # ==============================================================================

@@ -46,11 +46,13 @@ export default function PublicationDetailPage({ params }: { params: Promise<{ id
     return <ErrorState error={detailQuery.error} onRetry={() => detailQuery.refetch()} />;
   }
 
-  const { publication: pub, attempts, resolved_text, channel_name, channel_platform, user_name } = detailQuery.data;
+  const { publication: pub, attempts, resolved_text, channel_name, channel_platform, user_name, channel_external_link } =
+    detailQuery.data;
   const canRetry = ["failed", "cancelled", "retry_wait", "queued"].includes(pub.status);
   const canCancel = ["pending", "queued", "retry_wait"].includes(pub.status);
   const canSkip = ["pending", "queued", "retry_wait", "failed"].includes(pub.status);
   const canShowStats = ["published", "scheduled"].includes(pub.status);
+  const postUrl = pub.external_post_url ?? metricsQuery.data?.external_post_url ?? null;
 
   function notify(promise: Promise<unknown>, message: string) {
     promise
@@ -133,18 +135,36 @@ export default function PublicationDetailPage({ params }: { params: Promise<{ id
               <span className="text-muted-foreground">Pubblicato</span>
               <span>{formatDateTime(pub.published_at)}</span>
             </div>
-            {pub.external_post_url && (
+            {/* metricsQuery can backfill this on-demand (Carica statistiche) before
+                a page reload would otherwise pick up the saved value - see
+                get_publication_metrics in publications.py. */}
+            {postUrl ? (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Post pubblicato</span>
                 <a
-                  href={pub.external_post_url}
+                  href={postUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="truncate text-primary hover:underline"
                 >
-                  Visualizza
+                  Visualizza online
                 </a>
               </div>
+            ) : (
+              channel_external_link && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Post pubblicato</span>
+                  <a
+                    href={channel_external_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="truncate text-primary hover:underline"
+                    title="Link diretto al post non ancora disponibile da Buffer - apre il profilo del canale"
+                  >
+                    Vedi profilo canale
+                  </a>
+                </div>
+              )
             )}
             {pub.error_message && (
               <div className="space-y-1 border-t pt-3">

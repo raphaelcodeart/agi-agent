@@ -339,6 +339,7 @@ export interface PublicationDetailResponse {
   channel_name: string;
   channel_platform: string;
   user_name: string;
+  channel_external_link: string | null;
 }
 
 // ==============================================================================

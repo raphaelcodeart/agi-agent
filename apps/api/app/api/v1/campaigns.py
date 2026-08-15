@@ -248,6 +248,14 @@ def get_campaign_metrics(
             entry.metrics = [PostMetricValue(**m) for m in result.get("metrics", [])]
             entry.metrics_updated_at = result.get("metrics_updated_at")
 
+            # Backfill the specific post's real URL once Buffer actually has it -
+            # see the same logic/comment in publications.py get_publication_metrics.
+            external_link = result.get("external_link")
+            if external_link and not pub.external_post_url:
+                pub.external_post_url = external_link
+                db.commit()
+                entry.external_post_url = external_link
+
             for metric in entry.metrics:
                 totals[metric.type] = totals.get(metric.type, 0.0) + metric.value
                 if metric.unit == "percentage":

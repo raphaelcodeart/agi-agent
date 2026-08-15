@@ -64,6 +64,7 @@ def get_publication(
         "channel_name": pub.social_channel.name,
         "channel_platform": pub.social_channel.platform,
         "user_name": pub.user.name,
+        "channel_external_link": pub.social_channel.external_link,
     }
 
 
@@ -112,6 +113,16 @@ def get_publication_metrics(
         result = client.get_post_metrics(token, pub.external_post_id)
         entry.metrics = [PostMetricValue(**m) for m in result.get("metrics", [])]
         entry.metrics_updated_at = result.get("metrics_updated_at")
+
+        # Backfill the specific post's real URL once Buffer actually has it -
+        # it's usually still null right after create_post (see prod_client.py),
+        # so this on-demand metrics check is the natural place to pick it up
+        # later without a separate polling job.
+        external_link = result.get("external_link")
+        if external_link and not pub.external_post_url:
+            pub.external_post_url = external_link
+            db.commit()
+            entry.external_post_url = external_link
     except BufferApiError as e:
         entry.error = e.message
     except Exception as e:

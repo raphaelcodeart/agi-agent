@@ -181,4 +181,5 @@ class MockBufferClient(BaseBufferClient):
                 },
             ],
             "metrics_updated_at": datetime.now(timezone.utc).isoformat(),
+            "external_link": f"https://example.com/mock-post/{external_post_id}",
         }
