@@ -70,24 +70,24 @@ export function AppSidebar() {
             <Rss className="size-4" />
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="gradient-text truncate text-sm font-semibold">Social Publisher</p>
+            <p className="gradient-text truncate text-sm font-semibold">Social Publisher Buffer</p>
             <p className="truncate text-xs text-muted-foreground">Admin Console</p>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Social Publisher Buffer</SidebarGroupLabel>
           <SidebarGroupContent>
-            <NavItems items={BUFFER_NAV_ITEMS} pathname={pathname} />
+            <NavItems items={MAIN_NAV_ITEMS} pathname={pathname} />
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarSeparator />
 
         <SidebarGroup>
+          <SidebarGroupLabel>Campagne Buffer</SidebarGroupLabel>
           <SidebarGroupContent>
-            <NavItems items={MAIN_NAV_ITEMS} pathname={pathname} />
+            <NavItems items={BUFFER_NAV_ITEMS} pathname={pathname} />
           </SidebarGroupContent>
         </SidebarGroup>
 
