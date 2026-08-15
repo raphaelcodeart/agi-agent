@@ -210,7 +210,13 @@ export default function OmnichannelSettingsPage() {
         </div>
         <div className="space-y-1.5">
           <Label>Istruzioni di sistema (system prompt)</Label>
-          <Textarea value={form.system_prompt} onChange={(e) => setForm({ ...form, system_prompt: e.target.value })} rows={5} placeholder="Sei l'assistente clienti di..." />
+          <Textarea
+            value={form.system_prompt}
+            onChange={(e) => setForm({ ...form, system_prompt: e.target.value })}
+            rows={8}
+            className="field-sizing-fixed h-56 resize-y overflow-y-auto"
+            placeholder="Sei l'assistente clienti di..."
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
