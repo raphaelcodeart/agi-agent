@@ -183,6 +183,7 @@ def delete_channel_account(account_id: uuid.UUID, db: Session = Depends(get_db),
 def list_conversations(
     status_filter: Optional[str] = Query(None, alias="status"),
     channel: Optional[str] = None,
+    channel_account_id: Optional[uuid.UUID] = None,
     assigned_admin_id: Optional[uuid.UUID] = None,
     tag_id: Optional[uuid.UUID] = None,
     search: Optional[str] = None,
@@ -200,6 +201,11 @@ def list_conversations(
         query = query.filter(OmniConversation.status == status_filter)
     if channel:
         query = query.join(OmniChannelAccount).filter(OmniChannelAccount.channel == channel)
+    if channel_account_id:
+        # Distinguishes two connected accounts of the *same* channel type
+        # (e.g. two different Telegram bots) - `channel` alone can't, since
+        # both would report channel="telegram".
+        query = query.filter(OmniConversation.channel_account_id == channel_account_id)
     if assigned_admin_id:
         query = query.filter(OmniConversation.assigned_admin_id == assigned_admin_id)
     if tag_id:
@@ -265,6 +271,7 @@ def get_conversation_detail(conversation_id: uuid.UUID, db: Session = Depends(ge
         status=conversation.status,
         channel=conversation.channel_account.channel,
         channel_account_id=conversation.channel_account_id,
+        channel_account_name=conversation.channel_account.name,
         customer=conversation.customer,
         assigned_admin_id=conversation.assigned_admin_id,
         unread_count=conversation.unread_count,

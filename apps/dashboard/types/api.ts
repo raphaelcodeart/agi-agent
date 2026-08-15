@@ -750,6 +750,7 @@ export interface OmniConversationDetailResponse {
   status: OmniConversationStatus;
   channel: OmniChannel;
   channel_account_id: string;
+  channel_account_name: string;
   customer: OmniCustomerResponse;
   assigned_admin_id: string | null;
   unread_count: number;

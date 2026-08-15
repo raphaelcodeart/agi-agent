@@ -85,7 +85,9 @@ export function ChatPanel({ conversationId, onDeleted }: { conversationId: strin
           <ChannelIcon channel={conversation.channel} />
           <div>
             <p className="text-sm font-semibold">{conversation.customer.name || "Cliente sconosciuto"}</p>
-            <p className="text-xs text-muted-foreground">{channelLabel(conversation.channel)}</p>
+            <p className="text-xs text-muted-foreground">
+              {channelLabel(conversation.channel)} · {conversation.channel_account_name}
+            </p>
           </div>
           <StatusBadge status={conversation.status.toLowerCase()} className="ml-2" />
         </div>

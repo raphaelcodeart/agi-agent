@@ -14,9 +14,9 @@ import { useChannelAccounts, useConversations } from "@/hooks/use-omnichannel";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChannelIcon, channelLabel } from "./channel-icon";
+import { ChannelIcon } from "./channel-icon";
 import { BroadcastDialog } from "./broadcast-dialog";
-import type { OmniChannel, OmniConversationStatus } from "@/types/api";
+import type { OmniConversationStatus } from "@/types/api";
 
 const STATUS_OPTIONS: { value: OmniConversationStatus; label: string }[] = [
   { value: "WAITING_APPROVAL", label: "Bozza da approvare" },
@@ -35,46 +35,51 @@ function initials(name: string | null): string {
 
 export function ConversationList({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
   const [statusFilter, setStatusFilter] = useState<OmniConversationStatus | "">("");
-  const [channelFilter, setChannelFilter] = useState<OmniChannel | "">("");
+  // Filters by specific connected account (e.g. one particular Telegram bot),
+  // not just by channel type - two bots of the same type would otherwise be
+  // indistinguishable in this filter (see conv.channel_account_name below,
+  // same reasoning for why each row shows it).
+  const [channelAccountFilter, setChannelAccountFilter] = useState<string>("");
   const [search, setSearch] = useState("");
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
-  const { data: conversations, isLoading, isFetching, refetch } = useConversations({ status: statusFilter, channel: channelFilter || undefined, search: debouncedSearch || undefined });
+  const { data: conversations, isLoading, isFetching, refetch } = useConversations({
+    status: statusFilter,
+    channel_account_id: channelAccountFilter || undefined,
+    search: debouncedSearch || undefined,
+  });
   const { data: channelAccounts } = useChannelAccounts();
-  // Only offer channels the admin actually has at least one connected
-  // account for - no point showing a WhatsApp filter icon with nothing
-  // behind it.
-  const connectedChannels = Array.from(new Set((channelAccounts ?? []).map((a) => a.channel)));
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r">
       <div className="space-y-2 border-b p-3">
-        {connectedChannels.length > 1 && (
+        {channelAccounts && channelAccounts.length > 1 && (
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
-              onClick={() => setChannelFilter("")}
+              onClick={() => setChannelAccountFilter("")}
               title="Tutti i canali"
               className={cn(
                 "rounded-full border px-2 py-1 text-[0.7rem] font-medium transition-colors",
-                channelFilter === "" ? "border-primary bg-primary/10 text-primary" : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70"
+                channelAccountFilter === "" ? "border-primary bg-primary/10 text-primary" : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70"
               )}
             >
               Tutti
             </button>
-            {connectedChannels.map((channel) => (
+            {channelAccounts.map((account) => (
               <button
-                key={channel}
+                key={account.id}
                 type="button"
-                onClick={() => setChannelFilter((prev) => (prev === channel ? "" : channel))}
-                title={channelLabel(channel)}
+                onClick={() => setChannelAccountFilter((prev) => (prev === account.id ? "" : account.id))}
+                title={account.name}
                 className={cn(
-                  "rounded-full border p-1 transition-colors",
-                  channelFilter === channel ? "border-primary bg-primary/10" : "border-transparent bg-muted hover:bg-muted/70"
+                  "flex items-center gap-1 rounded-full border px-1.5 py-1 text-[0.7rem] transition-colors",
+                  channelAccountFilter === account.id ? "border-primary bg-primary/10 text-primary" : "border-transparent bg-muted text-muted-foreground hover:bg-muted/70"
                 )}
               >
-                <ChannelIcon channel={channel} />
+                <ChannelIcon channel={account.channel} />
+                <span className="max-w-20 truncate">{account.name}</span>
               </button>
             ))}
           </div>
@@ -139,6 +144,8 @@ export function ConversationList({ selectedId, onSelect }: { selectedId: string 
                     </div>
                     <div className="mt-1 flex items-center gap-1.5">
                       <ChannelIcon channel={conv.channel} />
+                      <span className="shrink-0 text-[0.65rem] font-medium text-muted-foreground">{conv.channel_account_name}</span>
+                      <span className="text-muted-foreground">·</span>
                       <p className="truncate text-xs text-muted-foreground">{conv.last_message_preview || "—"}</p>
                     </div>
                     {conv.tags.length > 0 && (

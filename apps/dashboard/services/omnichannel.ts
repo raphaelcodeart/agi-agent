@@ -59,6 +59,7 @@ export function deleteChannelAccount(id: string): Promise<void> {
 export interface ListConversationsParams {
   status?: OmniConversationStatus | "";
   channel?: string;
+  channel_account_id?: string;
   search?: string;
   skip?: number;
   limit?: number;

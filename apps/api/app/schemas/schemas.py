@@ -818,6 +818,11 @@ class OmniConversationDetailResponse(BaseModel):
     status: str
     channel: str
     channel_account_id: uuid.UUID
+    # Which specific connected account (e.g. which of several Telegram bots)
+    # this conversation belongs to - distinct from `channel` (the channel
+    # type, e.g. "telegram"), which alone can't tell two bots of the same
+    # type apart. See OmniConversationListItem, which already has this.
+    channel_account_name: str
     customer: OmniCustomerResponse
     assigned_admin_id: Optional[uuid.UUID]
     unread_count: int
