@@ -2,7 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import { buildQueryString } from "@/lib/api/query-string";
 import { isMockApiEnabled } from "@/lib/env";
 import * as mock from "@/lib/api/mock/adapter";
-import type { ChannelMetrics, PublicationDetailResponse, PublicationResponse, PublicationStatus } from "@/types/api";
+import type { ChannelMetrics, PublicationDetailResponse, PublicationFeedItem, PublicationResponse, PublicationStatus } from "@/types/api";
 
 export interface ListPublicationsParams {
   campaign_id?: string;
@@ -14,6 +14,18 @@ export interface ListPublicationsParams {
 export function listPublications(params: ListPublicationsParams = {}): Promise<PublicationResponse[]> {
   if (isMockApiEnabled()) return mock.listPublications(params);
   return apiClient.get<PublicationResponse[]>(`/publications/${buildQueryString(params)}`);
+}
+
+export interface ListPublicationFeedParams {
+  skip?: number;
+  limit?: number;
+}
+
+// "Bacheca" - everything actually published, most recent first, with
+// text/media/channel already joined server-side (GET /publications/feed).
+export function listPublicationFeed(params: ListPublicationFeedParams = {}): Promise<PublicationFeedItem[]> {
+  if (isMockApiEnabled()) return mock.listPublicationFeed(params);
+  return apiClient.get<PublicationFeedItem[]>(`/publications/feed${buildQueryString(params)}`);
 }
 
 export function getPublication(id: string): Promise<PublicationDetailResponse> {

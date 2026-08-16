@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, Trash2Icon, WebhookIcon, InfoIcon, PlayIcon, RadioIcon, KeyIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, WebhookIcon, InfoIcon, PlayIcon, RadioIcon, KeyIcon, RefreshCwIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useChannelAccounts, useDeleteChannelAccount, useToggleChannelAccount } from "@/hooks/use-omnichannel";
+import { useChannelAccounts, useCheckChannelAccountStatus, useDeleteChannelAccount, useToggleChannelAccount } from "@/hooks/use-omnichannel";
 import { ApiError } from "@/lib/api/client";
 import { formatDateTime } from "@/lib/format";
 import { ChannelIcon, channelLabel } from "../_components/channel-icon";
@@ -28,6 +28,7 @@ export default function OmnichannelChannelsPage() {
   const { data: accounts, isLoading } = useChannelAccounts();
   const deleteChannelAccount = useDeleteChannelAccount();
   const toggleChannelAccount = useToggleChannelAccount();
+  const checkChannelAccountStatus = useCheckChannelAccountStatus();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [webhookAccountId, setWebhookAccountId] = useState<string | null>(null);
@@ -120,6 +121,25 @@ export default function OmnichannelChannelsPage() {
                       {account.channel === "mock" && (
                         <Button size="icon-sm" variant="ghost" title="Simula messaggio" onClick={() => setSimulateAccountId(account.id)}>
                           <PlayIcon />
+                        </Button>
+                      )}
+                      {account.channel !== "mock" && (
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          title="Verifica connessione"
+                          disabled={checkChannelAccountStatus.isPending}
+                          onClick={() =>
+                            checkChannelAccountStatus.mutate(account.id, {
+                              onSuccess: (result) =>
+                                result.status === "connected"
+                                  ? toast.success(`${account.name}: connesso`)
+                                  : toast.error(`${account.name}: ${typeof result.detail === "string" ? result.detail : "errore di connessione"}`),
+                              onError: (err) => toast.error(err instanceof ApiError ? err.message : "Impossibile verificare la connessione"),
+                            })
+                          }
+                        >
+                          <RefreshCwIcon />
                         </Button>
                       )}
                       {account.channel !== "mock" && (

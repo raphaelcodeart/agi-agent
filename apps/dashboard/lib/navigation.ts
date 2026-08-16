@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  LayoutGridIcon,
   LayoutDashboardIcon,
   UsersIcon,
   UsersRoundIcon,
@@ -26,6 +27,12 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
 }
+
+// Feed pubblico stile social network di tutto ciò che è stato effettivamente
+// pubblicato con successo (GET /publications/feed) - più recente in cima.
+// Voce a sé, non dentro MAIN_NAV_ITEMS, così resta la primissima cosa in
+// cima alla sidebar, sopra anche Dashboard (vedi app-sidebar.tsx).
+export const BOARD_NAV_ITEM: NavItem = { href: "/board", label: "Bacheca", icon: LayoutGridIcon };
 
 // Ungrouped/general items at the top of the sidebar - accounts, resources,
 // connections. No section label, same as before.
@@ -82,6 +89,7 @@ export const SETTINGS_NAV_ITEM: NavItem = { href: "/settings", label: "Impostazi
 // Combined, in sidebar order - used by findNavItem so breadcrumbs resolve
 // correctly even though items live in different visual groups/the footer.
 export const NAV_ITEMS: NavItem[] = [
+  BOARD_NAV_ITEM,
   ...MAIN_NAV_ITEMS,
   ...BUFFER_NAV_ITEMS,
   ...OMNICHANNEL_RESPONDER_NAV_ITEMS,
@@ -90,6 +98,9 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 export function findNavItem(pathname: string): NavItem | undefined {
-  if (pathname === "/") return NAV_ITEMS[0];
+  // Resolved by href, not array position - BOARD_NAV_ITEM sits before
+  // Dashboard in NAV_ITEMS (sidebar order), so NAV_ITEMS[0] would otherwise
+  // wrongly label "/" as "Bacheca" instead of "Dashboard".
+  if (pathname === "/") return MAIN_NAV_ITEMS.find((item) => item.href === "/");
   return [...NAV_ITEMS].reverse().find((item) => item.href !== "/" && pathname.startsWith(item.href));
 }

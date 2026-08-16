@@ -329,6 +329,32 @@ class PublicationResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class PublicationFeedItem(BaseModel):
+    """
+    One card in the "Bacheca" feed (GET /publications/feed) - a Facebook-style
+    view of everything actually published, most recent first. Deliberately
+    NOT built from the Publication ORM row alone (from_attributes wouldn't
+    reach into Campaign/SocialChannel/CampaignTarget/MediaFile) - constructed
+    manually in the endpoint from a joined query instead, same spirit as
+    ChannelMetrics/CampaignMetricsResponse above.
+    """
+    id: uuid.UUID
+    campaign_id: uuid.UUID
+    published_at: Optional[datetime]
+    # Per-channel resolved text (CampaignTarget.resolved_text), not
+    # Campaign.default_text - reflects the platform override/referral link
+    # actually posted, same text the target channel received.
+    text: str
+    external_post_url: Optional[str]
+    platform: str
+    channel_name: str
+    channel_avatar_url: Optional[str]
+    media: Optional[MediaResponse] = None
+
+    class Config:
+        from_attributes = True
+
 class PublicationAttemptResponse(BaseModel):
     id: uuid.UUID
     publication_id: uuid.UUID

@@ -3,13 +3,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as publicationsService from "@/services/publications";
 import { queryKeys } from "@/lib/query/keys";
-import type { ListPublicationsParams } from "@/services/publications";
+import type { ListPublicationFeedParams, ListPublicationsParams } from "@/services/publications";
 import type { ChannelMetrics } from "@/types/api";
 
 export function usePublications(params: ListPublicationsParams = {}) {
   return useQuery({
     queryKey: queryKeys.publications.list(params),
     queryFn: () => publicationsService.listPublications(params),
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+// "Bacheca" feed - kept as its own hook (not reusing usePublications) since it
+// hits a different, pre-joined endpoint (GET /publications/feed) rather than
+// the raw publication rows the Publications table view uses.
+export function usePublicationFeed(params: ListPublicationFeedParams = {}) {
+  return useQuery({
+    queryKey: queryKeys.publications.feed(params),
+    queryFn: () => publicationsService.listPublicationFeed(params),
     placeholderData: (previousData) => previousData,
   });
 }

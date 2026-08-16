@@ -19,6 +19,7 @@ import {
 import { useLogout } from "@/hooks/use-auth";
 import { usePendingCount } from "@/hooks/use-omnichannel";
 import {
+  BOARD_NAV_ITEM,
   MAIN_NAV_ITEMS,
   BUFFER_NAV_ITEMS,
   BLOG_WRITER_NAV_ITEMS,
@@ -76,6 +77,14 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <NavItems items={[BOARD_NAV_ITEM]} pathname={pathname} />
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
         <SidebarGroup>
           <SidebarGroupContent>
             <NavItems items={MAIN_NAV_ITEMS} pathname={pathname} />

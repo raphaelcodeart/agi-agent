@@ -29,6 +29,7 @@ import type {
   GroupResponse,
   MediaResponse,
   PublicationDetailResponse,
+  PublicationFeedItem,
   PublicationResponse,
   SocialChannelResponse,
   SystemSettingsResponse,
@@ -38,7 +39,7 @@ import type {
 import type { GroupPayload, ListUsersParams, UserPayload } from "@/services/users";
 import type { ListChannelsParams } from "@/services/channels";
 import type { ListCampaignsParams } from "@/services/campaigns";
-import type { ListPublicationsParams } from "@/services/publications";
+import type { ListPublicationFeedParams, ListPublicationsParams } from "@/services/publications";
 
 const LATENCY_MS = 250;
 
@@ -450,6 +451,32 @@ export function listPublications(params: ListPublicationsParams = {}): Promise<P
   if (params.campaign_id) result = result.filter((p) => p.campaign_id === params.campaign_id);
   if (params.status_filter) result = result.filter((p) => p.status === params.status_filter);
   return delay(result.slice(params.skip ?? 0, (params.skip ?? 0) + (params.limit ?? 50)));
+}
+
+export function listPublicationFeed(params: ListPublicationFeedParams = {}): Promise<PublicationFeedItem[]> {
+  const items: PublicationFeedItem[] = mockPublications
+    .filter((p) => p.status === "published")
+    .sort((a, b) => (b.published_at ?? "").localeCompare(a.published_at ?? ""))
+    .map((p) => {
+      const campaign = mockCampaigns.find((c) => c.id === p.campaign_id);
+      const channel = mockChannels.find((c) => c.id === p.social_channel_id);
+      const media = campaign?.media_file_id ? mockMedia.find((m) => m.id === campaign.media_file_id) ?? null : null;
+      return {
+        id: p.id,
+        campaign_id: p.campaign_id,
+        published_at: p.published_at,
+        // No mock campaign_targets fixture exists (resolved per-channel text
+        // isn't modeled here) - the campaign's default text is close enough
+        // for local dev preview.
+        text: campaign?.default_text ?? "",
+        external_post_url: p.external_post_url,
+        platform: channel?.platform ?? "—",
+        channel_name: channel?.name ?? "—",
+        channel_avatar_url: channel?.avatar_url ?? null,
+        media,
+      };
+    });
+  return delay(items.slice(params.skip ?? 0, (params.skip ?? 0) + (params.limit ?? 30)));
 }
 
 export function getPublication(id: string): Promise<PublicationDetailResponse> {

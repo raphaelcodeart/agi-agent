@@ -27,6 +27,7 @@ export const queryKeys = {
     list: (params?: unknown) => ["publications", "list", params] as const,
     detail: (id: string) => ["publications", "detail", id] as const,
     metrics: (id: string) => ["publications", "metrics", id] as const,
+    feed: (params?: unknown) => ["publications", "feed", params] as const,
   },
   settings: {
     detail: () => ["settings", "detail"] as const,

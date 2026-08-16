@@ -22,6 +22,7 @@ Il modulo **Omnichannel Responder** (inbox AI multicanale con approvazione umana
 8. [Task in background (Celery)](#8-task-in-background-celery)
 9. [Endpoint API](#9-endpoint-api)
 10. [Metriche](#10-metriche)
+    - 10.1 [Bacheca (feed pubblico delle pubblicazioni)](#101-bacheca-feed-pubblico-delle-pubblicazioni)
 11. [Media](#11-media)
 12. [Impostazioni runtime](#12-impostazioni-runtime)
 13. [Cose note come non finite o legacy](#13-cose-note-come-non-finite-o-legacy)
@@ -211,7 +212,7 @@ Prefisso comune `/api/v1`. Elenco completo per router — per i dettagli di requ
 - **`/auth`**: `POST /login`, `GET /me`
 - **`/buffer`**: `GET /connections`, `POST /connections` (collega/ricollega), `POST /connections/{id}/sync`, `GET /channels`, `PUT /channels/{id}/publication-mode`, `DELETE /connections/{id}`
 - **`/campaigns`**: `GET /`, `POST /`, `POST /preview-targets`, `POST /{id}/launch`, `GET /{id}`, `GET /{id}/metrics`, `POST /{id}/pause`, `POST /{id}/resume`, `POST /{id}/cancel`, `DELETE /{id}`
-- **`/publications`**: `GET /`, `GET /{id}`, `GET /{id}/metrics`, `POST /{id}/retry`, `POST /retry-selected`, `POST /retry-campaign-failures/{campaign_id}`, `POST /{id}/cancel`, `POST /{id}/skip`
+- **`/publications`**: `GET /`, `GET /feed` (vedi §10.1), `GET /{id}`, `GET /{id}/metrics`, `POST /{id}/retry`, `POST /retry-selected`, `POST /retry-campaign-failures/{campaign_id}`, `POST /{id}/cancel`, `POST /{id}/skip`
 - **`/media`**: `GET /`, `POST /upload`, `GET /{id}`, `PATCH /{id}` (rinomina solo `original_filename`, non tocca il file fisico), `DELETE /{id}`
 - **`/users`**: `GET /`, `POST /`, `GET /{id}`, `PUT /{id}`, `DELETE /{id}` (soft delete), `GET /groups/list` (ogni gruppo annotato con `user_count`, i membri non soft-eliminati - conteggio transitorio calcolato in `list_groups`, non una colonna reale su `UserGroup`), `POST /groups`, `PUT /groups/{id}`, `GET /groups/{id}/users` (elenco membri, usato dal popup "Vedi utenti" nella pagina Gruppi)
 - **`/settings`**: `GET /`, `PUT /`, `GET /health`, `GET /ai`, `PUT /ai`, `DELETE /ai` (credenziali OpenAI, vedi §5)
@@ -226,6 +227,16 @@ Prefisso comune `/api/v1`. Elenco completo per router — per i dettagli di requ
 **Link al post pubblicato** (`Publication.external_post_url`): quasi sempre `null` subito dopo `create_post` — `Post.externalLink` (developers.buffer.com/types/Post.html, "The external URL of the post at the destination service", verificato anche con una query reale contro l'API Buffer il 2026-08-15) resta vuoto finché Buffer non ha *davvero* consegnato il post alla piattaforma di destinazione: lo stato interno di Buffer per un post resta `"scheduled"` anche per pubblicazioni che per noi sono già `"published"`, quindi il link arriva solo più tardi. `get_post_metrics` richiede lo stesso campo e sia `GET /campaigns/{id}/metrics` sia `GET /publications/{id}/metrics` fanno **backfill** automatico su `Publication.external_post_url` la prima volta che lo trovano valorizzato (nessun job di polling dedicato: si aggiorna quando l'admin controlla le statistiche). Finché non è disponibile, la scheda pubblicazione mostra come alternativa il link al **profilo del canale** (`SocialChannel.external_link`, popolato dal sync Buffer) invece di non mostrare nulla — stesso principio anche nella colonna azioni della lista pubblicazioni.
 
 `GET /publications/{id}/metrics` è lo stesso meccanismo ma scoped a **una singola pubblicazione** (mostrato nella scheda di dettaglio pubblicazione, sotto "Cronologia tentativi"): stessa chiamata `get_post_metrics`, stesso schema di risposta (`ChannelMetrics`), nessuna aggregazione essendo un solo canale. Risponde 400 se la pubblicazione non è `published`/`scheduled` o non ha ancora un `external_post_id`.
+
+### 10.1 Bacheca (feed pubblico delle pubblicazioni)
+
+`GET /publications/feed` (dashboard: voce **Bacheca**, in cima alla sidebar, sopra anche "Dashboard") — un feed in stile social network di ogni `Publication` con `status = "published"`, ordinato per `published_at` decrescente (più recente in cima), paginato (`skip`/`limit`, default 30, max 100). Dichiarato **prima** di `/{pub_id}` nel router (`publications.py`) apposta, altrimenti FastAPI proverebbe a interpretare `"feed"` come un UUID del path param e fallirebbe.
+
+A differenza di `GET /publications/` (righe grezze di `Publication`, usate dalla vista a tabella "Pubblicazioni"), questo endpoint fa un **join** con `CampaignTarget` (per il testo realmente risolto per quel canale, `resolved_text` — non `Campaign.default_text`, che non riflette override piattaforma/referral link), `Campaign` (per `media_file_id`) e `SocialChannel` (piattaforma/nome/avatar), più una singola query aggiuntiva a `MediaFile` per tutti i media coinvolti nella pagina (batch, non N+1 per riga). Risposta: `PublicationFeedItem` (id, campaign_id, published_at, text, external_post_url, platform, channel_name, channel_avatar_url, media).
+
+**Link al post originale non sempre presente**: come spiegato sopra, `external_post_url` spesso è `null` finché l'admin non controlla le metriche di quella pubblicazione (nessun backfill automatico in background) — la card in Bacheca semplicemente non mostra il link "Vedi post originale" finché non è valorizzato, non è un bug.
+
+Il frontend (`app/(dashboard)/board/page.tsx`) mostra ogni pubblicazione come una card centrata in singola colonna: media in cima (immagine `<img>` o video `<video controls>`, riproducibile direttamente in pagina — niente autoplay), poi avatar/nome canale, badge piattaforma (`components/shared/platform-badge.tsx`, stessa mappa colori/etichette platform usata altrove), testo, ed eventuale link al post. Nessun filtro/ricerca in questa v1 — solo scroll cronologico.
 
 ---
 

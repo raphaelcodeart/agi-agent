@@ -8,6 +8,8 @@ from app.models.administrator import Administrator
 from app.models.publication import Publication, PublicationAttempt
 from app.models.user import User
 from app.models.buffer import SocialChannel
+from app.models.campaign import Campaign, CampaignTarget
+from app.models.media import MediaFile
 from app.tasks.publication import process_publication_task
 from app.core.security import EncryptionService
 from app.integrations.buffer.service import get_buffer_client
@@ -16,6 +18,8 @@ from app.schemas.schemas import (
     PublicationResponse,
     PublicationDetailResponse,
     PublicationAttemptResponse,
+    PublicationFeedItem,
+    MediaResponse,
     ChannelMetrics,
     PostMetricValue,
 )
@@ -39,6 +43,51 @@ def list_publications(
         query = query.filter(Publication.status == status_filter)
         
     return query.offset(skip).limit(limit).all()
+
+
+@router.get("/feed", response_model=List[PublicationFeedItem])
+def list_published_feed(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(30, ge=1, le=100),
+    db: Session = Depends(get_db),
+    admin: Administrator = Depends(get_current_admin),
+):
+    """
+    "Bacheca" - a Facebook-style feed of every publication that actually went
+    live, most recent first. Declared before /{pub_id} so "feed" is never
+    swallowed as a path param there. Joins Campaign/SocialChannel/
+    CampaignTarget so the frontend gets text/media/channel identity in one
+    call instead of N+1 lookups against the plain GET / list.
+    """
+    rows = (
+        db.query(Publication, CampaignTarget, Campaign, SocialChannel)
+        .join(CampaignTarget, Publication.campaign_target_id == CampaignTarget.id)
+        .join(Campaign, Publication.campaign_id == Campaign.id)
+        .join(SocialChannel, Publication.social_channel_id == SocialChannel.id)
+        .filter(Publication.status == "published")
+        .order_by(Publication.published_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    media_ids = {campaign.media_file_id for _, _, campaign, _ in rows if campaign.media_file_id}
+    media_by_id = {m.id: m for m in db.query(MediaFile).filter(MediaFile.id.in_(media_ids)).all()} if media_ids else {}
+
+    return [
+        PublicationFeedItem(
+            id=pub.id,
+            campaign_id=campaign.id,
+            published_at=pub.published_at,
+            text=target.resolved_text,
+            external_post_url=pub.external_post_url,
+            platform=channel.platform,
+            channel_name=channel.name,
+            channel_avatar_url=channel.avatar_url,
+            media=MediaResponse.model_validate(media_by_id[campaign.media_file_id]) if campaign.media_file_id in media_by_id else None,
+        )
+        for pub, target, campaign, channel in rows
+    ]
 
 
 @router.get("/{pub_id}", response_model=PublicationDetailResponse)
