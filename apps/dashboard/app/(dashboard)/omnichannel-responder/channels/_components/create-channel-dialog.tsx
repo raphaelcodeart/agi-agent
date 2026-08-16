@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateChannelAccount } from "@/hooks/use-omnichannel";
@@ -124,7 +125,7 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
           {channel === "telegram" && (
             <div className="space-y-1.5">
               <Label>Bot Token</Label>
-              <Input value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="123456:ABC-DEF..." type="password" />
+              <PasswordInput value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="123456:ABC-DEF..." />
               <p className="text-xs text-muted-foreground">
                 Crealo con @BotFather su Telegram. Dopo la creazione, registra il webhook dalla lista canali.
               </p>
@@ -139,7 +140,7 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
               </div>
               <div className="space-y-1.5">
                 <Label>App Password</Label>
-                <Input value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="xxxx xxxx xxxx xxxx" type="password" />
+                <PasswordInput value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="xxxx xxxx xxxx xxxx" />
                 <p className="text-xs text-muted-foreground">
                   Non la password normale dell&apos;account. Richiede la verifica in due passaggi attiva: Account Google → Sicurezza → Password per le app.
                   I messaggi vengono controllati ogni pochi minuti (polling IMAP), non in tempo reale.
@@ -152,7 +153,7 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
             <>
               <div className="space-y-1.5">
                 <Label>{META_TOKEN_LABEL[channel]}</Label>
-                <Input value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="EAAxxxxx..." type="password" />
+                <PasswordInput value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="EAAxxxxx..." />
               </div>
               {channel === "whatsapp" && (
                 <div className="space-y-1.5">
@@ -162,7 +163,7 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
               )}
               <div className="space-y-1.5">
                 <Label>App Secret</Label>
-                <Input value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="App Dashboard → Impostazioni → Basic" type="password" />
+                <PasswordInput value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="App Dashboard → Impostazioni → Basic" />
               </div>
               <p className="text-xs text-muted-foreground">
                 Si trovano nell&apos;app Meta collegata (developers.facebook.com). Dopo la creazione, apri &quot;Info webhook&quot; dalla lista canali per l&apos;URL e il token da incollare nelle impostazioni webhook dell&apos;app.

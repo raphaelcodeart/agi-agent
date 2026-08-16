@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { useUpdateChannelAccount } from "@/hooks/use-omnichannel";
 import { ApiError } from "@/lib/api/client";
@@ -76,7 +77,7 @@ export function EditCredentialsDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>{TOKEN_LABEL[account.channel] ?? "Access Token"}</Label>
-            <Input value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="Lascia vuoto per non cambiarlo" type="password" />
+            <PasswordInput value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="Lascia vuoto per non cambiarlo" />
           </div>
           {account.channel === "whatsapp" && (
             <div className="space-y-1.5">
@@ -93,7 +94,7 @@ export function EditCredentialsDialog({
           {isMeta && (
             <div className="space-y-1.5">
               <Label>App Secret</Label>
-              <Input value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="Lascia vuoto per non cambiarlo" type="password" />
+              <PasswordInput value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="Lascia vuoto per non cambiarlo" />
             </div>
           )}
         </div>
