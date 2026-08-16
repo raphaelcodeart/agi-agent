@@ -3,11 +3,13 @@
 -- "social_publisher" — generato con:
 --   pg_dump -U postgres -d social_publisher --schema-only --no-owner --no-privileges
 --
--- Snapshot generato: 2026-08-15 01:51 UTC, dal server di produzione di questo
+-- Snapshot generato: 2026-08-16 00:25 UTC, dal server di produzione di questo
 -- progetto, alla revisione Alembic "6ad75c20ec09" (head) - `SELECT version_num
--- FROM alembic_version;`. Include le colonne users.referral_link e
--- campaigns.include_referral_link, e il fix dell'indice
--- omni_ai_agent_configs/omni_tags applicati in questa stessa sessione.
+-- FROM alembic_version;`. Nessuna migration nuova dal 2026-08-15 (verificato
+-- con `alembic check`, zero drift): questa rigenerazione conferma che la
+-- struttura è identica alla precedente, non introduce differenze - regenerata
+-- su richiesta esplicita per avere una conferma aggiornata a oggi, non perché
+-- fosse cambiato qualcosa.
 --
 -- QUESTO FILE NON È LA FONTE DI VERITÀ DELLO SCHEMA. Lo sono le migration in
 -- apps/api/alembic/versions/ (vedi docs/DEPLOYMENT.md §5): per creare il
