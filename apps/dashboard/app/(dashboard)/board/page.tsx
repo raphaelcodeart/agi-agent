@@ -5,7 +5,7 @@ import { ExternalLinkIcon, LayoutGridIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { PlatformBadge } from "@/components/shared/platform-badge";
+import { PlatformBadge, platformLabel } from "@/components/shared/platform-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -85,7 +85,10 @@ export default function BoardPage() {
     for (const item of feedQuery.data) {
       const existing = byChannel.get(item.social_channel_id);
       if (existing) existing.count += 1;
-      else byChannel.set(item.social_channel_id, { label: item.channel_name, count: 1 });
+      // "Nome canale - Piattaforma" (es. "Algarve Beach Resort - Instagram")
+      // - il nome da solo non basta a distinguere due canali della stessa
+      // piattaforma con nomi simili/uguali.
+      else byChannel.set(item.social_channel_id, { label: `${item.channel_name} - ${platformLabel(item.platform)}`, count: 1 });
     }
     return [...byChannel.entries()].sort((a, b) => b[1].count - a[1].count).map(([id, { label }]) => ({ value: id, label }));
   }, [feedQuery.data]);
@@ -106,24 +109,28 @@ export default function BoardPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Bacheca"
-        description="Tutte le pubblicazioni andate a buon fine, più recenti in cima."
-        actions={
-          channelOptions.length > 0 && (
-            <Select items={selectItems} value={effectiveChannelId} onValueChange={setSelectedChannelId}>
-              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {selectItems.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )
-        }
-      />
+      <PageHeader title="Bacheca" description="Tutte le pubblicazioni andate a buon fine, più recenti in cima." />
+
+      {channelOptions.length > 0 && (
+        <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-2 rounded-2xl border bg-card px-6 py-5 text-center shadow-sm">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Scegli il canale</p>
+          <Select items={selectItems} value={effectiveChannelId} onValueChange={setSelectedChannelId}>
+            <SelectTrigger className="h-14 w-full justify-center rounded-xl border-2 px-6 text-lg font-semibold">
+              {/* SelectValue defaults to flex-1/text-left, which would fill the
+                  whole bar and defeat justify-center on the trigger - overridden
+                  here so the label+chevron sit together as one centered group. */}
+              <SelectValue className="flex-none text-center" />
+            </SelectTrigger>
+            <SelectContent>
+              {selectItems.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value} className="py-2.5 text-base">
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {feedQuery.isLoading && (
         <div className="mx-auto w-full max-w-xl space-y-4">

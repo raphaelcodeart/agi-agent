@@ -25,6 +25,12 @@ const PLATFORM_LABELS: Record<string, string> = {
   threads: "Threads",
 };
 
+// Reused wherever a platform needs a human label without the full badge
+// (e.g. the Bacheca channel-picker options: "{channel name} - {platform}").
+export function platformLabel(platform: string): string {
+  return PLATFORM_LABELS[platform.toLowerCase().trim()] ?? platform;
+}
+
 interface PlatformBadgeProps {
   platform: string;
   className?: string;
