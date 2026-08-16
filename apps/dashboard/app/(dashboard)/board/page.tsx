@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { ExternalLinkIcon, LayoutGridIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -7,9 +8,12 @@ import { ErrorState } from "@/components/shared/error-state";
 import { PlatformBadge } from "@/components/shared/platform-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePublicationFeed } from "@/hooks/use-publications";
 import { formatDateTime } from "@/lib/format";
 import type { PublicationFeedItem } from "@/types/api";
+
+const ALL_CHANNELS = "all";
 
 function FeedCard({ item }: { item: PublicationFeedItem }) {
   const isVideo = item.media?.mime_type.startsWith("video/");
@@ -65,11 +69,61 @@ function FeedCard({ item }: { item: PublicationFeedItem }) {
 }
 
 export default function BoardPage() {
-  const feedQuery = usePublicationFeed({ limit: 30 });
+  // Higher than the other list views' default (30) so a less-active channel
+  // still has enough items to show once filtered - this is the only page
+  // stayed within the endpoint's normal skip/limit shape (max 100).
+  const feedQuery = usePublicationFeed({ limit: 100 });
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+
+  // One option per distinct channel actually present in the feed, ranked by
+  // how many posts it has (most first) - no separate "list all channels"
+  // endpoint call, this is derived straight from the feed data already
+  // loaded.
+  const channelOptions = useMemo(() => {
+    if (!feedQuery.data) return [];
+    const byChannel = new Map<string, { label: string; count: number }>();
+    for (const item of feedQuery.data) {
+      const existing = byChannel.get(item.social_channel_id);
+      if (existing) existing.count += 1;
+      else byChannel.set(item.social_channel_id, { label: item.channel_name, count: 1 });
+    }
+    return [...byChannel.entries()].sort((a, b) => b[1].count - a[1].count).map(([id, { label }]) => ({ value: id, label }));
+  }, [feedQuery.data]);
+
+  // Default view: the channel with the most publications, not everything
+  // mixed together - computed at render time rather than synced into state
+  // via an effect, so an explicit choice the admin already made is never
+  // silently overridden by a later refetch (and no cascading-render effect).
+  const effectiveChannelId = selectedChannelId ?? channelOptions[0]?.value ?? ALL_CHANNELS;
+
+  const selectItems = useMemo(() => [{ value: ALL_CHANNELS, label: "Tutti i canali" }, ...channelOptions], [channelOptions]);
+
+  const visibleItems = useMemo(() => {
+    if (!feedQuery.data) return [];
+    if (effectiveChannelId === ALL_CHANNELS) return feedQuery.data;
+    return feedQuery.data.filter((item) => item.social_channel_id === effectiveChannelId);
+  }, [feedQuery.data, effectiveChannelId]);
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Bacheca" description="Tutte le pubblicazioni andate a buon fine, più recenti in cima." />
+      <PageHeader
+        title="Bacheca"
+        description="Tutte le pubblicazioni andate a buon fine, più recenti in cima."
+        actions={
+          channelOptions.length > 0 && (
+            <Select items={selectItems} value={effectiveChannelId} onValueChange={setSelectedChannelId}>
+              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {selectItems.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
+        }
+      />
 
       {feedQuery.isLoading && (
         <div className="mx-auto w-full max-w-xl space-y-4">
@@ -88,9 +142,13 @@ export default function BoardPage() {
         />
       )}
 
-      {feedQuery.data && feedQuery.data.length > 0 && (
+      {feedQuery.data && feedQuery.data.length > 0 && visibleItems.length === 0 && (
+        <EmptyState icon={LayoutGridIcon} title="Nessuna pubblicazione per questo canale" />
+      )}
+
+      {visibleItems.length > 0 && (
         <div className="space-y-4">
-          {feedQuery.data.map((item) => (
+          {visibleItems.map((item) => (
             <FeedCard key={item.id} item={item} />
           ))}
         </div>

@@ -347,6 +347,9 @@ class PublicationFeedItem(BaseModel):
     # actually posted, same text the target channel received.
     text: str
     external_post_url: Optional[str]
+    # Stable key for the frontend's per-channel filter dropdown - channel_name
+    # alone isn't guaranteed unique (two channels can share a display name).
+    social_channel_id: uuid.UUID
     platform: str
     channel_name: str
     channel_avatar_url: Optional[str]

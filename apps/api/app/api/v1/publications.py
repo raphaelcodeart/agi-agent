@@ -81,6 +81,7 @@ def list_published_feed(
             published_at=pub.published_at,
             text=target.resolved_text,
             external_post_url=pub.external_post_url,
+            social_channel_id=channel.id,
             platform=channel.platform,
             channel_name=channel.name,
             channel_avatar_url=channel.avatar_url,

@@ -349,6 +349,7 @@ export interface PublicationFeedItem {
   published_at: string | null;
   text: string;
   external_post_url: string | null;
+  social_channel_id: string;
   platform: string;
   channel_name: string;
   channel_avatar_url: string | null;

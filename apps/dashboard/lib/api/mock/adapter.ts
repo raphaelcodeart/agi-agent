@@ -470,6 +470,7 @@ export function listPublicationFeed(params: ListPublicationFeedParams = {}): Pro
         // for local dev preview.
         text: campaign?.default_text ?? "",
         external_post_url: p.external_post_url,
+        social_channel_id: p.social_channel_id,
         platform: channel?.platform ?? "—",
         channel_name: channel?.name ?? "—",
         channel_avatar_url: channel?.avatar_url ?? null,
