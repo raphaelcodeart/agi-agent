@@ -60,10 +60,11 @@ def list_published_feed(
     call instead of N+1 lookups against the plain GET / list.
     """
     rows = (
-        db.query(Publication, CampaignTarget, Campaign, SocialChannel)
+        db.query(Publication, CampaignTarget, Campaign, SocialChannel, User)
         .join(CampaignTarget, Publication.campaign_target_id == CampaignTarget.id)
         .join(Campaign, Publication.campaign_id == Campaign.id)
         .join(SocialChannel, Publication.social_channel_id == SocialChannel.id)
+        .join(User, Publication.user_id == User.id)
         .filter(Publication.status == "published")
         .order_by(Publication.published_at.desc())
         .offset(skip)
@@ -71,7 +72,7 @@ def list_published_feed(
         .all()
     )
 
-    media_ids = {campaign.media_file_id for _, _, campaign, _ in rows if campaign.media_file_id}
+    media_ids = {campaign.media_file_id for _, _, campaign, _, _ in rows if campaign.media_file_id}
     media_by_id = {m.id: m for m in db.query(MediaFile).filter(MediaFile.id.in_(media_ids)).all()} if media_ids else {}
 
     return [
@@ -85,9 +86,10 @@ def list_published_feed(
             platform=channel.platform,
             channel_name=channel.name,
             channel_avatar_url=channel.avatar_url,
+            user_name=user.name,
             media=MediaResponse.model_validate(media_by_id[campaign.media_file_id]) if campaign.media_file_id in media_by_id else None,
         )
-        for pub, target, campaign, channel in rows
+        for pub, target, campaign, channel, user in rows
     ]
 
 

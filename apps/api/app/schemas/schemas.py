@@ -353,6 +353,10 @@ class PublicationFeedItem(BaseModel):
     platform: str
     channel_name: str
     channel_avatar_url: Optional[str]
+    # Publication.user_id -> User.name - the client/customer this channel
+    # belongs to (see DATABASE.md SS4), shown alongside channel_name in the
+    # channel picker so two channels with a similar name aren't ambiguous.
+    user_name: str
     media: Optional[MediaResponse] = None
 
     class Config:

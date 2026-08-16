@@ -460,6 +460,7 @@ export function listPublicationFeed(params: ListPublicationFeedParams = {}): Pro
     .map((p) => {
       const campaign = mockCampaigns.find((c) => c.id === p.campaign_id);
       const channel = mockChannels.find((c) => c.id === p.social_channel_id);
+      const user = mockUsers.find((u) => u.id === p.user_id);
       const media = campaign?.media_file_id ? mockMedia.find((m) => m.id === campaign.media_file_id) ?? null : null;
       return {
         id: p.id,
@@ -474,6 +475,7 @@ export function listPublicationFeed(params: ListPublicationFeedParams = {}): Pro
         platform: channel?.platform ?? "—",
         channel_name: channel?.name ?? "—",
         channel_avatar_url: channel?.avatar_url ?? null,
+        user_name: user?.name ?? "—",
         media,
       };
     });

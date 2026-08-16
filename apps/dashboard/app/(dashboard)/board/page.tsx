@@ -14,13 +14,16 @@ import { formatDateTime } from "@/lib/format";
 import type { PublicationFeedItem } from "@/types/api";
 
 const ALL_CHANNELS = "all";
+// Shared by the channel picker, every feed card and the loading skeletons so
+// they all line up at the same width, per the admin's request.
+const FEED_WIDTH = "max-w-3xl";
 
 function FeedCard({ item }: { item: PublicationFeedItem }) {
   const isVideo = item.media?.mime_type.startsWith("video/");
   const isImage = item.media?.mime_type.startsWith("image/");
 
   return (
-    <Card className="mx-auto w-full max-w-xl">
+    <Card className={`mx-auto w-full ${FEED_WIDTH}`}>
       {item.media && isImage && (
         // Backend-hosted asset with an unpredictable origin/path, same reason
         // components/shared/media-preview.tsx uses a plain <img> too.
@@ -85,10 +88,10 @@ export default function BoardPage() {
     for (const item of feedQuery.data) {
       const existing = byChannel.get(item.social_channel_id);
       if (existing) existing.count += 1;
-      // "Nome canale - Piattaforma" (es. "Algarve Beach Resort - Instagram")
-      // - il nome da solo non basta a distinguere due canali della stessa
-      // piattaforma con nomi simili/uguali.
-      else byChannel.set(item.social_channel_id, { label: `${item.channel_name} - ${platformLabel(item.platform)}`, count: 1 });
+      // "Nome canale (Nome utente) - Piattaforma" (es. "Algarve Beach Resort
+      // (Mario Rossi) - Instagram") - il nome canale da solo non basta a
+      // distinguere due canali simili, né a capire di quale cliente sono.
+      else byChannel.set(item.social_channel_id, { label: `${item.channel_name} (${item.user_name}) - ${platformLabel(item.platform)}`, count: 1 });
     }
     return [...byChannel.entries()].sort((a, b) => b[1].count - a[1].count).map(([id, { label }]) => ({ value: id, label }));
   }, [feedQuery.data]);
@@ -112,7 +115,7 @@ export default function BoardPage() {
       <PageHeader title="Bacheca" description="Tutte le pubblicazioni andate a buon fine, più recenti in cima." />
 
       {channelOptions.length > 0 && (
-        <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-2 rounded-2xl border bg-card px-6 py-5 text-center shadow-sm">
+        <div className={`mx-auto flex w-full ${FEED_WIDTH} flex-col items-center gap-2 rounded-2xl border bg-card px-6 py-5 text-center shadow-sm`}>
           <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Scegli il canale</p>
           <Select items={selectItems} value={effectiveChannelId} onValueChange={setSelectedChannelId}>
             <SelectTrigger className="h-14 w-full justify-center rounded-xl border-2 px-6 text-lg font-semibold">
@@ -133,7 +136,7 @@ export default function BoardPage() {
       )}
 
       {feedQuery.isLoading && (
-        <div className="mx-auto w-full max-w-xl space-y-4">
+        <div className={`mx-auto w-full ${FEED_WIDTH} space-y-4`}>
           <Skeleton className="h-80 w-full rounded-xl" />
           <Skeleton className="h-80 w-full rounded-xl" />
         </div>
