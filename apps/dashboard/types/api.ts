@@ -613,6 +613,7 @@ export interface OmniChannelAccountResponse {
   config: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+  conversation_count: number;
 }
 
 export interface OmniChannelAccountCreate {

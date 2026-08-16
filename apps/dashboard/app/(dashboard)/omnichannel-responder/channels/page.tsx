@@ -71,6 +71,7 @@ export default function OmnichannelChannelsPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Stato</TableHead>
                 <TableHead>Ricezione</TableHead>
+                <TableHead>Conversazioni</TableHead>
                 <TableHead>Creato</TableHead>
                 <TableHead className="text-right">Azioni</TableHead>
               </TableRow>
@@ -102,6 +103,7 @@ export default function OmnichannelChannelsPage() {
                       />
                     )}
                   </TableCell>
+                  <TableCell className="text-muted-foreground">{account.conversation_count}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDateTime(account.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

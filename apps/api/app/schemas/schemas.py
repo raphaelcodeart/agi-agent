@@ -651,6 +651,10 @@ class OmniChannelAccountResponse(BaseModel):
     config: Optional[Dict[str, Any]] = Field(None, validation_alias="config_json", serialization_alias="config")
     created_at: datetime
     updated_at: datetime
+    # Number of conversations on this channel (one per customer who has ever
+    # written in, not one per message) - transient attribute set by
+    # list_channel_accounts (api/v1/omnichannel.py), not a real column.
+    conversation_count: int = 0
 
     class Config:
         from_attributes = True

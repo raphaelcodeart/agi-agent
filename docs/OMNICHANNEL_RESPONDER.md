@@ -321,7 +321,7 @@ Tutti gli endpoint sotto `/api/v1/omnichannel-responder/` (eccetto il webhook Te
 
 | Area | Endpoint principali |
 |---|---|
-| Canali | `GET/POST /channel-accounts`, `GET /channel-accounts/supported`, `PUT /channel-accounts/{id}` (aggiorna/completa credenziali dopo la creazione, vedi sotto), `GET /channel-accounts/{id}/status`, `POST /channel-accounts/{id}/register-webhook`, `DELETE /channel-accounts/{id}` |
+| Canali | `GET/POST /channel-accounts` (ogni account annotato con `conversation_count` — una query aggregata `GROUP BY channel_account_id`, non una `COUNT` per riga), `GET /channel-accounts/supported`, `PUT /channel-accounts/{id}` (aggiorna/completa credenziali dopo la creazione, vedi sotto), `GET /channel-accounts/{id}/status`, `POST /channel-accounts/{id}/register-webhook`, `DELETE /channel-accounts/{id}` |
 | Conversazioni | `GET /conversations` (filtri: `status`, `channel`, `channel_account_id`, `assigned_admin_id`, `tag_id`, `search`), `GET /conversations/pending-count` (conteggio per la lucina di notifica in sidebar, vedi §10), `GET /conversations/{id}`, `POST /conversations/{id}/assign\|resolve\|archive`, `DELETE /conversations/{id}` (eliminazione **definitiva**, cascata su messaggi/bozze/note, vedi §3), `POST\|DELETE /conversations/{id}/tags/{tag_id}`, `POST /conversations/{id}/notes`, `POST /conversations/{id}/messages` (invio manuale, bypassa l'AI), `POST /conversations/{id}/generate-draft` (genera bozza a richiesta se `auto_generate_draft=false`, idempotente su click doppi, vedi §3/§5), `POST /broadcast` (messaggio multiplo, max 50 destinatari, vedi §5) |
 | Clienti | `GET\|PATCH /customers/{id}`, `POST /customers/{id}/block\|unblock` |
 | Tag | `GET\|POST /tags` |

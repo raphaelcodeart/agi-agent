@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import insert, or_, select
+from sqlalchemy import func, insert, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from app.db.session import get_db
@@ -100,7 +100,22 @@ def _owned_draft(db: Session, admin: Administrator, draft_id: uuid.UUID) -> Omni
 # ==============================================================================
 @router.get("/channel-accounts", response_model=List[OmniChannelAccountResponse])
 def list_channel_accounts(db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
-    return db.query(OmniChannelAccount).filter(OmniChannelAccount.owner_id == admin.id).order_by(OmniChannelAccount.created_at.desc()).all()
+    accounts = db.query(OmniChannelAccount).filter(OmniChannelAccount.owner_id == admin.id).order_by(OmniChannelAccount.created_at.desc()).all()
+
+    # One conversation per customer who has ever written in on that channel
+    # (see OmniConversation - a new conversation is only opened for a genuinely
+    # new customer/topic, not one per message), so "how many people wrote to
+    # us on this channel" is exactly a count of conversations, grouped by
+    # channel_account_id in a single query rather than one COUNT per account.
+    counts = dict(
+        db.query(OmniConversation.channel_account_id, func.count(OmniConversation.id))
+        .filter(OmniConversation.owner_id == admin.id)
+        .group_by(OmniConversation.channel_account_id)
+        .all()
+    )
+    for account in accounts:
+        account.conversation_count = counts.get(account.id, 0)
+    return accounts
 
 
 @router.get("/channel-accounts/supported", response_model=List[str])
