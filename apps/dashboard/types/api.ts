@@ -580,7 +580,7 @@ export interface BlogWriterDashboardResponse {
 // ==============================================================================
 // Omnichannel Responder (independent add-on module)
 // ==============================================================================
-export type OmniChannel = "telegram" | "whatsapp" | "instagram" | "facebook" | "mock";
+export type OmniChannel = "telegram" | "whatsapp" | "instagram" | "facebook" | "gmail" | "mock";
 
 export type OmniConversationStatus =
   | "NEW"

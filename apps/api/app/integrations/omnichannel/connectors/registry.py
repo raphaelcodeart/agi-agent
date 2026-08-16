@@ -6,6 +6,7 @@ from app.integrations.omnichannel.connectors.telegram import TelegramConnector
 from app.integrations.omnichannel.connectors.facebook import FacebookConnector
 from app.integrations.omnichannel.connectors.instagram import InstagramConnector
 from app.integrations.omnichannel.connectors.whatsapp import WhatsAppConnector
+from app.integrations.omnichannel.connectors.gmail import GmailConnector
 from app.models.omnichannel import OmniChannelAccount
 
 _CONNECTOR_CLASSES: dict[str, Type[Connector]] = {
@@ -14,6 +15,7 @@ _CONNECTOR_CLASSES: dict[str, Type[Connector]] = {
     "whatsapp": WhatsAppConnector,
     "instagram": InstagramConnector,
     "facebook": FacebookConnector,
+    "gmail": GmailConnector,
 }
 
 SUPPORTED_CHANNELS = list(_CONNECTOR_CLASSES.keys())

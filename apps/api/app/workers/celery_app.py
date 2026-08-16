@@ -50,5 +50,9 @@ celery.conf.beat_schedule = {
     "poll-scheduled-campaign-launches-every-30s": {
         "task": "app.tasks.publication.poll_and_queue_scheduled_publications",
         "schedule": 30.0, # Every 30 seconds
+    },
+    "poll-gmail-channels-every-2m": {
+        "task": "app.tasks.omnichannel.poll_gmail_channels_task",
+        "schedule": 120.0, # Every 2 minutes - Gmail has no inbound webhook, see connectors/gmail.py
     }
 }

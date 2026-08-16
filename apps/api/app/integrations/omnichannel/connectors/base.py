@@ -52,8 +52,16 @@ class Connector(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def send_message(self, external_user_id: str, text: str) -> SendResult:
-        """Sends an approved reply to the customer through this channel."""
+    def send_message(self, external_user_id: str, text: str, reply_to: Optional[Dict[str, Any]] = None) -> SendResult:
+        """
+        Sends an approved reply to the customer through this channel.
+        `reply_to` is the metadata (see NormalizedIncomingMessage.metadata) of
+        the most recent inbound message in the conversation - see
+        OmnichannelService.get_reply_context - used only by channels that need
+        it to properly thread a reply (currently just Gmail: Subject/
+        In-Reply-To/References, see connectors/gmail.py); every other channel
+        ignores it.
+        """
         raise NotImplementedError
 
     def get_contact(self, external_user_id: str) -> Optional[Dict[str, Any]]:

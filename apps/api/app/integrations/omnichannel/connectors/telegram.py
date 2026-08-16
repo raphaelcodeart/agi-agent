@@ -70,7 +70,7 @@ class TelegramConnector(Connector):
             )
         ]
 
-    def send_message(self, external_user_id: str, text: str) -> SendResult:
+    def send_message(self, external_user_id: str, text: str, reply_to: Optional[Dict[str, Any]] = None) -> SendResult:
         try:
             response = httpx.post(
                 f"{self._base_url()}/sendMessage",

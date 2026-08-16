@@ -611,18 +611,19 @@ class BlogWriterDashboardResponse(BaseModel):
 # scoping already applied at the query level (see app/api/v1/omnichannel.py).
 # ==============================================================================
 class OmniChannelAccountCreate(BaseModel):
-    channel: str  # telegram, whatsapp, instagram, facebook, mock
+    channel: str  # telegram, whatsapp, instagram, facebook, gmail, mock
     name: str
+    # WhatsApp only: the Phone Number ID from WhatsApp Manager. Gmail only:
+    # the Gmail address itself (used as the IMAP/SMTP username) - neither is
+    # a secret, so both reuse this field rather than adding a new one.
     external_account_id: Optional[str] = None
-    access_token: Optional[str] = Field(None, description="Plaintext token/secret, encrypted at rest server-side and never echoed back. For Facebook/Instagram this is the Page/IG Access Token; for WhatsApp, the Cloud API access token.")
+    access_token: Optional[str] = Field(None, description="Plaintext token/secret, encrypted at rest server-side and never echoed back. For Facebook/Instagram this is the Page/IG Access Token; for WhatsApp, the Cloud API access token; for Gmail, an App Password (not the account's login password).")
     # Meta channels only (facebook/instagram/whatsapp): the App Secret, used
     # to verify inbound webhook signatures (X-Hub-Signature-256) - see
     # connectors/facebook.py, connectors/whatsapp.py. Combined with
     # access_token into a single encrypted JSON blob server-side
-    # (OmnichannelService.create_channel_account); ignored by telegram/mock.
+    # (OmnichannelService.create_channel_account); ignored by telegram/gmail/mock.
     app_secret: Optional[str] = Field(None, description="Facebook/Instagram/WhatsApp only: Meta App Secret, used to verify webhook signatures")
-    # WhatsApp only: the Phone Number ID from WhatsApp Manager - not a
-    # secret, reuses external_account_id rather than a new field.
     config: Optional[Dict[str, Any]] = None
 
 

@@ -23,7 +23,7 @@ class MockConnector(Connector):
             )
         ]
 
-    def send_message(self, external_user_id: str, text: str) -> SendResult:
+    def send_message(self, external_user_id: str, text: str, reply_to: Optional[Dict[str, Any]] = None) -> SendResult:
         # Nothing actually goes anywhere - this only proves the approval/send
         # workflow transitions a draft all the way to SENT.
         return SendResult(external_message_id=f"mock-out-{uuid.uuid4().hex}")

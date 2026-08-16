@@ -42,7 +42,7 @@ export default function OmnichannelChannelsPage() {
     <div>
       <PageHeader
         title="Canali collegati"
-        description="Gestisci gli account WhatsApp, Instagram, Facebook e Telegram collegati al tuo inbox."
+        description="Gestisci gli account WhatsApp, Instagram, Facebook, Telegram e Gmail collegati al tuo inbox."
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <PlusIcon /> Nuovo canale

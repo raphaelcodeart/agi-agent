@@ -10,10 +10,14 @@ import { useUpdateChannelAccount } from "@/hooks/use-omnichannel";
 import { ApiError } from "@/lib/api/client";
 import type { OmniChannelAccountResponse } from "@/types/api";
 
-const META_TOKEN_LABEL: Record<string, string> = {
+const META_CHANNELS = ["facebook", "instagram", "whatsapp"];
+
+const TOKEN_LABEL: Record<string, string> = {
+  telegram: "Bot Token",
   facebook: "Page Access Token",
   instagram: "Page/IG Access Token",
   whatsapp: "Access Token (Cloud API)",
+  gmail: "App Password",
 };
 
 /**
@@ -33,9 +37,10 @@ export function EditCredentialsDialog({
 }) {
   const [accessToken, setAccessToken] = useState("");
   const [appSecret, setAppSecret] = useState("");
-  const [phoneNumberId, setPhoneNumberId] = useState(account.external_account_id ?? "");
+  const [externalAccountId, setExternalAccountId] = useState(account.external_account_id ?? "");
   const updateChannelAccount = useUpdateChannelAccount();
-  const isTelegram = account.channel === "telegram";
+  const isMeta = META_CHANNELS.includes(account.channel);
+  const isGmail = account.channel === "gmail";
 
   function handleSubmit() {
     updateChannelAccount.mutate(
@@ -43,8 +48,8 @@ export function EditCredentialsDialog({
         id: account.id,
         payload: {
           access_token: accessToken || undefined,
-          app_secret: !isTelegram ? appSecret || undefined : undefined,
-          external_account_id: account.channel === "whatsapp" ? phoneNumberId : undefined,
+          app_secret: isMeta ? appSecret || undefined : undefined,
+          external_account_id: account.channel === "whatsapp" || isGmail ? externalAccountId : undefined,
         },
       },
       {
@@ -70,16 +75,22 @@ export function EditCredentialsDialog({
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>{isTelegram ? "Bot Token" : META_TOKEN_LABEL[account.channel] ?? "Access Token"}</Label>
+            <Label>{TOKEN_LABEL[account.channel] ?? "Access Token"}</Label>
             <Input value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="Lascia vuoto per non cambiarlo" type="password" />
           </div>
           {account.channel === "whatsapp" && (
             <div className="space-y-1.5">
               <Label>Phone Number ID</Label>
-              <Input value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} placeholder="Da WhatsApp Manager" />
+              <Input value={externalAccountId} onChange={(e) => setExternalAccountId(e.target.value)} placeholder="Da WhatsApp Manager" />
             </div>
           )}
-          {!isTelegram && (
+          {isGmail && (
+            <div className="space-y-1.5">
+              <Label>Indirizzo Gmail</Label>
+              <Input value={externalAccountId} onChange={(e) => setExternalAccountId(e.target.value)} placeholder="supporto@gmail.com" type="email" />
+            </div>
+          )}
+          {isMeta && (
             <div className="space-y-1.5">
               <Label>App Secret</Label>
               <Input value={appSecret} onChange={(e) => setAppSecret(e.target.value)} placeholder="Lascia vuoto per non cambiarlo" type="password" />

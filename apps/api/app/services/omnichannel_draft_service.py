@@ -224,8 +224,9 @@ class OmnichannelDraftService:
             raise ValueError(draft.failure_reason)
 
         connector = get_connector(channel_account)
+        reply_to = OmnichannelService.get_reply_context(db, conversation.id)
         try:
-            send_result = connector.send_message(identity.external_user_id, text_to_send)
+            send_result = connector.send_message(identity.external_user_id, text_to_send, reply_to=reply_to)
         except ConnectorError as e:
             draft.status = "FAILED"
             draft.failure_reason = e.message

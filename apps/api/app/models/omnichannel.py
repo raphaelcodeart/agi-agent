@@ -33,7 +33,7 @@ class OmniChannelAccount(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     owner_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("administrators.id", ondelete="CASCADE"), nullable=False, index=True)
 
-    channel: Mapped[str] = mapped_column(String(50), nullable=False)  # telegram, whatsapp, instagram, facebook, mock
+    channel: Mapped[str] = mapped_column(String(50), nullable=False)  # telegram, whatsapp, instagram, facebook, gmail, mock
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     external_account_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending", nullable=False)  # pending, connected, error, disabled

@@ -25,33 +25,18 @@ from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
 from app.models.administrator import Administrator
 from app.models.omnichannel import OmniChannelAccount
-from app.integrations.omnichannel.connectors.base import NormalizedIncomingMessage
 from app.integrations.omnichannel.connectors.registry import get_connector
 from app.services.omnichannel_service import OmnichannelService
-from app.tasks.omnichannel import generate_ai_draft_task
 from app.schemas.schemas import OmniSimulateMessageRequest, OmniMessageResponse
 
 router = APIRouter()
 
 
-def _ingest_and_trigger(db: Session, account: OmniChannelAccount, messages: list[NormalizedIncomingMessage]):
-    triggered = []
-    for normalized in messages:
-        message = OmnichannelService.ingest_message(db, account, normalized)
-        if message:
-            # Blocked customers: the message is still saved (ingest_message
-            # already filed the conversation into SPAM) but never gets an AI
-            # draft - see OmniCustomer.is_blocked docstring. Same for
-            # auto_generate_draft=False (OmniAIAgentConfig): ingest_message
-            # already filed the conversation into OPEN instead of
-            # AI_PROCESSING for that case - the operator triggers generation
-            # manually via POST /conversations/{id}/generate-draft instead.
-            customer = message.conversation.customer
-            agent_config = OmnichannelService.get_or_create_ai_agent_config(db, account.owner_id)
-            if not customer.is_blocked and agent_config.auto_generate_draft:
-                generate_ai_draft_task.delay(str(message.id))
-            triggered.append(message)
-    return triggered
+# Message ingestion + "does this queue an AI draft" now lives in
+# OmnichannelService.ingest_messages_and_trigger_ai, shared with the Gmail
+# poller (app/tasks/omnichannel.py::poll_gmail_channels_task) - kept as a
+# private alias here so every call site below didn't need touching.
+_ingest_and_trigger = OmnichannelService.ingest_messages_and_trigger_ai
 
 
 @router.post("/webhooks/telegram/{channel_account_id}")

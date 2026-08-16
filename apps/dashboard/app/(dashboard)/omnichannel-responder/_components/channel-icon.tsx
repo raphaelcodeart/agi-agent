@@ -1,4 +1,4 @@
-import { SendIcon, MessageCircleIcon, CameraIcon, MessageSquareIcon, TestTubeIcon } from "lucide-react";
+import { SendIcon, MessageCircleIcon, CameraIcon, MessageSquareIcon, MailIcon, TestTubeIcon } from "lucide-react";
 import type { OmniChannel } from "@/types/api";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,7 @@ const CHANNEL_META: Record<OmniChannel, { label: string; icon: typeof SendIcon; 
   whatsapp: { label: "WhatsApp", icon: MessageCircleIcon, className: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
   instagram: { label: "Instagram", icon: CameraIcon, className: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
   facebook: { label: "Facebook", icon: MessageSquareIcon, className: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
+  gmail: { label: "Gmail", icon: MailIcon, className: "bg-red-500/15 text-red-600 dark:text-red-400" },
   mock: { label: "Test", icon: TestTubeIcon, className: "bg-muted text-muted-foreground" },
 };
 

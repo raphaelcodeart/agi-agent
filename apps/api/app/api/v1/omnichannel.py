@@ -420,8 +420,9 @@ def send_manual_message(conversation_id: uuid.UUID, payload: OmniMessageCreate, 
         raise HTTPException(status_code=400, detail="Nessuna identità cliente trovata per questo canale")
 
     connector = get_connector(channel_account)
+    reply_to = OmnichannelService.get_reply_context(db, conversation.id)
     try:
-        send_result = connector.send_message(identity.external_user_id, payload.text)
+        send_result = connector.send_message(identity.external_user_id, payload.text, reply_to=reply_to)
     except ConnectorError as e:
         raise HTTPException(status_code=502, detail=e.message)
 
@@ -545,7 +546,8 @@ def send_broadcast(payload: OmniBroadcastRequest, db: Session = Depends(get_db),
 
         try:
             connector = get_connector(conversation.channel_account)
-            send_result = connector.send_message(identity.external_user_id, payload.text)
+            reply_to = OmnichannelService.get_reply_context(db, conversation.id)
+            send_result = connector.send_message(identity.external_user_id, payload.text, reply_to=reply_to)
         except ConnectorError as e:
             failures.append({"conversation_id": conversation.id, "customer_name": conversation.customer.name, "channel": conversation.channel_account.channel, "error": e.message})
             continue

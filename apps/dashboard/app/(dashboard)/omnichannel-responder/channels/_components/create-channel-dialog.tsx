@@ -16,6 +16,7 @@ const CHANNEL_OPTIONS: { value: OmniChannel; label: string; available: boolean }
   { value: "facebook", label: "Facebook Messenger", available: true },
   { value: "instagram", label: "Instagram Direct", available: true },
   { value: "whatsapp", label: "WhatsApp Business", available: true },
+  { value: "gmail", label: "Gmail", available: true },
   { value: "mock", label: "Test (mock, nessun account reale)", available: true },
 ];
 
@@ -36,8 +37,10 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
   const [accessToken, setAccessToken] = useState("");
   const [appSecret, setAppSecret] = useState("");
   const [phoneNumberId, setPhoneNumberId] = useState("");
+  const [gmailAddress, setGmailAddress] = useState("");
   const createChannelAccount = useCreateChannelAccount();
   const isMeta = META_CHANNELS.includes(channel);
+  const isGmail = channel === "gmail";
 
   function reset() {
     setChannel("telegram");
@@ -45,6 +48,7 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
     setAccessToken("");
     setAppSecret("");
     setPhoneNumberId("");
+    setGmailAddress("");
   }
 
   function handleSubmit() {
@@ -52,19 +56,26 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
       toast.error("Inserisci un nome per il canale");
       return;
     }
+    if (isGmail && (!gmailAddress.trim() || !accessToken.trim())) {
+      toast.error("Inserisci indirizzo Gmail e App Password");
+      return;
+    }
     // Credentials are optional at creation time for Meta channels (Facebook/
     // Instagram/WhatsApp) on purpose: Meta's own Webhooks screen needs this
     // channel's webhook_secret to exist before you can even reach the screen
     // where you'd get the real Access Token/App Secret/Phone Number ID from
     // Meta's API Setup - not having one shouldn't block having the other.
-    // Fill them in later via "Modifica credenziali" on the channel row.
+    // Fill them in later via "Modifica credenziali" on the channel row. Gmail
+    // has no such bootstrap problem (no webhook to register at all - it's
+    // polled, see docs/OMNICHANNEL_RESPONDER.md), so both fields are required
+    // upfront instead.
     createChannelAccount.mutate(
       {
         channel,
         name,
         access_token: accessToken || undefined,
         app_secret: isMeta ? appSecret : undefined,
-        external_account_id: channel === "whatsapp" ? phoneNumberId : undefined,
+        external_account_id: channel === "whatsapp" ? phoneNumberId : isGmail ? gmailAddress : undefined,
       },
       {
         onSuccess: () => {
@@ -117,6 +128,23 @@ export function CreateChannelDialog({ open, onOpenChange }: { open: boolean; onO
               <p className="text-xs text-muted-foreground">
                 Crealo con @BotFather su Telegram. Dopo la creazione, registra il webhook dalla lista canali.
               </p>
+            </div>
+          )}
+
+          {isGmail && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Indirizzo Gmail</Label>
+                <Input value={gmailAddress} onChange={(e) => setGmailAddress(e.target.value)} placeholder="supporto@gmail.com" type="email" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>App Password</Label>
+                <Input value={accessToken} onChange={(e) => setAccessToken(e.target.value)} placeholder="xxxx xxxx xxxx xxxx" type="password" />
+                <p className="text-xs text-muted-foreground">
+                  Non la password normale dell&apos;account. Richiede la verifica in due passaggi attiva: Account Google → Sicurezza → Password per le app.
+                  I messaggi vengono controllati ogni pochi minuti (polling IMAP), non in tempo reale.
+                </p>
+              </div>
             </div>
           )}
 

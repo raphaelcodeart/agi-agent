@@ -241,6 +241,50 @@ class OmnichannelService:
         return message
 
     @staticmethod
+    def ingest_messages_and_trigger_ai(db: Session, channel_account: OmniChannelAccount, messages: List[NormalizedIncomingMessage]) -> List[OmniMessage]:
+        """
+        Shared by every inbound entrypoint - the Telegram/Meta webhooks
+        (app/api/v1/omnichannel_webhooks.py) and the Gmail poller
+        (app/tasks/omnichannel.py::poll_gmail_channels_task) - so there is
+        exactly one place deciding "does this new message get an AI draft
+        queued", regardless of whether it arrived via push or pull. Local
+        import of generate_ai_draft_task avoids a circular import: tasks/
+        omnichannel.py imports this service at module level to call this very
+        method.
+        """
+        from app.tasks.omnichannel import generate_ai_draft_task
+
+        triggered = []
+        for normalized in messages:
+            message = OmnichannelService.ingest_message(db, channel_account, normalized)
+            if message:
+                customer = message.conversation.customer
+                agent_config = OmnichannelService.get_or_create_ai_agent_config(db, channel_account.owner_id)
+                if not customer.is_blocked and agent_config.auto_generate_draft:
+                    generate_ai_draft_task.delay(str(message.id))
+                triggered.append(message)
+        return triggered
+
+    @staticmethod
+    def get_reply_context(db: Session, conversation_id: uuid.UUID) -> Optional[Dict[str, Any]]:
+        """
+        Metadata of the most recent inbound message in a conversation, passed
+        to Connector.send_message so channels that need it to properly thread
+        a reply (currently only Gmail - Subject/In-Reply-To/References, see
+        connectors/gmail.py) have something to work with. Every other
+        channel's send_message ignores this. Returns None if the conversation
+        somehow has no inbound message yet, or that message never set
+        metadata_json (e.g. Telegram messages don't carry a subject/thread id).
+        """
+        last_inbound = (
+            db.query(OmniMessage)
+            .filter(OmniMessage.conversation_id == conversation_id, OmniMessage.direction == "inbound")
+            .order_by(OmniMessage.created_at.desc())
+            .first()
+        )
+        return last_inbound.metadata_json if last_inbound else None
+
+    @staticmethod
     def add_internal_note(db: Session, conversation: OmniConversation, admin_id: uuid.UUID, text: str, mentions: Optional[List[str]]) -> OmniInternalNote:
         note = OmniInternalNote(
             owner_id=conversation.owner_id,
