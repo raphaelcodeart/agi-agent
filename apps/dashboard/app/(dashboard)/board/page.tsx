@@ -141,22 +141,30 @@ export default function BoardPage() {
   // loaded.
   const channelOptions = useMemo(() => {
     if (!feedQuery.data) return [];
-    const byChannel = new Map<string, { label: string; count: number }>();
+    const byChannel = new Map<string, { label: string; platform: string; channelName: string }>();
     for (const item of feedQuery.data) {
-      const existing = byChannel.get(item.social_channel_id);
-      if (existing) existing.count += 1;
+      if (byChannel.has(item.social_channel_id)) continue;
       // "Nome canale (Nome utente) - Piattaforma" (es. "Algarve Beach Resort
       // (Mario Rossi) - Instagram") - il nome canale da solo non basta a
       // distinguere due canali simili, né a capire di quale cliente sono.
-      else byChannel.set(item.social_channel_id, { label: `${item.channel_name} (${item.user_name}) - ${platformLabel(item.platform)}`, count: 1 });
+      byChannel.set(item.social_channel_id, {
+        label: `${item.channel_name} (${item.user_name}) - ${platformLabel(item.platform)}`,
+        platform: platformLabel(item.platform),
+        channelName: item.channel_name,
+      });
     }
-    return [...byChannel.entries()].sort((a, b) => b[1].count - a[1].count).map(([id, { label }]) => ({ value: id, label }));
+    // Raggruppati per social network (alfabetico), non per numero di post -
+    // così tutti i canali Facebook stanno insieme, poi Instagram, ecc.
+    return [...byChannel.entries()]
+      .sort((a, b) => a[1].platform.localeCompare(b[1].platform) || a[1].channelName.localeCompare(b[1].channelName))
+      .map(([id, { label }]) => ({ value: id, label }));
   }, [feedQuery.data]);
 
-  // Default view: the channel with the most publications, not everything
-  // mixed together - computed at render time rather than synced into state
-  // via an effect, so an explicit choice the admin already made is never
-  // silently overridden by a later refetch (and no cascading-render effect).
+  // Default view: the first channel in the (now platform-sorted) list, not
+  // everything mixed together - computed at render time rather than synced
+  // into state via an effect, so an explicit choice the admin already made
+  // is never silently overridden by a later refetch (and no cascading-render
+  // effect).
   const effectiveChannelId = selectedChannelId ?? channelOptions[0]?.value ?? ALL_CHANNELS;
 
   const selectItems = useMemo(() => [{ value: ALL_CHANNELS, label: "Tutti i canali" }, ...channelOptions], [channelOptions]);
