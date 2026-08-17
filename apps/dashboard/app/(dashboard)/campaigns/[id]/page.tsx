@@ -44,6 +44,7 @@ import { useChannels } from "@/hooks/use-channels";
 import { useUsers } from "@/hooks/use-users";
 import { formatDateTime, formatMetricValue } from "@/lib/format";
 import { METRIC_TILE_CONFIG } from "@/lib/metric-config";
+import { hasUnresolvedPublications } from "@/lib/campaign-stats";
 import { ApiError } from "@/lib/api/errors";
 import type { PublicationResponse } from "@/types/api";
 
@@ -55,11 +56,15 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [skip, setSkip] = useState(0);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const isTerminal = (status?: string) =>
-    status === "completed" || status === "cancelled" || status === "failed";
-
+  // Was previously based on campaign.status (completed/cancelled/failed) -
+  // missed "partially_completed" (kept polling forever there, harmless) but
+  // more importantly didn't reflect the *publications*' real state: a manual
+  // retry only flips a publication to "pending" synchronously, the actual
+  // outcome lands later via a Celery task, so polling needs to track that,
+  // not the campaign's own status string. Same helper used by the campaigns
+  // list page's "Destinazioni" column for the same reason.
   const campaignQuery = useCampaignDetail(id, {
-    refetchInterval: (query) => (isTerminal(query.state.data?.campaign.status) ? false : 5000),
+    refetchInterval: (query) => (query.state.data && !hasUnresolvedPublications(query.state.data.stats) ? false : 5000),
   });
   const publicationsQuery = usePublications({ campaign_id: id, skip, limit: LIMIT });
   const metricsQuery = useCampaignMetrics(id);

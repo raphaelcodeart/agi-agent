@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useCampaigns, useDeleteCampaign } from "@/hooks/use-campaigns";
 import { useCampaignDetail } from "@/hooks/use-campaigns";
 import { formatDateTime } from "@/lib/format";
+import { hasUnresolvedPublications } from "@/lib/campaign-stats";
 import { ApiError } from "@/lib/api/errors";
 import type { CampaignResponse, CampaignStatus } from "@/types/api";
 
@@ -35,7 +36,15 @@ const STATUS_OPTIONS: { value: CampaignStatus; label: string }[] = [
 const LIMIT = 20;
 
 function DestinationsCell({ campaignId }: { campaignId: string }) {
-  const detail = useCampaignDetail(campaignId);
+  // A manual retry (POST /publications/{id}/retry) only flips a publication
+  // to "pending" synchronously - the actual publish happens later in a
+  // Celery task. Without this, the single refetch triggered right when
+  // "Riprova" is clicked can catch it mid-flight and these counts never
+  // update again once the real outcome (published/failed) lands - keep
+  // polling every 5s while anything here is still unresolved.
+  const detail = useCampaignDetail(campaignId, {
+    refetchInterval: (query) => (query.state.data && !hasUnresolvedPublications(query.state.data.stats) ? false : 5000),
+  });
   if (detail.isLoading || !detail.data) {
     return <span className="text-muted-foreground">…</span>;
   }

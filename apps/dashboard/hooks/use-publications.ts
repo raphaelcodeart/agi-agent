@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as publicationsService from "@/services/publications";
 import { queryKeys } from "@/lib/query/keys";
+import { isUnresolvedPublicationStatus } from "@/lib/campaign-stats";
 import type { ListPublicationFeedParams, ListPublicationsParams } from "@/services/publications";
 import type { ChannelMetrics } from "@/types/api";
 
@@ -30,6 +31,13 @@ export function usePublicationDetail(id: string | undefined) {
     queryKey: queryKeys.publications.detail(id ?? ""),
     queryFn: () => publicationsService.getPublication(id as string),
     enabled: !!id,
+    // Same reasoning as the campaigns list/detail pages (lib/campaign-stats.ts):
+    // a manual retry only flips the status to "pending" synchronously, the
+    // real outcome lands later via a Celery task - keep polling until it does.
+    refetchInterval: (query) => {
+      const status = query.state.data?.publication.status;
+      return !status || isUnresolvedPublicationStatus(status) ? 5000 : false;
+    },
   });
 }
 
@@ -44,16 +52,23 @@ export function usePublicationMetrics(id: string) {
   });
 }
 
-function invalidatePublications(queryClient: ReturnType<typeof useQueryClient>) {
+// `ids` invalidates the specific publication.detail queries too (not just
+// the list) - without this, a publication detail page open on the exact
+// item being retried/cancelled/skipped never refetches at all, since its
+// query key ("publications", "detail", id) isn't a prefix match of
+// ("publications", "list").
+function invalidatePublications(queryClient: ReturnType<typeof useQueryClient>, ids?: string | string[]) {
   queryClient.invalidateQueries({ queryKey: ["publications", "list"] });
   queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+  const idList = ids ? (Array.isArray(ids) ? ids : [ids]) : [];
+  idList.forEach((id) => queryClient.invalidateQueries({ queryKey: queryKeys.publications.detail(id) }));
 }
 
 export function useRetryPublication() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => publicationsService.retryPublication(id),
-    onSuccess: () => invalidatePublications(queryClient),
+    onSuccess: (_data, id) => invalidatePublications(queryClient, id),
   });
 }
 
@@ -61,7 +76,7 @@ export function useRetrySelectedPublications() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (ids: string[]) => publicationsService.retrySelectedPublications(ids),
-    onSuccess: () => invalidatePublications(queryClient),
+    onSuccess: (_data, ids) => invalidatePublications(queryClient, ids),
   });
 }
 
@@ -77,7 +92,7 @@ export function useCancelPublication() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => publicationsService.cancelPublication(id),
-    onSuccess: () => invalidatePublications(queryClient),
+    onSuccess: (_data, id) => invalidatePublications(queryClient, id),
   });
 }
 
@@ -85,6 +100,6 @@ export function useSkipPublication() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => publicationsService.skipPublication(id),
-    onSuccess: () => invalidatePublications(queryClient),
+    onSuccess: (_data, id) => invalidatePublications(queryClient, id),
   });
 }
