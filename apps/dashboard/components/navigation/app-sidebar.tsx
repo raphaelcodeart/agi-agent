@@ -85,18 +85,13 @@ export function AppSidebar() {
 
         <SidebarSeparator />
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Campagne Buffer</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <NavItems items={BUFFER_NAV_ITEMS} pathname={pathname} />
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
+        {/* One single unlabeled block: Dashboard/Utenti/Gruppi/Connessioni
+            Buffer/Canali social/Media, then Campagne/Pubblicazioni/Centro
+            errori appended right after Media - not a separately-labeled
+            "Campagne Buffer" section, per the admin's explicit correction. */}
         <SidebarGroup>
           <SidebarGroupContent>
-            <NavItems items={MAIN_NAV_ITEMS} pathname={pathname} />
+            <NavItems items={[...MAIN_NAV_ITEMS, ...BUFFER_NAV_ITEMS]} pathname={pathname} />
           </SidebarGroupContent>
         </SidebarGroup>
 

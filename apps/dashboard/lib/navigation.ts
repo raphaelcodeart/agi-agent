@@ -35,7 +35,10 @@ export interface NavItem {
 export const BOARD_NAV_ITEM: NavItem = { href: "/board", label: "Bacheca", icon: LayoutGridIcon };
 
 // Ungrouped/general items at the top of the sidebar - accounts, resources,
-// connections. No section label, same as before.
+// connections. Rendered together with BUFFER_NAV_ITEMS right after it, as one
+// single unlabeled block in app-sidebar.tsx (no separator/label between the
+// two arrays) - kept as separate exported constants here only because
+// findNavItem's "/" special case needs MAIN_NAV_ITEMS specifically.
 export const MAIN_NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboardIcon },
   { href: "/users", label: "Utenti", icon: UsersIcon },
@@ -45,9 +48,9 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
   { href: "/media", label: "Media", icon: ImagesIcon },
 ];
 
-// Its own labeled group - the actual campaign execution/monitoring side of
-// the Buffer integration, separated from the account/resource management
-// items above it.
+// The campaign execution/monitoring side of the Buffer integration - appended
+// right after MAIN_NAV_ITEMS in the same unlabeled sidebar block (see above),
+// not its own separately-labeled section.
 export const BUFFER_NAV_ITEMS: NavItem[] = [
   { href: "/campaigns", label: "Campagne", icon: MegaphoneIcon },
   { href: "/publications", label: "Pubblicazioni", icon: SendIcon },
@@ -90,8 +93,8 @@ export const SETTINGS_NAV_ITEM: NavItem = { href: "/settings", label: "Impostazi
 // correctly even though items live in different visual groups/the footer.
 export const NAV_ITEMS: NavItem[] = [
   BOARD_NAV_ITEM,
-  ...BUFFER_NAV_ITEMS,
   ...MAIN_NAV_ITEMS,
+  ...BUFFER_NAV_ITEMS,
   ...OMNICHANNEL_RESPONDER_NAV_ITEMS,
   ...BLOG_WRITER_NAV_ITEMS,
   SETTINGS_NAV_ITEM,
