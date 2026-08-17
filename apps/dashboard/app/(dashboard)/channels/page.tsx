@@ -7,7 +7,7 @@ import { RefreshCwIcon, ExternalLinkIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
-import { PlatformBadge } from "@/components/shared/platform-badge";
+import { PlatformBadge, PlatformIcon } from "@/components/shared/platform-badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { SearchInput } from "@/components/shared/search-input";
 import { FilterBar, FilterSelect } from "@/components/shared/filter-bar";
@@ -128,6 +128,11 @@ export default function ChannelsPage() {
 
   const columns = useMemo<ColumnDef<SocialChannelResponse, unknown>[]>(
     () => [
+      {
+        id: "platform_icon",
+        header: "",
+        cell: ({ row }) => <PlatformIcon platform={row.original.platform} />,
+      },
       {
         accessorKey: "name",
         header: "Canale",

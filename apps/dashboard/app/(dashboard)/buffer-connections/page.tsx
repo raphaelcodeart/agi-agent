@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { LinkIcon, RefreshCwIcon, Unlink2Icon } from "lucide-react";
+import { LinkIcon, PlugZapIcon, RefreshCwIcon, Unlink2Icon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -60,11 +60,16 @@ export default function BufferConnectionsPage() {
         id: "user",
         header: "Utente",
         cell: ({ row }) => (
-          <div>
-            <span>{usersById.get(row.original.user_id) ?? row.original.user_id}</span>
-            <span className="block text-[10px] text-muted-foreground">
-              ID Buffer: {row.original.external_account_id ?? "—"}
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <PlugZapIcon className="size-4" />
             </span>
+            <div>
+              <span>{usersById.get(row.original.user_id) ?? row.original.user_id}</span>
+              <span className="block text-[10px] text-muted-foreground">
+                ID Buffer: {row.original.external_account_id ?? "—"}
+              </span>
+            </div>
           </div>
         ),
       },

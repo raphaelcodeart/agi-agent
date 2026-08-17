@@ -1,3 +1,4 @@
+import { CameraIcon, MessageSquareIcon, BriefcaseIcon, MusicIcon, PlayCircleIcon, XIcon, AtSignIcon, GlobeIcon, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Keyed by "twitter" - Buffer's own API reports X/Twitter channels with
@@ -31,9 +32,38 @@ export function platformLabel(platform: string): string {
   return PLATFORM_LABELS[platform.toLowerCase().trim()] ?? platform;
 }
 
+// lucide-react dropped brand/logo icons a while back (no InstagramIcon/
+// FacebookIcon/etc. export - same reason ChannelIcon in the Omnichannel
+// Responder module uses generic icons too) - these are semantic stand-ins,
+// not the real brand marks. XIcon for "twitter" is a happy accident: the
+// platform is genuinely named "X" now, so the letter glyph reads correctly.
+const PLATFORM_ICONS: Record<string, LucideIcon> = {
+  instagram: CameraIcon,
+  facebook: MessageSquareIcon,
+  linkedin: BriefcaseIcon,
+  tiktok: MusicIcon,
+  youtube: PlayCircleIcon,
+  twitter: XIcon,
+  threads: AtSignIcon,
+};
+
 interface PlatformBadgeProps {
   platform: string;
   className?: string;
+}
+
+// Small circular icon badge - used as its own "which platform" column (e.g.
+// the "Canali social" list), separate from PlatformBadge's text+color pill.
+export function PlatformIcon({ platform, className }: PlatformBadgeProps) {
+  const key = platform.toLowerCase().trim();
+  const style = PLATFORM_STYLES[key] ?? "bg-muted text-muted-foreground";
+  const Icon = PLATFORM_ICONS[key] ?? GlobeIcon;
+
+  return (
+    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", style, className)}>
+      <Icon className="size-4" />
+    </span>
+  );
 }
 
 export function PlatformBadge({ platform, className }: PlatformBadgeProps) {
