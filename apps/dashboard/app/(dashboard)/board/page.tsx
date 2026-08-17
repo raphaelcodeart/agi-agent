@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ExternalLinkIcon, LayoutGridIcon, XIcon, ZoomInIcon } from "lucide-react";
+import Link from "next/link";
+import { BarChart3Icon, ExternalLinkIcon, LayoutGridIcon, XIcon, ZoomInIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { PlatformBadge, platformLabel } from "@/components/shared/platform-badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -84,17 +86,28 @@ function FeedCard({ item }: { item: PublicationFeedItem }) {
 
         {item.text && <p className="whitespace-pre-wrap text-sm">{item.text}</p>}
 
-        {item.external_post_url && (
-          <a
-            href={item.external_post_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-          >
-            <ExternalLinkIcon className="size-3.5" />
-            Vedi post originale
-          </a>
-        )}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+          {item.external_post_url && (
+            <a
+              href={item.external_post_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+            >
+              <ExternalLinkIcon className="size-3.5" />
+              Vedi post originale
+            </a>
+          )}
+          {/* Same detail page as the "Pubblicazioni" table view - its
+              "Carica/Aggiorna statistiche" button is where likes/views/ecc.
+              actually load (on-demand from Buffer, see GET /publications/{id}/metrics) - not duplicated here. */}
+          <Button variant="outline" size="sm" asChild className="h-7 gap-1.5 px-2.5 text-xs">
+            <Link href={`/publications/${item.id}`}>
+              <BarChart3Icon className="size-3.5" />
+              Statistiche
+            </Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
