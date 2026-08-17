@@ -34,11 +34,11 @@ export interface NavItem {
 // cima alla sidebar, sopra anche Dashboard (vedi app-sidebar.tsx).
 export const BOARD_NAV_ITEM: NavItem = { href: "/board", label: "Bacheca", icon: LayoutGridIcon };
 
-// Ungrouped/general items at the top of the sidebar - accounts, resources,
-// connections. Rendered together with BUFFER_NAV_ITEMS right after it, as one
-// single unlabeled block in app-sidebar.tsx (no separator/label between the
-// two arrays) - kept as separate exported constants here only because
-// findNavItem's "/" special case needs MAIN_NAV_ITEMS specifically.
+// Accounts/resources/connections. Rendered together with BUFFER_NAV_ITEMS
+// right after it, as one single block under the "Campagne Buffer" label in
+// app-sidebar.tsx (no separator between the two arrays) - kept as separate
+// exported constants here only because findNavItem's "/" special case needs
+// MAIN_NAV_ITEMS specifically.
 export const MAIN_NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboardIcon },
   { href: "/users", label: "Utenti", icon: UsersIcon },
@@ -49,8 +49,8 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
 ];
 
 // The campaign execution/monitoring side of the Buffer integration - appended
-// right after MAIN_NAV_ITEMS in the same unlabeled sidebar block (see above),
-// not its own separately-labeled section.
+// right after MAIN_NAV_ITEMS in the same "Campagne Buffer" sidebar block
+// (see above), not a second/separate section.
 export const BUFFER_NAV_ITEMS: NavItem[] = [
   { href: "/campaigns", label: "Campagne", icon: MegaphoneIcon },
   { href: "/publications", label: "Pubblicazioni", icon: SendIcon },

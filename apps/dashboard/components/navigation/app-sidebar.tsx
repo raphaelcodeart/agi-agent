@@ -85,11 +85,14 @@ export function AppSidebar() {
 
         <SidebarSeparator />
 
-        {/* One single unlabeled block: Dashboard/Utenti/Gruppi/Connessioni
-            Buffer/Canali social/Media, then Campagne/Pubblicazioni/Centro
-            errori appended right after Media - not a separately-labeled
-            "Campagne Buffer" section, per the admin's explicit correction. */}
+        {/* One single block - Dashboard/Utenti/Gruppi/Connessioni Buffer/
+            Canali social/Media, then Campagne/Pubblicazioni/Centro errori
+            appended right after Media, no separator between the two - under
+            one "Campagne Buffer" label for the whole group (same style as
+            "Omnichannel Responder"/"Blog Writer AI" below), not just the
+            three Buffer items. */}
         <SidebarGroup>
+          <SidebarGroupLabel>Campagne Buffer</SidebarGroupLabel>
           <SidebarGroupContent>
             <NavItems items={[...MAIN_NAV_ITEMS, ...BUFFER_NAV_ITEMS]} pathname={pathname} />
           </SidebarGroupContent>
