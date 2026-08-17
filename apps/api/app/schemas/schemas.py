@@ -398,6 +398,7 @@ class PublicationDetailResponse(BaseModel):
     # (see campaign_resolver docs / prod_client.py get_post_metrics comments on
     # why the specific-post link can take a while to become available).
     channel_external_link: Optional[str] = None
+    media: Optional[MediaResponse] = None
 
 
 # ==============================================================================

@@ -118,6 +118,7 @@ def get_publication(
         "channel_platform": pub.social_channel.platform,
         "user_name": pub.user.name,
         "channel_external_link": pub.social_channel.external_link,
+        "media": pub.campaign.media_file,
     }
 
 

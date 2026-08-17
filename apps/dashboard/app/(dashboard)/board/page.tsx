@@ -2,16 +2,16 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BarChart3Icon, ExternalLinkIcon, LayoutGridIcon, XIcon, ZoomInIcon } from "lucide-react";
+import { BarChart3Icon, ExternalLinkIcon, LayoutGridIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { PlatformBadge, platformLabel } from "@/components/shared/platform-badge";
+import { MediaLightbox } from "@/components/shared/media-lightbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { usePublicationFeed } from "@/hooks/use-publications";
 import { formatDateTime } from "@/lib/format";
 import type { PublicationFeedItem } from "@/types/api";
@@ -22,48 +22,16 @@ const ALL_CHANNELS = "all";
 const FEED_WIDTH = "max-w-3xl";
 
 function FeedCard({ item }: { item: PublicationFeedItem }) {
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const isVideo = item.media?.mime_type.startsWith("video/");
   const isImage = item.media?.mime_type.startsWith("image/");
 
   return (
     // Card's own has-[>img:first-child]:pt-0 (see components/ui/card.tsx) only
-    // fires when an <img> is Card's *direct* first child - wrapping it in a
-    // <button> for the click-to-zoom handler below breaks that detection, so
-    // the flush-top/rounded-corner look for image posts is restored explicitly.
+    // fires when an <img> is Card's *direct* first child - MediaLightbox wraps
+    // it in a <button> for the click-to-zoom handler, which breaks that
+    // detection, so the flush-top/rounded-corner look for image posts is
+    // restored explicitly.
     <Card className={`mx-auto w-full ${FEED_WIDTH} ${isImage ? "pt-0" : ""}`}>
-      {item.media && isImage && (
-        <button
-          type="button"
-          onClick={() => setLightboxOpen(true)}
-          className="group relative block w-full cursor-zoom-in"
-          title="Ingrandisci"
-        >
-          {/* Backend-hosted asset with an unpredictable origin/path, same
-              reason components/shared/media-preview.tsx uses a plain <img> too. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.media.public_url} alt="" className="max-h-[32rem] w-full object-cover" />
-          <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all duration-150 group-hover:bg-black/20 group-hover:opacity-100">
-            <ZoomInIcon className="size-8 text-white drop-shadow" />
-          </span>
-        </button>
-      )}
-      {item.media && isImage && (
-        <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-          <DialogContent showCloseButton={false} className="max-w-[92vw] border-none bg-transparent p-0 shadow-none sm:max-w-[92vw]">
-            <DialogTitle className="sr-only">Immagine ingrandita</DialogTitle>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.media.public_url} alt="" className="mx-auto max-h-[90vh] w-auto rounded-lg object-contain" />
-            <DialogClose className="absolute top-3 right-3 flex size-9 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80">
-              <XIcon className="size-5" />
-              <span className="sr-only">Chiudi</span>
-            </DialogClose>
-          </DialogContent>
-        </Dialog>
-      )}
-      {item.media && isVideo && (
-        <video src={item.media.public_url} className="max-h-[32rem] w-full bg-black" controls preload="metadata" playsInline />
-      )}
+      {item.media && <MediaLightbox media={item.media} />}
 
       <CardContent className="space-y-3 pt-4">
         <div className="flex items-center justify-between gap-3">

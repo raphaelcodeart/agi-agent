@@ -340,6 +340,7 @@ export interface PublicationDetailResponse {
   channel_platform: string;
   user_name: string;
   channel_external_link: string | null;
+  media: MediaResponse | null;
 }
 
 // "Bacheca" (GET /publications/feed) - one card per successfully published post.

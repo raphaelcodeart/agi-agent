@@ -11,6 +11,7 @@ import { RetryButton } from "@/components/shared/retry-button";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatCard } from "@/components/shared/stat-card";
+import { MediaLightbox } from "@/components/shared/media-lightbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,7 +47,7 @@ export default function PublicationDetailPage({ params }: { params: Promise<{ id
     return <ErrorState error={detailQuery.error} onRetry={() => detailQuery.refetch()} />;
   }
 
-  const { publication: pub, attempts, resolved_text, channel_name, channel_platform, user_name, channel_external_link } =
+  const { publication: pub, attempts, resolved_text, channel_name, channel_platform, user_name, channel_external_link, media } =
     detailQuery.data;
   const canRetry = ["failed", "cancelled", "retry_wait", "queued"].includes(pub.status);
   const canCancel = ["pending", "queued", "retry_wait"].includes(pub.status);
@@ -180,7 +181,12 @@ export default function PublicationDetailPage({ params }: { params: Promise<{ id
           <CardHeader>
             <CardTitle className="text-base">Testo risolto</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            {media && (
+              <div className="overflow-hidden rounded-lg">
+                <MediaLightbox media={media} className="max-h-96" />
+              </div>
+            )}
             <p className="whitespace-pre-wrap text-sm">{resolved_text}</p>
           </CardContent>
         </Card>

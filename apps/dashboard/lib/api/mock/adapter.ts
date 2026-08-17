@@ -488,6 +488,8 @@ export function getPublication(id: string): Promise<PublicationDetailResponse> {
   if (!publication) notFound("Publication");
   const channel = mockChannels.find((c) => c.id === publication.social_channel_id);
   const user = mockUsers.find((u) => u.id === publication.user_id);
+  const campaign = mockCampaigns.find((c) => c.id === publication.campaign_id);
+  const media = campaign?.media_file_id ? mockMedia.find((m) => m.id === campaign.media_file_id) ?? null : null;
   return delay({
     publication,
     attempts: [],
@@ -496,6 +498,7 @@ export function getPublication(id: string): Promise<PublicationDetailResponse> {
     channel_platform: channel?.platform ?? "—",
     user_name: user?.name ?? "—",
     channel_external_link: channel?.external_link ?? null,
+    media,
   });
 }
 
