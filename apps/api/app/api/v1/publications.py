@@ -86,6 +86,7 @@ def list_published_feed(
             platform=channel.platform,
             channel_name=channel.name,
             channel_avatar_url=channel.avatar_url,
+            channel_external_link=channel.external_link,
             user_name=user.name,
             media=MediaResponse.model_validate(media_by_id[campaign.media_file_id]) if campaign.media_file_id in media_by_id else None,
         )

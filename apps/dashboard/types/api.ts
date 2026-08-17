@@ -353,6 +353,7 @@ export interface PublicationFeedItem {
   platform: string;
   channel_name: string;
   channel_avatar_url: string | null;
+  channel_external_link: string | null;
   user_name: string;
   media: MediaResponse | null;
 }

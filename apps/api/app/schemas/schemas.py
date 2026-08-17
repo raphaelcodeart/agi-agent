@@ -353,6 +353,11 @@ class PublicationFeedItem(BaseModel):
     platform: str
     channel_name: str
     channel_avatar_url: Optional[str]
+    # SocialChannel.external_link - the real profile/page on the platform
+    # itself (populated by the Buffer sync), same field the "Canali social"
+    # table links the channel name to. Null if Buffer never exposed it for
+    # that platform (see DATABASE.md SS5).
+    channel_external_link: Optional[str]
     # Publication.user_id -> User.name - the client/customer this channel
     # belongs to (see DATABASE.md SS4), shown alongside channel_name in the
     # channel picker so two channels with a similar name aren't ambiguous.

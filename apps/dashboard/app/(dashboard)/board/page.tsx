@@ -77,7 +77,22 @@ function FeedCard({ item }: { item: PublicationFeedItem }) {
               </div>
             )}
             <div>
-              <p className="text-sm font-medium leading-tight">{item.channel_name}</p>
+              {/* Same pattern as the "Canali social" list (app/(dashboard)/channels/page.tsx):
+                  channel name links out to the real profile/page when Buffer exposed it,
+                  falls back to plain text otherwise. */}
+              {item.channel_external_link ? (
+                <a
+                  href={item.channel_external_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium leading-tight text-foreground hover:underline"
+                >
+                  {item.channel_name}
+                  <ExternalLinkIcon className="size-3 text-muted-foreground" />
+                </a>
+              ) : (
+                <p className="text-sm font-medium leading-tight">{item.channel_name}</p>
+              )}
               <p className="text-xs text-muted-foreground">{formatDateTime(item.published_at)}</p>
             </div>
           </div>

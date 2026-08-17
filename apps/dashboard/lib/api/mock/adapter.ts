@@ -475,6 +475,7 @@ export function listPublicationFeed(params: ListPublicationFeedParams = {}): Pro
         platform: channel?.platform ?? "—",
         channel_name: channel?.name ?? "—",
         channel_avatar_url: channel?.avatar_url ?? null,
+        channel_external_link: channel?.external_link ?? null,
         user_name: user?.name ?? "—",
         media,
       };
