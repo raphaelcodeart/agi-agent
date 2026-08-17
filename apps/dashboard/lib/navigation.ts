@@ -90,8 +90,8 @@ export const SETTINGS_NAV_ITEM: NavItem = { href: "/settings", label: "Impostazi
 // correctly even though items live in different visual groups/the footer.
 export const NAV_ITEMS: NavItem[] = [
   BOARD_NAV_ITEM,
-  ...MAIN_NAV_ITEMS,
   ...BUFFER_NAV_ITEMS,
+  ...MAIN_NAV_ITEMS,
   ...OMNICHANNEL_RESPONDER_NAV_ITEMS,
   ...BLOG_WRITER_NAV_ITEMS,
   SETTINGS_NAV_ITEM,
