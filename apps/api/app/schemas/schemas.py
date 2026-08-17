@@ -246,6 +246,11 @@ class CampaignResponse(BaseModel):
     metadata_json: Optional[Dict[str, Any]] = None
     status: str
     media_file_id: Optional[uuid.UUID]
+    # Same attribute name as the Campaign.media_file SQLAlchemy relationship,
+    # so from_attributes resolves it automatically - used for the small
+    # thumbnail next to the campaign title in the "Campagne" list (eager-
+    # loaded in list_campaigns via joinedload to avoid N+1).
+    media_file: Optional[MediaResponse] = None
     article_id: Optional[uuid.UUID] = None
     started_at: Optional[datetime]
     completed_at: Optional[datetime]

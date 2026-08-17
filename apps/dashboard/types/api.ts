@@ -192,6 +192,7 @@ export interface CampaignResponse {
   metadata_json?: Record<string, unknown> | null;
   status: CampaignStatus;
   media_file_id: string | null;
+  media_file: MediaResponse | null;
   article_id?: string | null;
   started_at: string | null;
   completed_at: string | null;

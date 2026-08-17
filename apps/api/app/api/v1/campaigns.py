@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import uuid
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
 from app.models.administrator import Administrator
@@ -35,7 +35,9 @@ def list_campaigns(
     admin: Administrator = Depends(get_current_admin)
 ):
     """Retrieve lists of campaigns."""
-    query = db.query(Campaign)
+    # joinedload avoids one extra query per row for CampaignResponse.media_file
+    # (the thumbnail shown next to the title in the dashboard's list).
+    query = db.query(Campaign).options(joinedload(Campaign.media_file))
     if status_filter:
         query = query.filter(Campaign.status == status_filter)
     return query.order_by(Campaign.created_at.desc()).offset(skip).limit(limit).all()

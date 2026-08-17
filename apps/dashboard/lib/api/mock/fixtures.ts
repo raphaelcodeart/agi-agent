@@ -179,6 +179,7 @@ export const mockCampaigns: CampaignResponse[] = [
     include_referral_link: false,
     status: "completed",
     media_file_id: "med-1",
+    media_file: mockMedia.find((m) => m.id === "med-1") ?? null,
     started_at: now,
     completed_at: now,
     created_at: now,

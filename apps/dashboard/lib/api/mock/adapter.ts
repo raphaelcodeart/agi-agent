@@ -299,6 +299,7 @@ export function createCampaign(payload: CampaignCreatePayload): Promise<Campaign
     include_referral_link: payload.include_referral_link,
     status: "draft",
     media_file_id: payload.media_file_id ?? null,
+    media_file: payload.media_file_id ? (mockMedia.find((m) => m.id === payload.media_file_id) ?? null) : null,
     started_at: null,
     completed_at: null,
     created_at: nowIso(),

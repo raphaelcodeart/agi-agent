@@ -259,6 +259,7 @@ Il frontend (`app/(dashboard)/board/page.tsx`) mostra ogni pubblicazione come un
 - Cancellazione: rifiutata se il media è ancora referenziato da una campagna attiva; altrimenti soft-delete, poi pulizia fisica giornaliera via `media_retention_cleanup`.
 - Limite dimensione upload: `UPLOAD_MAX_SIZE_BYTES` (default 100MB) — attenzione a mantenere allineato anche `client_max_body_size` in Nginx (vedi problema noto #6 in DEPLOYMENT.md).
 - Rinomina (`PATCH /media/{id}`): modifica solo `original_filename`, cioè il nome mostrato in dashboard — non tocca mai `stored_filename`/`storage_key`/`public_url`, quindi non può mai rompere un media già referenziato da una campagna o già inviato a Buffer.
+- **Miniatura nella lista "Campagne"**: `CampaignResponse` include ora anche `media_file` (`Optional[MediaResponse]`, stesso nome dell'attributo/relazione SQLAlchemy `Campaign.media_file` — Pydantic lo risolve da solo grazie a `from_attributes`), non solo il vecchio `media_file_id`. `GET /campaigns/` (`list_campaigns`) carica la relazione con `joinedload(Campaign.media_file)` per evitare una query in più per riga. Il frontend (`app/(dashboard)/campaigns/page.tsx`) mostra la miniatura (`components/shared/media-preview.tsx::MediaPreview`, la stessa già usata nella pagina Media) affiancata al titolo nella prima colonna della tabella, solo quando la campagna ha un media allegato.
 
 ---
 

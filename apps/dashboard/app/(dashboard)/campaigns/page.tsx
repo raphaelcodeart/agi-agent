@@ -9,6 +9,7 @@ import { PlusIcon, CopyIcon, Trash2Icon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { MediaPreview } from "@/components/shared/media-preview";
 import { FilterBar, FilterSelect } from "@/components/shared/filter-bar";
 import { Pagination } from "@/components/shared/pagination";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -65,9 +66,12 @@ export default function CampaignsPage() {
         accessorKey: "title",
         header: "Campagna",
         cell: ({ row }) => (
-          <Link href={`/campaigns/${row.original.id}`} className="font-medium hover:underline">
-            {row.original.title}
-          </Link>
+          <div className="flex items-center gap-3">
+            {row.original.media_file && <MediaPreview media={row.original.media_file} className="size-9" />}
+            <Link href={`/campaigns/${row.original.id}`} className="font-medium hover:underline">
+              {row.original.title}
+            </Link>
+          </div>
         ),
       },
       {
