@@ -230,6 +230,8 @@ Prefisso comune `/api/v1`. Elenco completo per router — per i dettagli di requ
 
 **Anteprima media nella scheda dettaglio**: `GET /publications/{id}` (`PublicationDetailResponse`) include ora anche `media` (`pub.campaign.media_file`, `Optional[MediaResponse]`) — la card "Testo risolto" mostra l'anteprima (foto con lightbox al click, video con controlli nativi) sopra il testo, riusando lo stesso componente `components/shared/media-lightbox.tsx` (`MediaLightbox`) della card Bacheca (§10.1), non duplicato.
 
+**URL nel testo cliccabili**: `resolved_text` (qui e in Bacheca, §10.1) è testo semplice lato backend — anche il link referral `"ISCRIVITI QUI: {url}"` (§5) è solo una stringa, mai HTML — quindi un browser non lo rende mai cliccabile da solo. `components/shared/linkified-text.tsx` (`LinkifiedText`, componente condiviso tra questa pagina e la Bacheca) individua ogni URL `http(s)://` nel testo via regex e lo trasforma in un vero `<a target="_blank">`, staccando la punteggiatura finale di fine frase (es. il punto dopo `.../abc123.`) perché non faccia parte del link.
+
 ### 10.1 Bacheca (feed pubblico delle pubblicazioni)
 
 `GET /publications/feed` (dashboard: voce **Bacheca**, in cima alla sidebar, sopra anche "Dashboard") — un feed in stile social network di ogni `Publication` con `status = "published"`, ordinato per `published_at` decrescente (più recente in cima), paginato (`skip`/`limit`, default 30, max 100). Dichiarato **prima** di `/{pub_id}` nel router (`publications.py`) apposta, altrimenti FastAPI proverebbe a interpretare `"feed"` come un UUID del path param e fallirebbe.

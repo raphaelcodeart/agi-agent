@@ -12,6 +12,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatCard } from "@/components/shared/stat-card";
 import { MediaLightbox } from "@/components/shared/media-lightbox";
+import { LinkifiedText } from "@/components/shared/linkified-text";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -187,7 +188,7 @@ export default function PublicationDetailPage({ params }: { params: Promise<{ id
                 <MediaLightbox media={media} className="max-h-96" />
               </div>
             )}
-            <p className="whitespace-pre-wrap text-sm">{resolved_text}</p>
+            <LinkifiedText text={resolved_text} />
           </CardContent>
         </Card>
       </div>

@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { PlatformBadge, platformLabel } from "@/components/shared/platform-badge";
 import { MediaLightbox } from "@/components/shared/media-lightbox";
+import { LinkifiedText } from "@/components/shared/linkified-text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,7 +68,7 @@ function FeedCard({ item }: { item: PublicationFeedItem }) {
           <PlatformBadge platform={item.platform} />
         </div>
 
-        {item.text && <p className="whitespace-pre-wrap text-sm">{item.text}</p>}
+        {item.text && <LinkifiedText text={item.text} />}
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
           {item.external_post_url && (
