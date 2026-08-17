@@ -26,6 +26,11 @@ __pycache__/
 backups/*.sql
 !backups/.gitkeep
 
+# Weekly full DB backups (schema + data) - local-only on purpose, never pushed
+weekly-backup-db/*.sql
+weekly-backup-db/*.sql.gz
+!weekly-backup-db/.gitkeep
+
 # Media uploads (bind-mounted volume content, not source)
 storage/
 

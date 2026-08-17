@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PlusIcon, PencilIcon, LinkIcon } from "lucide-react";
+import { PlusIcon, PencilIcon, LinkIcon, UserRoundIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { SearchInput } from "@/components/shared/search-input";
@@ -53,9 +53,14 @@ export default function UsersPage() {
         accessorKey: "name",
         header: "Nome",
         cell: ({ row }) => (
-          <div>
-            <p className="font-medium text-foreground">{row.original.name}</p>
-            <p className="text-xs text-muted-foreground">{row.original.email}</p>
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <UserRoundIcon className="size-4" />
+            </span>
+            <div>
+              <p className="font-medium text-foreground">{row.original.name}</p>
+              <p className="text-xs text-muted-foreground">{row.original.email}</p>
+            </div>
           </div>
         ),
       },
