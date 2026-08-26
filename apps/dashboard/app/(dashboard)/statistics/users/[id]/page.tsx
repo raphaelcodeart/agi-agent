@@ -9,7 +9,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { SyncButton } from "@/components/shared/sync-button";
 import { PlatformIcon } from "@/components/shared/platform-badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { MetricTrendChart } from "../../_components/metric-trend-chart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserStatistics, useSyncUserMutation } from "@/hooks/use-statistics";
@@ -83,6 +84,15 @@ export default function UserStatisticsPage({ params }: { params: Promise<{ id: s
           ))}
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Andamento nel tempo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MetricTrendChart monthly={data.timeseries_monthly} yearly={data.timeseries_yearly} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-0">

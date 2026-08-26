@@ -866,6 +866,12 @@ export interface StatMetricTotals {
   engagement_rate: number | null;
 }
 
+export interface StatTimeseriesPoint {
+  period: string;
+  post_count: number;
+  totals: StatMetricTotals;
+}
+
 export type StatSyncScope = "global" | "user" | "campaign";
 export type StatSyncStatus = "queued" | "running" | "completed" | "completed_with_errors" | "failed";
 
@@ -921,6 +927,8 @@ export interface StatChannelDetailResponse {
   totals: StatMetricTotals;
   posts: StatPostRow[];
   last_synced_at: string | null;
+  timeseries_monthly: StatTimeseriesPoint[];
+  timeseries_yearly: StatTimeseriesPoint[];
 }
 
 export interface StatUserSummary {
@@ -940,6 +948,8 @@ export interface StatUserDetailResponse {
   totals: StatMetricTotals;
   channels: StatChannelSummary[];
   last_synced_at: string | null;
+  timeseries_monthly: StatTimeseriesPoint[];
+  timeseries_yearly: StatTimeseriesPoint[];
 }
 
 export interface StatDashboardResponse {
@@ -950,4 +960,6 @@ export interface StatDashboardResponse {
   platform_distribution: Record<string, number>;
   users: StatUserSummary[];
   last_synced_at: string | null;
+  timeseries_monthly: StatTimeseriesPoint[];
+  timeseries_yearly: StatTimeseriesPoint[];
 }

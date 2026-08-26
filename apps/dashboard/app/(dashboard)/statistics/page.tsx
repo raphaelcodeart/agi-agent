@@ -7,6 +7,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { PlatformDistributionChart } from "@/components/shared/platform-distribution-chart";
+import { MetricTrendChart } from "./_components/metric-trend-chart";
 import { SyncButton } from "@/components/shared/sync-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,15 @@ export default function StatisticsDashboardPage() {
           ))}
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Andamento nel tempo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MetricTrendChart monthly={data.timeseries_monthly} yearly={data.timeseries_yearly} />
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">

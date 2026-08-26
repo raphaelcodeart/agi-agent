@@ -71,11 +71,18 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.7 0.19 279 / 50%);
-  --chart-1: oklch(0.7 0.19 279);
-  --chart-2: oklch(0.78 0.14 195);
-  --chart-3: oklch(0.8 0.17 70);
-  --chart-4: oklch(0.72 0.22 330);
-  --chart-5: oklch(0.75 0.17 145);
+  /* Retuned 2026-08-26 for the Statistiche charts: the original values here
+     (L 0.70-0.80) sat above the dark-mode categorical lightness band
+     (~0.48-0.67, see dataviz color-formula.md) - safe against real chart
+     data, but too pale to read reliably as 5 distinct hues once used as
+     actual data marks rather than just icon-tint accents. Same hue/chroma
+     per slot, only L lowered; re-validated with validate_palette.js
+     (all 5 checks pass at surface #0a0a11). */
+  --chart-1: oklch(0.6 0.19 279);
+  --chart-2: oklch(0.6 0.14 195);
+  --chart-3: oklch(0.6 0.17 70);
+  --chart-4: oklch(0.6 0.22 330);
+  --chart-5: oklch(0.6 0.17 145);
   --sidebar: oklch(0.17 0.018 285);
   --sidebar-foreground: oklch(0.96 0.005 285);
   --sidebar-primary: oklch(0.7 0.19 279);

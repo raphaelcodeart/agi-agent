@@ -12,7 +12,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { DataTable } from "@/components/shared/data-table";
 import { PlatformIcon } from "@/components/shared/platform-badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { MetricTrendChart } from "../../../../_components/metric-trend-chart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -180,6 +181,15 @@ export default function ChannelStatisticsPage({
           ))}
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Andamento nel tempo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MetricTrendChart monthly={data.timeseries_monthly} yearly={data.timeseries_yearly} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent>

@@ -1003,6 +1003,16 @@ class StatMetricTotals(BaseModel):
     engagement_rate: Optional[float] = None
 
 
+class StatTimeseriesPoint(BaseModel):
+    """One bucket of a monthly/annual trend chart - period is "YYYY-MM" for
+    monthly buckets, "YYYY" for annual ones, bucketed by the post's
+    published_at (when it went out), not by when we last synced its metrics
+    (see statistics_service.timeseries)."""
+    period: str
+    post_count: int
+    totals: StatMetricTotals
+
+
 class StatSyncRunResponse(BaseModel):
     id: uuid.UUID
     scope: str
@@ -1059,6 +1069,8 @@ class StatChannelDetailResponse(BaseModel):
     totals: StatMetricTotals
     posts: List[StatPostRow]
     last_synced_at: Optional[datetime]
+    timeseries_monthly: List[StatTimeseriesPoint]
+    timeseries_yearly: List[StatTimeseriesPoint]
 
 
 class StatUserSummary(BaseModel):
@@ -1078,6 +1090,8 @@ class StatUserDetailResponse(BaseModel):
     totals: StatMetricTotals
     channels: List[StatChannelSummary]
     last_synced_at: Optional[datetime]
+    timeseries_monthly: List[StatTimeseriesPoint]
+    timeseries_yearly: List[StatTimeseriesPoint]
 
 
 class StatDashboardResponse(BaseModel):
@@ -1088,3 +1102,5 @@ class StatDashboardResponse(BaseModel):
     platform_distribution: Dict[str, int]
     users: List[StatUserSummary]
     last_synced_at: Optional[datetime]
+    timeseries_monthly: List[StatTimeseriesPoint]
+    timeseries_yearly: List[StatTimeseriesPoint]
