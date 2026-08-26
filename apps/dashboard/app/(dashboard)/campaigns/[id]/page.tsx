@@ -26,6 +26,7 @@ import { RetryButton } from "@/components/shared/retry-button";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { StatCard } from "@/components/shared/stat-card";
+import { SyncButton } from "@/components/shared/sync-button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
 import { usePublications, useRetryPublication, useRetryCampaignFailures } from "@/hooks/use-publications";
 import { useChannels } from "@/hooks/use-channels";
 import { useUsers } from "@/hooks/use-users";
+import { syncCampaign } from "@/services/statistics";
 import { formatDateTime, formatMetricValue } from "@/lib/format";
 import { METRIC_TILE_CONFIG } from "@/lib/metric-config";
 import { hasUnresolvedPublications } from "@/lib/campaign-stats";
@@ -316,17 +318,25 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               un post appena pubblicato può impiegare fino a ~24h prima che compaiano i primi dati.
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={metricsQuery.isFetching}
-            onClick={() => metricsQuery.refetch()}
-          >
-            {metricsQuery.isFetching && <Loader2Icon className="size-4 animate-spin" />}
-            <BarChart3Icon className="size-4" />
-            {metricsQuery.data ? "Aggiorna statistiche" : "Carica statistiche"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={metricsQuery.isFetching}
+              onClick={() => metricsQuery.refetch()}
+            >
+              {metricsQuery.isFetching && <Loader2Icon className="size-4 animate-spin" />}
+              <BarChart3Icon className="size-4" />
+              {metricsQuery.data ? "Aggiorna statistiche" : "Carica statistiche"}
+            </Button>
+          </div>
         </CardHeader>
+        <CardContent className="border-b pb-4">
+          {/* Salva le metriche nel modulo Statistiche (dati persistiti,
+              navigabili per utente/canale) - a differenza del bottone sopra,
+              che le mostra solo al volo senza salvarle. Vedi docs/STATISTICS.md. */}
+          <SyncButton label="Sincronizza e salva in Statistiche" dispatch={() => syncCampaign(campaign.id)} />
+        </CardContent>
         <CardContent className="space-y-4">
           {metricsQuery.isError && (
             <ErrorState error={metricsQuery.error} onRetry={() => metricsQuery.refetch()} />

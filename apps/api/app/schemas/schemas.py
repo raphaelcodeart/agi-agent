@@ -971,3 +971,109 @@ class OmniSimulateMessageRequest(BaseModel):
     external_user_id: str = Field(..., description="Fake per-channel id of the simulated customer, e.g. 'test-user-1'")
     customer_name: Optional[str] = None
     text: str = Field(..., min_length=1, max_length=5000)
+
+
+# ==============================================================================
+# Statistics Module Schemas (see docs/STATISTICS.md)
+# ==============================================================================
+class StatMetricTotals(BaseModel):
+    """Same shape/semantics as CampaignMetricsResponse.totals: sums per metric
+    type, with percentage-unit metrics (engagementRate) averaged, not summed -
+    see docs/STATISTICS.md."""
+    reactions: Optional[float] = None
+    likes: Optional[float] = None
+    views: Optional[float] = None
+    impressions: Optional[float] = None
+    reach: Optional[float] = None
+    follows: Optional[float] = None
+    clicks: Optional[float] = None
+    comments: Optional[float] = None
+    shares: Optional[float] = None
+    engagement_rate: Optional[float] = None
+
+
+class StatSyncRunResponse(BaseModel):
+    id: uuid.UUID
+    scope: str
+    scope_user_id: Optional[uuid.UUID]
+    scope_campaign_id: Optional[uuid.UUID]
+    status: str
+    total_posts: int
+    synced_posts: int
+    failed_posts: int
+    skipped_posts: int
+    error_message: Optional[str]
+    started_at: datetime
+    finished_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class StatSyncDispatchResponse(BaseModel):
+    sync_run_id: uuid.UUID
+    message: str
+
+
+class StatPostRow(BaseModel):
+    """One synced post, as shown in a channel's campaign/post list."""
+    publication_id: uuid.UUID
+    campaign_id: uuid.UUID
+    campaign_title: str
+    platform: str
+    external_post_url: Optional[str]
+    published_at: Optional[datetime]
+    metrics: StatMetricTotals
+    last_synced_at: Optional[datetime]
+    last_sync_error: Optional[str]
+
+
+class StatChannelSummary(BaseModel):
+    social_channel_id: uuid.UUID
+    channel_name: str
+    username: Optional[str]
+    platform: str
+    post_count: int
+    totals: StatMetricTotals
+    last_synced_at: Optional[datetime]
+
+
+class StatChannelDetailResponse(BaseModel):
+    social_channel_id: uuid.UUID
+    channel_name: str
+    username: Optional[str]
+    platform: str
+    user_id: uuid.UUID
+    user_name: str
+    totals: StatMetricTotals
+    posts: List[StatPostRow]
+    last_synced_at: Optional[datetime]
+
+
+class StatUserSummary(BaseModel):
+    user_id: uuid.UUID
+    user_name: str
+    company_name: Optional[str]
+    channel_count: int
+    post_count: int
+    totals: StatMetricTotals
+    last_synced_at: Optional[datetime]
+
+
+class StatUserDetailResponse(BaseModel):
+    user_id: uuid.UUID
+    user_name: str
+    company_name: Optional[str]
+    totals: StatMetricTotals
+    channels: List[StatChannelSummary]
+    last_synced_at: Optional[datetime]
+
+
+class StatDashboardResponse(BaseModel):
+    totals: StatMetricTotals
+    user_count: int
+    channel_count: int
+    post_count: int
+    platform_distribution: Dict[str, int]
+    users: List[StatUserSummary]
+    last_synced_at: Optional[datetime]

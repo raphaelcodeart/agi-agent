@@ -844,3 +844,107 @@ export interface OmniAnalyticsResponse {
   ai_edit_rate: number | null;
   ai_rejection_rate: number | null;
 }
+
+// ==============================================================================
+// Statistics module (see docs/STATISTICS.md) - persisted Buffer post metrics,
+// browsable by utente -> canale -> campagna/post. Separate from the live,
+// on-demand ChannelMetrics/CampaignMetricsResponse above.
+// ==============================================================================
+export interface StatMetricTotals {
+  reactions: number | null;
+  likes: number | null;
+  views: number | null;
+  impressions: number | null;
+  reach: number | null;
+  follows: number | null;
+  clicks: number | null;
+  comments: number | null;
+  shares: number | null;
+  engagement_rate: number | null;
+}
+
+export type StatSyncScope = "global" | "user" | "campaign";
+export type StatSyncStatus = "queued" | "running" | "completed" | "completed_with_errors" | "failed";
+
+export interface StatSyncRunResponse {
+  id: string;
+  scope: StatSyncScope;
+  scope_user_id: string | null;
+  scope_campaign_id: string | null;
+  status: StatSyncStatus;
+  total_posts: number;
+  synced_posts: number;
+  failed_posts: number;
+  skipped_posts: number;
+  error_message: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface StatSyncDispatchResponse {
+  sync_run_id: string;
+  message: string;
+}
+
+export interface StatPostRow {
+  publication_id: string;
+  campaign_id: string;
+  campaign_title: string;
+  platform: string;
+  external_post_url: string | null;
+  published_at: string | null;
+  metrics: StatMetricTotals;
+  last_synced_at: string | null;
+  last_sync_error: string | null;
+}
+
+export interface StatChannelSummary {
+  social_channel_id: string;
+  channel_name: string;
+  username: string | null;
+  platform: string;
+  post_count: number;
+  totals: StatMetricTotals;
+  last_synced_at: string | null;
+}
+
+export interface StatChannelDetailResponse {
+  social_channel_id: string;
+  channel_name: string;
+  username: string | null;
+  platform: string;
+  user_id: string;
+  user_name: string;
+  totals: StatMetricTotals;
+  posts: StatPostRow[];
+  last_synced_at: string | null;
+}
+
+export interface StatUserSummary {
+  user_id: string;
+  user_name: string;
+  company_name: string | null;
+  channel_count: number;
+  post_count: number;
+  totals: StatMetricTotals;
+  last_synced_at: string | null;
+}
+
+export interface StatUserDetailResponse {
+  user_id: string;
+  user_name: string;
+  company_name: string | null;
+  totals: StatMetricTotals;
+  channels: StatChannelSummary[];
+  last_synced_at: string | null;
+}
+
+export interface StatDashboardResponse {
+  totals: StatMetricTotals;
+  user_count: number;
+  channel_count: number;
+  post_count: number;
+  platform_distribution: Record<string, number>;
+  users: StatUserSummary[];
+  last_synced_at: string | null;
+}

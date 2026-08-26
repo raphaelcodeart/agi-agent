@@ -10,6 +10,8 @@ Le tabelle del modulo Blog Writer AI (`blog_writer_*`) sono documentate separata
 
 Le tabelle del modulo Omnichannel Responder (`omni_*`, 15 tabelle) sono documentate separatamente in [OMNICHANNEL_RESPONDER.md](./OMNICHANNEL_RESPONDER.md#3-schema-database) — anch'esso un modulo isolato con proprio schema, collegato al resto della piattaforma solo tramite `owner_id` (FK verso `administrators.id`).
 
+Le tabelle del modulo Statistiche (`stat_*`, 3 tabelle) sono documentate separatamente in [STATISTICS.md](./STATISTICS.md#2-schema-database) — anch'esso isolato, collegato al resto della piattaforma solo tramite foreign key in sola lettura verso `publications`/`campaigns`/`users`/`social_channels`/`buffer_connections`/`administrators`.
+
 ---
 
 ## Indice
@@ -23,6 +25,7 @@ Le tabelle del modulo Omnichannel Responder (`omni_*`, 15 tabelle) sono document
 7. [Campagne e pubblicazioni](#7-campagne-e-pubblicazioni)
 8. [Audit log](#8-audit-log)
 9. [Impostazioni AI](#9-impostazioni-ai)
+10. [Modulo Statistiche](#10-modulo-statistiche)
 
 ---
 
@@ -80,7 +83,13 @@ erDiagram
 
     CAMPAIGN_TARGETS ||--o| PUBLICATIONS : "produce"
     PUBLICATIONS ||--o{ PUBLICATION_ATTEMPTS : "registra tentativi"
+
+    PUBLICATIONS ||--o| STAT_POST_METRICS : "snapshot metriche"
+    PUBLICATIONS ||--o{ STAT_METRIC_HISTORY : "storico metriche"
+    ADMINISTRATORS ||--o{ STAT_SYNC_RUNS : "avvia"
 ```
+
+Le entità `STAT_*` (modulo Statistiche, vedi [STATISTICS.md](./STATISTICS.md)) sono collegate solo tramite FK in sola lettura verso `PUBLICATIONS`/`CAMPAIGNS`/`USERS`/`SOCIAL_CHANNELS`/`BUFFER_CONNECTIONS` (denormalizzate su `stat_post_metrics` per aggregazioni veloci) — omesse dal diagramma sopra per leggibilità oltre al collegamento con `PUBLICATIONS`, dettagliate in [STATISTICS.md §2](./STATISTICS.md#2-schema-database).
 
 ---
 
@@ -244,3 +253,9 @@ Riga singola (singleton: zero o una riga, mai più di una) con la chiave API Ope
 | `updated_at` | timestamp | |
 
 Se questa riga non esiste o non ha una chiave impostata, il backend ricade sulla variabile d'ambiente `OPENAI_API_KEY` (se presente) solo come default di primo avvio — la riga in questa tabella, quando presente, ha sempre la precedenza.
+
+---
+
+## 10. Modulo Statistiche
+
+Schema completo, motore di sync e endpoint documentati separatamente in **[STATISTICS.md](./STATISTICS.md)** — modulo isolato, 3 tabelle (`stat_sync_runs`, `stat_post_metrics`, `stat_metric_history`), collegato al resto della piattaforma solo tramite foreign key in sola lettura verso `publications`/`campaigns`/`users`/`social_channels`/`buffer_connections`/`administrators`. Persiste (invece di ricalcolare ogni volta) le metriche Buffer per post, navigabili in dashboard per utente → canale → campagna.

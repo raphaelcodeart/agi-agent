@@ -8,6 +8,8 @@ Il modulo **Blog Writer AI** (generazione articoli, siti WordPress, pubblicazion
 
 Il modulo **Omnichannel Responder** (inbox AI multicanale con approvazione umana obbligatoria) è documentato separatamente in [OMNICHANNEL_RESPONDER.md](./OMNICHANNEL_RESPONDER.md), anch'esso un modulo isolato con proprie tabelle/endpoint/pagine, collegato al resto della piattaforma solo tramite `owner_id`.
 
+Il modulo **Statistiche** (dashboard persistita delle metriche Buffer per promoter/canale/campagna) è documentato separatamente in [STATISTICS.md](./STATISTICS.md), anch'esso isolato con proprie tabelle, collegato al resto della piattaforma solo tramite foreign key in sola lettura.
+
 ---
 
 ## Indice
@@ -23,6 +25,7 @@ Il modulo **Omnichannel Responder** (inbox AI multicanale con approvazione umana
 9. [Endpoint API](#9-endpoint-api)
 10. [Metriche](#10-metriche)
     - 10.1 [Bacheca (feed pubblico delle pubblicazioni)](#101-bacheca-feed-pubblico-delle-pubblicazioni)
+    - 10.2 [Modulo Statistiche (dati persistiti)](#102-modulo-statistiche-dati-persistiti)
 11. [Media](#11-media)
 12. [Impostazioni runtime](#12-impostazioni-runtime)
 13. [Cose note come non finite o legacy](#13-cose-note-come-non-finite-o-legacy)
@@ -254,6 +257,10 @@ Il frontend (`app/(dashboard)/board/page.tsx`) mostra ogni pubblicazione come un
 **Bottone Statistiche**: ogni card ha un pulsante piccolo "Statistiche" (`BarChart3Icon`) che porta a `/publications/{item.id}` — la stessa scheda di dettaglio pubblicazione già esistente della vista a tabella "Pubblicazioni" (§9), non una pagina nuova. Le metriche vere e proprie (like, visualizzazioni, ecc.) non vengono caricate qui in Bacheca: restano un caricamento **on-demand** sulla scheda di dettaglio, tramite il pulsante "Carica/Aggiorna statistiche" già descritto sopra (`GET /publications/{id}/metrics`) — coerente con la scelta di non salvarle periodicamente.
 
 **Filtro canale**: un selettore grande e centrato sotto l'intestazione (non un piccolo controllo nell'header — pensato per essere il modo primario di navigare il feed) elenca solo i canali effettivamente presenti nella pagina di feed caricata (derivata client-side da `PublicationFeedItem.social_channel_id`, nessuna chiamata separata per l'elenco canali), ordinati per **piattaforma** (alfabetico — tutti i canali Facebook insieme, poi Instagram, ecc. — a parità di piattaforma, per nome canale), più un'opzione "Tutti i canali" in cima alla lista. Ogni voce mostra `"{channel_name} ({user_name}) - {piattaforma}"` (es. "Algarve Beach Resort (Mario Rossi) - Instagram") — nome canale e cliente insieme, altrimenti due canali con nome simile o la stessa piattaforma sarebbero indistinguibili nella tendina. **Vista di default**: il primo canale della lista ordinata, non tutto mescolato — calcolato al render (non con un `useEffect` + `setState`, per evitare un render a cascata) come fallback quando l'admin non ha ancora scelto esplicitamente, così una sua scelta manuale non viene mai sovrascritta da un refetch successivo. Il fetch usa `limit=100` (il massimo dell'endpoint) invece del default 30 delle altre viste, per dare al filtro abbastanza dati anche su un canale meno attivo.
+
+### 10.2 Modulo Statistiche (dati persistiti)
+
+Tutto quanto descritto sopra in questo §10 è **live**: chiamato al volo, mai salvato. Il modulo **Statistiche** (voce sidebar dedicata, sotto "Media") aggiunge un secondo livello sopra queste stesse chiamate a Buffer, salvando il risultato in tabelle proprie (`stat_*`) così da poterlo navigare per utente → canale → campagna senza richiamare Buffer ogni volta, con 3 bottoni di sincronizzazione manuale (utente/campagna/tutti) ed export Excel. Documentazione completa, schema dati e motore di sync in **[STATISTICS.md](./STATISTICS.md)**.
 
 ---
 

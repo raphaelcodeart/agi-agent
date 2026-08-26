@@ -25,3 +25,4 @@ from app.models.omnichannel import (  # noqa
     OmniNotification,
     OmniAIUsage,
 )
+from app.models.statistics import StatSyncRun, StatPostMetric, StatMetricHistory  # noqa

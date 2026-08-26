@@ -51,4 +51,11 @@ export const queryKeys = {
     analytics: () => ["omnichannel", "analytics"] as const,
     pendingCount: () => ["omnichannel", "pending-count"] as const,
   },
+  statistics: {
+    dashboard: () => ["statistics", "dashboard"] as const,
+    userDetail: (userId: string) => ["statistics", "user-detail", userId] as const,
+    channelDetail: (userId: string, channelId: string) =>
+      ["statistics", "channel-detail", userId, channelId] as const,
+    syncRun: (syncRunId: string) => ["statistics", "sync-run", syncRunId] as const,
+  },
 } as const;

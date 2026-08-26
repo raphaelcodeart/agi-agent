@@ -7,6 +7,7 @@ import {
   LinkIcon,
   Share2Icon,
   ImagesIcon,
+  BarChart3Icon,
   MegaphoneIcon,
   SendIcon,
   AlertOctagonIcon,
@@ -46,6 +47,7 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
   { href: "/buffer-connections", label: "Connessioni Buffer", icon: LinkIcon },
   { href: "/channels", label: "Canali social", icon: Share2Icon },
   { href: "/media", label: "Media", icon: ImagesIcon },
+  { href: "/statistics", label: "Statistiche", icon: BarChart3Icon },
 ];
 
 // The campaign execution/monitoring side of the Buffer integration - appended
