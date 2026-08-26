@@ -11,21 +11,26 @@ Design per consumare poche richieste verso Buffer:
   (app/services/rate_limiter.py) di app/tasks/publication.py, cosi' il sync
   non compete mai con una campagna in corso di pubblicazione sulla stessa
   connessione.
-- il worker Celery di questo progetto gira a concorrenza 1 (docker-compose.yml:
-  "celery worker -c 1"), condiviso con la pubblicazione e l'omnichannel
-  responder: un singolo task che scorre centinaia di post con time.sleep()
-  bloccherebbe tutto il resto per la durata del sync. Per questo la
-  sincronizzazione di uno scope (utente/campagna/tutti) NON esegue un loop
-  bloccante: dispatcha un task Celery indipendente per ogni post con un
-  countdown scaglionato per connessione (vedi _dispatch_sync) - il worker
-  resta libero di processare nel frattempo una pubblicazione in coda o un
-  messaggio omnichannel in arrivo, invece di restare fermo ad aspettare.
+- il worker Celery e' condiviso con la pubblicazione e l'omnichannel responder
+  (worker -c 4 in produzione, docker-compose.prod.yml - -c 1 in sviluppo): un
+  singolo task che scorresse centinaia di post con time.sleep() per il
+  pacing bloccherebbe processi paralleli o, in dev, l'unico worker per
+  l'intera durata del sync. Per questo la sincronizzazione di uno scope
+  (utente/campagna/tutti) NON esegue un loop bloccante: dispatcha un task
+  Celery indipendente per ogni post con un countdown scaglionato per
+  connessione (vedi _dispatch_sync) - il worker resta libero di processare
+  nel frattempo una pubblicazione in coda o un messaggio omnichannel in
+  arrivo, invece di restare fermo ad aspettare. Essendo la concorrenza reale
+  > 1 in produzione, l'incremento dei contatori su StatSyncRun usa un UPDATE
+  SQL atomico (vedi sync_publication_metrics_task), non un semplice
+  `+= 1` in ORM che perderebbe incrementi sotto esecuzione parallela.
 """
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from celery.utils.log import get_task_logger
+from sqlalchemy import update as sa_update
 
 from app.core.config import settings
 from app.core.security import EncryptionService
@@ -191,18 +196,34 @@ def sync_publication_metrics_task(self, publication_id_str: str, sync_run_id_str
         finally:
             rate_limiter.release_lock(pub.buffer_connection_id)
 
-        run.synced_posts += 1 if synced else 0
-        run.failed_posts += 0 if synced else 1
+        # Incremento atomico a livello di riga (UPDATE ... SET col = col + 1),
+        # non un read-modify-write in Python: il worker di produzione gira a
+        # concorrenza 4 (docker-compose.prod.yml, worker -c 4), quindi piu'
+        # task di questo stesso sync run possono davvero incrementare i
+        # contatori in parallelo - un semplice `run.synced_posts += 1` in
+        # ORM perderebbe incrementi sotto concorrenza reale. Postgres
+        # serializza gli UPDATE concorrenti sulla stessa riga via row lock,
+        # quindi questo resta corretto qualunque sia la concorrenza del worker.
+        db.execute(
+            sa_update(StatSyncRun)
+            .where(StatSyncRun.id == run.id)
+            .values(
+                synced_posts=StatSyncRun.synced_posts + (1 if synced else 0),
+                failed_posts=StatSyncRun.failed_posts + (0 if synced else 1),
+            )
+        )
+        db.commit()
+        db.refresh(run)
 
-        # Il worker Celery di questo progetto gira a concorrenza 1 (vedi
-        # docstring del modulo), quindi questo incremento non e' mai
-        # concorrente con un altro task dello stesso sync run - nessun lock
-        # necessario per capire in sicurezza quando il run e' finito.
+        # Puo' capitare che due task dello stesso run soddisfino entrambi
+        # questa condizione quasi insieme (es. gli ultimi due post finiscono
+        # a pochi ms di distanza): innocuo, scrivono lo stesso stato finale -
+        # a differenza dei contatori sopra, non serve un incremento atomico
+        # per un valore idempotente.
         if run.synced_posts + run.failed_posts + run.skipped_posts >= run.total_posts:
             run.status = "completed" if run.failed_posts == 0 else "completed_with_errors"
             run.finished_at = utc_now()
-
-        db.commit()
+            db.commit()
     finally:
         db.close()
 
