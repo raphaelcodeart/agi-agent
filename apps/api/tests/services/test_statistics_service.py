@@ -8,13 +8,14 @@ from app.services.statistics_service import (
     _totals_dict,
     extract_metric_columns,
     needs_sync,
+    timeseries,
 )
 
 
-def _metric_row(**overrides):
+def _metric_row(published_at=None, **overrides):
     values = {c: None for c in ALL_METRIC_COLUMNS}
     values.update(overrides)
-    return SimpleNamespace(**values)
+    return SimpleNamespace(published_at=published_at, **values)
 
 
 def test_extract_metric_columns_maps_known_types():
@@ -41,14 +42,21 @@ def test_needs_sync_forced_even_if_fresh():
 
 
 def test_needs_sync_false_within_threshold():
-    recent = SimpleNamespace(last_synced_at=datetime.now(timezone.utc) - timedelta(hours=1))
+    recent = SimpleNamespace(last_synced_at=datetime.now(timezone.utc) - timedelta(hours=1), last_sync_error=None)
     assert needs_sync(existing=recent, force=False) is False
 
 
 def test_needs_sync_true_past_threshold():
     stale_at = datetime.now(timezone.utc) - STALE_SYNC_THRESHOLD - timedelta(minutes=1)
-    stale = SimpleNamespace(last_synced_at=stale_at)
+    stale = SimpleNamespace(last_synced_at=stale_at, last_sync_error=None)
     assert needs_sync(existing=stale, force=False) is True
+
+
+def test_needs_sync_true_when_last_attempt_recorded_an_error_even_if_fresh():
+    just_synced_but_failed = SimpleNamespace(
+        last_synced_at=datetime.now(timezone.utc), last_sync_error="Post not found for id: x"
+    )
+    assert needs_sync(existing=just_synced_but_failed, force=False) is True
 
 
 def test_totals_dict_sums_plain_metrics():
@@ -78,3 +86,31 @@ def test_impact_score_ignores_engagement_rate():
 def test_impact_score_treats_missing_as_zero():
     totals = {c: None for c in ALL_METRIC_COLUMNS}
     assert _impact_score(totals) == 0
+
+
+def test_timeseries_buckets_by_month_and_sorts_chronologically():
+    rows = [
+        _metric_row(published_at=datetime(2026, 7, 15, tzinfo=timezone.utc), views=10.0),
+        _metric_row(published_at=datetime(2026, 8, 1, tzinfo=timezone.utc), views=20.0),
+        _metric_row(published_at=datetime(2026, 7, 20, tzinfo=timezone.utc), views=5.0),
+    ]
+    points = timeseries(rows, "month")
+    assert [p["period"] for p in points] == ["2026-07", "2026-08"]
+    assert points[0]["post_count"] == 2
+    assert points[0]["totals"]["views"] == 15.0
+    assert points[1]["post_count"] == 1
+    assert points[1]["totals"]["views"] == 20.0
+
+
+def test_timeseries_buckets_by_year():
+    rows = [
+        _metric_row(published_at=datetime(2025, 12, 1, tzinfo=timezone.utc), views=1.0),
+        _metric_row(published_at=datetime(2026, 1, 1, tzinfo=timezone.utc), views=2.0),
+    ]
+    points = timeseries(rows, "year")
+    assert [p["period"] for p in points] == ["2025", "2026"]
+
+
+def test_timeseries_excludes_posts_with_no_published_at():
+    rows = [_metric_row(published_at=None, views=1.0)]
+    assert timeseries(rows, "month") == []

@@ -61,8 +61,19 @@ def extract_metric_columns(metrics: list[dict[str, Any]]) -> dict[str, float]:
 
 
 def needs_sync(existing: StatPostMetric | None, force: bool) -> bool:
-    """Whether a publication should be (re)fetched from Buffer right now."""
+    """Whether a publication should be (re)fetched from Buffer right now.
+
+    A row left with a recorded last_sync_error is always eligible, regardless
+    of last_synced_at: the staleness guard exists to avoid re-downloading
+    metrics that already succeeded recently, not to lock in a failure for the
+    next STALE_SYNC_THRESHOLD (real incident, 2026-08-26 - a since-fixed bug
+    made every post's sync attempt record an error right after last_synced_at
+    was already stamped, so a plain "Sincronizza tutto" wouldn't have retried
+    any of them for another ~20h even though every one of them needed it).
+    """
     if force or existing is None or existing.last_synced_at is None:
+        return True
+    if existing.last_sync_error is not None:
         return True
     return datetime.now(UTC) - existing.last_synced_at > STALE_SYNC_THRESHOLD
 
@@ -104,6 +115,31 @@ def _impact_score(totals: dict[str, float | None]) -> float:
     its own, since blending different metric types (views+likes+...) has no
     real-world unit."""
     return sum(v for k, v in totals.items() if k != "engagement_rate" and v is not None)
+
+
+def timeseries(rows: Sequence[Any], granularity: str) -> list[dict[str, Any]]:
+    """Buckets rows (StatPostMetric) into a monthly ("YYYY-MM") or annual
+    ("YYYY") trend, keyed by each post's published_at - i.e. when the content
+    went out, not when we last synced its metrics from Buffer. Posts with no
+    published_at yet (still queued/scheduled with an unknown date) are
+    excluded - there's no meaningful bucket for them. Reuses _totals_dict for
+    each bucket's aggregation, so the sum-vs-average-per-metric rule (see
+    module docstring) is identical to every other totals computation here.
+    Returns buckets sorted chronologically, oldest first - ready to feed a
+    chart's x-axis in order without the caller re-sorting.
+    """
+    fmt = "%Y-%m" if granularity == "month" else "%Y"
+    buckets: dict[str, list[Any]] = {}
+    for row in rows:
+        if row.published_at is None:
+            continue
+        key = row.published_at.strftime(fmt)
+        buckets.setdefault(key, []).append(row)
+
+    return [
+        {"period": key, "post_count": len(buckets[key]), "totals": _totals_dict(buckets[key])}
+        for key in sorted(buckets.keys())
+    ]
 
 
 def build_dashboard(db: Session) -> dict[str, Any]:
@@ -163,6 +199,8 @@ def build_dashboard(db: Session) -> dict[str, Any]:
         "platform_distribution": {p: len(chs) for p, chs in platform_counts.items()},
         "users": users,
         "last_synced_at": last_synced_at,
+        "timeseries_monthly": timeseries(metrics_rows, "month"),
+        "timeseries_yearly": timeseries(metrics_rows, "year"),
     }
 
 
@@ -220,6 +258,8 @@ def build_user_detail(db: Session, user_id: uuid.UUID) -> dict[str, Any] | None:
         "totals": _totals_dict(metrics_rows),
         "channels": channels,
         "last_synced_at": last_synced_at,
+        "timeseries_monthly": timeseries(metrics_rows, "month"),
+        "timeseries_yearly": timeseries(metrics_rows, "year"),
     }
 
 
@@ -277,4 +317,6 @@ def build_channel_detail(
         "totals": _totals_dict(metrics_rows),
         "posts": posts,
         "last_synced_at": last_synced_at,
+        "timeseries_monthly": timeseries(metrics_rows, "month"),
+        "timeseries_yearly": timeseries(metrics_rows, "year"),
     }

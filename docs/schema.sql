@@ -3,14 +3,14 @@
 -- "social_publisher" — generato con:
 --   pg_dump -U postgres -d social_publisher --schema-only --no-owner --no-privileges
 --
--- Snapshot generato: 2026-08-26 21:01 UTC, dal server di produzione di questo
--- progetto, alla revisione Alembic "d4e5f6a7b8c9" (head) - `SELECT version_num
--- FROM alembic_version;`. Rigenerato per due migration reali dal precedente
--- snapshot (2026-08-16, revisione "6ad75c20ec09"): "9c1f3a7e2b6d" (modulo
--- Statistiche - tabelle stat_sync_runs/stat_post_metrics/stat_metric_history,
--- vedi STATISTICS.md) e "d4e5f6a7b8c9" (contatti personali - users.personal_contacts
--- e campaigns.include_personal_contacts, vedi FUNCTIONALITY.md §3 e DATABASE.md §4/§7).
--- Include quindi sia le tabelle/colonne nuove sia tutte quelle preesistenti.
+-- Snapshot generato: 2026-08-26 21:45 UTC, dal server di produzione di questo
+-- progetto, alla revisione Alembic "e5f6a7b8c9d0" (head) - `SELECT version_num
+-- FROM alembic_version;`. Rigenerato per una migration reale dal precedente
+-- snapshot (2026-08-26 21:01, revisione "d4e5f6a7b8c9"): "e5f6a7b8c9d0"
+-- aggiunge a stat_metric_history le colonne likes/impressions/reach, mancanti
+-- da quando la tabella e' stata creata - fix di un bug reale (vedi
+-- STATISTICS.md §2 e §9). Include quindi sia le tabelle/colonne nuove sia
+-- tutte quelle preesistenti.
 --
 -- QUESTO FILE NON È LA FONTE DI VERITÀ DELLO SCHEMA. Lo sono le migration in
 -- apps/api/alembic/versions/ (vedi docs/DEPLOYMENT.md §5): per creare il
@@ -668,7 +668,10 @@ CREATE TABLE public.stat_metric_history (
     shares double precision,
     engagement_rate double precision,
     metrics_raw jsonb,
-    created_at timestamp with time zone NOT NULL
+    created_at timestamp with time zone NOT NULL,
+    likes double precision,
+    impressions double precision,
+    reach double precision
 );
 
 

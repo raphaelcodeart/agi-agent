@@ -16,7 +16,8 @@ Questo file è scritto per essere sufficiente, da solo, a ricostruire il modulo 
 6. [Frontend](#6-frontend)
 7. [I 3 livelli di sincronizzazione](#7-i-3-livelli-di-sincronizzazione)
 8. [Export Excel](#8-export-excel)
-9. [Limiti noti di questa v1](#9-limiti-noti-di-questa-v1)
+9. [Grafici di andamento (mensile/annuale)](#9-grafici-di-andamento-mensileannuale)
+10. [Limiti noti di questa v1](#10-limiti-noti-di-questa-v1)
 
 ---
 
@@ -48,7 +49,9 @@ Ultimo snapshot noto delle metriche Buffer per una pubblicazione — **1:1 con `
 Le metriche più comuni hanno una colonna dedicata (`reactions`, `likes`, `views`, `impressions`, `reach`, `follows`, `clicks`, `comments`, `shares`, `engagement_rate`) per permettere `SUM`/`ORDER BY` via SQL — nullable, perché non tutte le piattaforme riportano ogni tipo. Il payload completo così com'è arrivato da Buffer resta comunque in `metrics_raw` (JSONB), per non perdere tipi di metrica futuri non ancora mappati su una colonna propria. `metrics_updated_at` è il timestamp **di Buffer** (quando *loro* hanno calcolato quei valori); `last_synced_at` è quando **noi** li abbiamo scaricati — possono differire.
 
 ### `stat_metric_history`
-Append-only: una riga per ogni sync riuscito di un post (oltre all'ultimo snapshot in `stat_post_metrics`). Costo trascurabile per riga, scritta ad ogni sync riuscito ma **non ancora usata dalla UI v1** — pensata per abilitare in futuro grafici di andamento nel tempo senza dover ridisegnare lo schema.
+Append-only: una riga per ogni sync riuscito di un post (oltre all'ultimo snapshot in `stat_post_metrics`). Costo trascurabile per riga, scritta ad ogni sync riuscito ma **non ancora usata dalla UI v1** — pensata per abilitare in futuro grafici dell'andamento di un singolo post nel tempo (crescita tra un sync e l'altro) senza dover ridisegnare lo schema. I grafici mensili/annuali del §10 non usano questa tabella: bucketizzano invece l'ultimo snapshot noto (`stat_post_metrics`) per data di *pubblicazione* — un caso d'uso diverso ("quanto ha reso il contenuto pubblicato in agosto"), non "come è cresciuto questo singolo post".
+
+**Stesse identiche colonne metriche di `stat_post_metrics` sopra** (bug reale corretto il 2026-08-26, migration `e5f6a7b8c9d0`): mancavano `likes`/`impressions`/`reach`, cioè 3 delle 9 colonne di `ALL_METRIC_COLUMNS`. `_apply_metrics` (`app/tasks/statistics.py`) scrive entrambe le tabelle dallo stesso dizionario `**{c: columns.get(c) for c in ALL_METRIC_COLUMNS}` — la disallineamento faceva sollevare un `TypeError` non gestito ad ogni singolo sync (bottone "aggiorna" per riga → 500, sync di scope ampio → ogni post finiva con `last_sync_error` valorizzato), **pur avendo già scritto correttamente le metriche su `stat_post_metrics` un attimo prima** nella stessa chiamata. Il fix aggiunge un test (`test_statistics_metric_history_columns.py`) che verifica esplicitamente che entrambi i modelli accettino ogni colonna di `ALL_METRIC_COLUMNS` come kwarg — così un futuro nuovo tipo di metrica aggiunto a uno solo dei due modelli fallisce a un test, non in produzione.
 
 Nessuna relationship viene aggiunta sui modelli esistenti (`User`, `Campaign`, `Publication`, `SocialChannel`) — le FK sono unidirezionali, dal modulo Statistiche verso il resto della piattaforma, mai il contrario.
 
@@ -66,7 +69,7 @@ Il worker Celery è condiviso con la pubblicazione delle campagne e l'Omnichanne
 
 Requisito esplicito: ogni cliente ha la propria API key Buffer, quindi il sync deve consumare il meno possibile.
 
-- **Guardia di staleness** (`statistics_service.needs_sync`): un post già sincronizzato nelle ultime **20 ore** non viene ri-scaricato da un sync di scope ampio (utente/campagna/tutti) — Buffer stesso aggiorna le metriche una volta al giorno (vedi `app/integrations/buffer/client.py`), quindi ri-chiedere più spesso non produrrebbe dati diversi. Un secondo click su "Sincronizza" subito dopo il primo costa **zero** chiamate se non è passato abbastanza tempo (`StatSyncRun` si chiude subito con tutti i post `skipped`).
+- **Guardia di staleness** (`statistics_service.needs_sync`): un post già sincronizzato nelle ultime **20 ore** non viene ri-scaricato da un sync di scope ampio (utente/campagna/tutti) — Buffer stesso aggiorna le metriche una volta al giorno (vedi `app/integrations/buffer/client.py`), quindi ri-chiedere più spesso non produrrebbe dati diversi. Un secondo click su "Sincronizza" subito dopo il primo costa **zero** chiamate se non è passato abbastanza tempo (`StatSyncRun` si chiude subito con tutti i post `skipped`). **Eccezione**: un post il cui ultimo tentativo ha lasciato un `last_sync_error` valorizzato è sempre eleggibile, a prescindere da quanto sia recente `last_synced_at` — altrimenti un post fallito per un motivo nel frattempo risolto (es. il bug di `stat_metric_history` sopra, o una chiave API rinnovata) resterebbe bloccato in errore fino allo scadere delle 20 ore anche premendo di nuovo "Sincronizza tutto".
 - Il **refresh del singolo post** (bottone "aggiorna" per riga nel drill-down canale, `POST /statistics/posts/{id}/sync`) bypassa la guardia perché è un'azione esplicita dell'amministratore su un solo post, non uno scope ampio.
 - **Pacing per connessione**: countdown scaglionato descritto sopra (§3) — mai più di una richiesta ogni `PAUSE_BETWEEN_REQUESTS_SECONDS` verso la stessa API key cliente.
 - **Nessuna chiamata batch inventata**: il client Buffer di questo progetto espone solo `get_post_metrics` per singolo post (`app/integrations/buffer/prod_client.py`) — nessuna ipotesi su endpoint multi-post non documentati (AGENTS.md, regola 14).
@@ -112,8 +115,19 @@ Esattamente i 3 richiesti, nessuno automatico:
 
 `app/services/xlsx_export.py::build_xlsx` genera il file **in memoria** (`openpyxl`, nessun file temporaneo su disco) e lo streamma via `StreamingResponse`. Sul frontend non serve gestione blob via JS: gli export sono semplici link `<a href="/api/backend/statistics/export/...">` — stesso dominio del proxy BFF (`app/api/backend/[...path]/route.ts`), che inoltra già l'header `content-disposition`, quindi il cookie di sessione httpOnly viaggia automaticamente con la normale navigazione del browser e il download parte come un link qualsiasi.
 
-## 9. Limiti noti di questa v1
+## 9. Grafici di andamento (mensile/annuale)
 
-- `stat_metric_history` viene scritta ad ogni sync ma non è ancora esposta da nessun grafico di andamento nel tempo — solo l'ultimo snapshot (`stat_post_metrics`) alimenta la UI.
+Aggiunti il 2026-08-26 ai 3 livelli esistenti (dashboard generale, utente, canale) - `MetricTrendChart` (`app/(dashboard)/statistics/_components/metric-trend-chart.tsx`), un unico componente riusato da tutte e 3 le pagine.
+
+- **Calcolo lato backend, zero query aggiuntive**: `statistics_service.timeseries(rows, granularity)` raggruppa le righe `StatPostMetric` **già caricate** da `build_dashboard`/`build_user_detail`/`build_channel_detail` per `published_at` troncato a mese (`"YYYY-MM"`) o anno (`"YYYY"`), riusando `_totals_dict` per l'aggregazione di ogni bucket (stessa regola somma-vs-media-per-`engagement_rate` di ogni altro totale in questo modulo). Un post senza `published_at` noto (ancora in coda/programmato senza data ferma) è escluso dal bucket, non forzato a uno finto. Ogni risposta (`StatDashboardResponse`/`StatUserDetailResponse`/`StatChannelDetailResponse`) espone sia `timeseries_monthly` sia `timeseries_yearly` - il frontend sceglie quale mostrare senza una seconda chiamata di rete.
+- **Bucketizzato per data di *pubblicazione*, non di sincronizzazione**: risponde a "quanto ha reso il contenuto pubblicato ad agosto", non "quando abbiamo scaricato l'ultima metrica" - le due date sono spesso diverse (un sync può avvenire giorni dopo la pubblicazione).
+- **Una metrica alla volta, mai due assi**: il selettore nel componente lascia scegliere quale delle 10 metriche mostrare (le 9 di `ALL_METRIC_COLUMNS` più la pseudo-metrica "Post pubblicati", sempre disponibile anche prima di qualunque sincronizzazione Buffer) - mai una combinazione, per non introdurre un secondo asse con scala diversa nello stesso grafico.
+- **Colore**: singola serie, sempre `--chart-1` (nessuna legenda necessaria - titolo/selettore già dicono cosa mostra). I 5 token `--chart-1..5` in tema scuro sono stati corretti nella stessa modifica (`app/globals.css`): i valori originali (`oklch L 0.70-0.80`) erano sopra la banda categorica per superfici scure (~0.48-0.67), troppo pallidi per leggersi come marcatori di dati affidabili - validato con lo script `validate_palette.js` del skill dataviz (tutti e 5 i controlli passano ora su sfondo scuro). Stesso hue/chroma, solo luminosità abbassata; nessun altro utilizzo esistente di quei token (icone accento in `page.tsx`/`groups/page.tsx`) ne risente in modo negativo.
+- **Interazione**: tooltip al passaggio del mouse/focus su ogni barra (componente `Tooltip` condiviso, stesso usato altrove nell'app) con periodo, valore esatto e numero di post in quel bucket; l'ultima barra porta anche un'etichetta diretta sempre visibile (valore all'apice) - le altre restano leggibili solo via tooltip/asse, per non affollare il grafico di numeri.
+- **Vista mensile limitata agli ultimi 12 bucket** (il backend restituisce tutta la storia disponibile, il frontend mostra solo la coda più recente) - la vista annuale mostra sempre tutti gli anni disponibili, tipicamente pochi.
+
+## 10. Limiti noti di questa v1
+
+- `stat_metric_history` viene scritta ad ogni sync ma resta priva di una UI propria - i grafici del §9 usano `stat_post_metrics`, non lo storico multi-sync per singolo post (vedi nota in §2).
 - Nessun export Excel a livello di singola campagna (solo generale/utente/canale) — i dati sono comunque consultabili nella scheda campagna esistente.
 - Il refresh del singolo post non ha un indicatore di "in coda" persistito (è sincrono, un'unica richiesta HTTP) — se la connessione è occupata risponde 429 e l'admin riprova.

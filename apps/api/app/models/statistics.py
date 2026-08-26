@@ -137,8 +137,20 @@ class StatMetricHistory(Base):
     publication_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("publications.id", ondelete="CASCADE"), nullable=False)
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
+    # Stesso identico set di colonne di StatPostMetric sopra (vedi
+    # ALL_METRIC_COLUMNS in statistics_service.py): _apply_metrics
+    # (app/tasks/statistics.py) scrive entrambe le righe da un unico
+    # **{c: columns.get(c) for c in ALL_METRIC_COLUMNS}, quindi le due tabelle
+    # devono restare in sync sulle colonne o quella chiamata solleva un
+    # TypeError non gestito (bug reale osservato in produzione il 2026-08-26:
+    # "likes"/"impressions"/"reach" mancavano qui, causando un 500 sul
+    # refresh di ogni post pur avendo gia' scritto le metriche corrette su
+    # StatPostMetric un attimo prima - vedi git blame per il fix).
     reactions: Mapped[float | None] = mapped_column(Float, nullable=True)
+    likes: Mapped[float | None] = mapped_column(Float, nullable=True)
     views: Mapped[float | None] = mapped_column(Float, nullable=True)
+    impressions: Mapped[float | None] = mapped_column(Float, nullable=True)
+    reach: Mapped[float | None] = mapped_column(Float, nullable=True)
     follows: Mapped[float | None] = mapped_column(Float, nullable=True)
     clicks: Mapped[float | None] = mapped_column(Float, nullable=True)
     comments: Mapped[float | None] = mapped_column(Float, nullable=True)
