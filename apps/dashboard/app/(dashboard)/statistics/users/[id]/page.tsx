@@ -9,25 +9,25 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { SyncButton } from "@/components/shared/sync-button";
 import { PlatformIcon } from "@/components/shared/platform-badge";
+import { MetricMiniStat } from "@/components/shared/metric-mini-stat";
 import { MetricTrendChart } from "../../_components/metric-trend-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserStatistics, useSyncUserMutation } from "@/hooks/use-statistics";
 import { userExportUrl } from "@/services/statistics";
-import { statMetricTiles } from "@/lib/metric-config";
+import { METRIC_TILE_CONFIG, statMetricTiles } from "@/lib/metric-config";
 import { formatDateTime, formatMetricValue } from "@/lib/format";
 import type { StatMetricTotals } from "@/types/api";
 
-// Stesse 3 metriche mostrate come colonne dedicate nella tabella post del
-// canale (statistics/users/[id]/channels/[channelId]/page.tsx) - qui come
-// mini-numeri accanto a ogni canale, cosi' i totali sono visibili senza
-// dover aprire il dettaglio.
-const CHANNEL_ROW_METRICS: { key: keyof StatMetricTotals; label: string }[] = [
-  { key: "views", label: "views" },
-  { key: "reactions", label: "mi piace" },
-  { key: "comments", label: "commenti" },
-];
+// Stesse 3 metriche mostrate nella tabella post del canale
+// (statistics/users/[id]/channels/[channelId]/page.tsx) - qui come mini-tile
+// accanto a ogni canale, cosi' i totali sono visibili senza dover aprire il
+// dettaglio. Etichette abbreviate riusate da METRIC_TILE_CONFIG.
+const CHANNEL_ROW_METRIC_KEYS: (keyof StatMetricTotals)[] = ["views", "reactions", "comments"];
+function shortLabelFor(key: string): string {
+  return METRIC_TILE_CONFIG.find((c) => c.type === key)?.shortLabel ?? key;
+}
 
 export default function UserStatisticsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -53,9 +53,12 @@ export default function UserStatisticsPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="space-y-6">
-      <Link href="/statistics" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-        <ArrowLeftIcon className="size-3.5" /> Torna alla classifica generale
-      </Link>
+      <Button variant="outline" size="sm" asChild>
+        <Link href="/statistics">
+          <ArrowLeftIcon className="size-4" />
+          Torna alla classifica generale
+        </Link>
+      </Button>
 
       <PageHeader
         title={data.user_name}
@@ -126,16 +129,15 @@ export default function UserStatisticsPage({ params }: { params: Promise<{ id: s
                         {channel.username ? `@${channel.username}` : "—"} · {channel.post_count} post
                       </p>
                     </div>
-                    <div className="hidden shrink-0 items-center gap-4 md:flex">
-                      {CHANNEL_ROW_METRICS.map(({ key, label }) => {
+                    <div className="hidden shrink-0 items-center gap-1.5 md:flex">
+                      {CHANNEL_ROW_METRIC_KEYS.map((key) => {
                         const value = channel.totals[key];
                         return (
-                          <div key={key} className="text-right">
-                            <p className="text-sm font-medium tabular-nums text-foreground">
-                              {value === null ? "—" : formatMetricValue(key, value)}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">{label}</p>
-                          </div>
+                          <MetricMiniStat
+                            key={key}
+                            label={shortLabelFor(key)}
+                            value={value === null ? "—" : formatMetricValue(key, value)}
+                          />
                         );
                       })}
                     </div>

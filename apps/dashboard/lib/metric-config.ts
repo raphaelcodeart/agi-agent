@@ -6,17 +6,17 @@ import type { StatMetricTotals } from "@/types/api";
 // types like views+impressions+reach - those measure different things and
 // blending them would misrepresent what Buffer actually reported). Ordered so
 // the ones the admin cares about most (reactions, views, new follows) lead.
-export const METRIC_TILE_CONFIG: { type: string; label: string; icon: LucideIcon }[] = [
-  { type: "reactions", label: "Mi piace / Reazioni", icon: HeartIcon },
-  { type: "likes", label: "Mi piace (Facebook)", icon: HeartIcon },
-  { type: "views", label: "Visualizzazioni", icon: EyeIcon },
-  { type: "impressions", label: "Impression", icon: EyeIcon },
-  { type: "reach", label: "Copertura (persone raggiunte)", icon: EyeIcon },
-  { type: "follows", label: "Nuovi iscritti", icon: UserPlusIcon },
-  { type: "clicks", label: "Clic", icon: MousePointerClickIcon },
-  { type: "engagementRate", label: "Tasso di coinvolgimento (Buffer)", icon: PercentIcon },
-  { type: "comments", label: "Commenti", icon: BarChart3Icon },
-  { type: "shares", label: "Condivisioni", icon: BarChart3Icon },
+export const METRIC_TILE_CONFIG: { type: string; label: string; shortLabel: string; icon: LucideIcon }[] = [
+  { type: "reactions", label: "Mi piace / Reazioni", shortLabel: "Mi piace", icon: HeartIcon },
+  { type: "likes", label: "Mi piace (Facebook)", shortLabel: "Like FB", icon: HeartIcon },
+  { type: "views", label: "Visualizzazioni", shortLabel: "Views", icon: EyeIcon },
+  { type: "impressions", label: "Impression", shortLabel: "Impression", icon: EyeIcon },
+  { type: "reach", label: "Copertura (persone raggiunte)", shortLabel: "Copertura", icon: EyeIcon },
+  { type: "follows", label: "Nuovi iscritti", shortLabel: "Iscritti", icon: UserPlusIcon },
+  { type: "clicks", label: "Clic", shortLabel: "Clic", icon: MousePointerClickIcon },
+  { type: "engagementRate", label: "Tasso di coinvolgimento (Buffer)", shortLabel: "Coinvolgimento", icon: PercentIcon },
+  { type: "comments", label: "Commenti", shortLabel: "Commenti", icon: BarChart3Icon },
+  { type: "shares", label: "Condivisioni", shortLabel: "Condivisioni", icon: BarChart3Icon },
 ];
 
 // StatMetricTotals (modulo Statistiche, dati persistiti) usa colonne snake_case
@@ -36,7 +36,9 @@ const TYPE_TO_STAT_COLUMN: Record<string, keyof StatMetricTotals> = {
 
 /** Le tile da mostrare per un totale persistito, nello stesso ordine/stile di
  * METRIC_TILE_CONFIG - omette i tipi mai riportati (null) invece di un fuorviante 0. */
-export function statMetricTiles(totals: StatMetricTotals): { type: string; label: string; icon: LucideIcon; value: number }[] {
+export function statMetricTiles(
+  totals: StatMetricTotals
+): { type: string; label: string; shortLabel: string; icon: LucideIcon; value: number }[] {
   return METRIC_TILE_CONFIG.flatMap((config) => {
     const column = TYPE_TO_STAT_COLUMN[config.type];
     const value = column ? totals[column] : undefined;

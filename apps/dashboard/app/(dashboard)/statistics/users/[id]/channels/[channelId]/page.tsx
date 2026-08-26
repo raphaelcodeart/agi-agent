@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { DataTable } from "@/components/shared/data-table";
 import { PlatformIcon } from "@/components/shared/platform-badge";
+import { MetricMiniStat } from "@/components/shared/metric-mini-stat";
 import { MetricTrendChart } from "../../../../_components/metric-trend-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,24 +24,7 @@ import { statMetricTiles } from "@/lib/metric-config";
 import { formatDateTime, formatMetricValue } from "@/lib/format";
 import { queryKeys } from "@/lib/query/keys";
 import { ApiError } from "@/lib/api/errors";
-import type { StatMetricTotals, StatPostRow } from "@/types/api";
-
-// Le 3 metriche piu' universalmente interessanti (utili senza dover aprire il
-// dettaglio del post) diventano colonne dedicate, strette e sempre visibili -
-// le altre restano compattate in "Altre metriche" cosi' nessun dato sparisce.
-// I nomi coincidono con i "type" di METRIC_TILE_CONFIG (lib/metric-config.ts),
-// riusato sotto per filtrare le tile della colonna "Altre metriche".
-const DEDICATED_METRIC_COLUMNS: { key: keyof StatMetricTotals; label: string }[] = [
-  { key: "views", label: "Visualizz." },
-  { key: "reactions", label: "Mi piace" },
-  { key: "comments", label: "Commenti" },
-];
-const DEDICATED_METRIC_TYPES = new Set(DEDICATED_METRIC_COLUMNS.map((c) => c.key as string));
-
-function MetricCell({ value, type }: { value: number | null; type: string }) {
-  if (value === null) return <span className="text-xs text-muted-foreground">—</span>;
-  return <span className="text-xs tabular-nums text-foreground">{formatMetricValue(type, value)}</span>;
-}
+import type { StatPostRow } from "@/types/api";
 
 export default function ChannelStatisticsPage({
   params,
@@ -77,16 +61,9 @@ export default function ChannelStatisticsPage({
       header: "Pubblicato",
       cell: ({ row }) => formatDateTime(row.original.published_at),
     },
-    ...DEDICATED_METRIC_COLUMNS.map(
-      ({ key, label }): ColumnDef<StatPostRow, unknown> => ({
-        id: key,
-        header: label,
-        cell: ({ row }) => <MetricCell value={row.original.metrics[key]} type={key} />,
-      })
-    ),
     {
-      id: "other_metrics",
-      header: "Altre metriche",
+      id: "metrics",
+      header: "Statistiche",
       cell: ({ row }) => {
         if (row.original.last_sync_error) {
           return (
@@ -96,20 +73,18 @@ export default function ChannelStatisticsPage({
             </Tooltip>
           );
         }
-        const tiles = statMetricTiles(row.original.metrics).filter((t) => !DEDICATED_METRIC_TYPES.has(t.type));
+        const tiles = statMetricTiles(row.original.metrics);
         if (tiles.length === 0) {
           return (
             <span className="text-xs text-muted-foreground">
-              {row.original.last_synced_at ? "—" : "Non ancora sincronizzato"}
+              {row.original.last_synced_at ? "Nessun dato riportato" : "Non ancora sincronizzato"}
             </span>
           );
         }
         return (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <div className="flex flex-wrap gap-1.5">
             {tiles.map((t) => (
-              <span key={t.type}>
-                <span className="font-medium text-foreground">{formatMetricValue(t.type, t.value)}</span> {t.label}
-              </span>
+              <MetricMiniStat key={t.type} label={t.shortLabel} value={formatMetricValue(t.type, t.value)} />
             ))}
           </div>
         );
@@ -170,12 +145,12 @@ export default function ChannelStatisticsPage({
 
   return (
     <div className="space-y-6">
-      <Link
-        href={`/statistics/users/${id}`}
-        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeftIcon className="size-3.5" /> Torna a {data.user_name}
-      </Link>
+      <Button variant="outline" size="sm" asChild>
+        <Link href={`/statistics/users/${id}`}>
+          <ArrowLeftIcon className="size-4" />
+          Torna a {data.user_name}
+        </Link>
+      </Button>
 
       <PageHeader
         title={data.channel_name}
