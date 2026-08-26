@@ -24,9 +24,10 @@ import type { AIGenerateTextResponse } from "@/types/api";
 interface AIGenerateDialogProps {
   onGenerated: (result: AIGenerateTextResponse) => void;
   includeReferralLink: boolean;
+  includePersonalContacts: boolean;
 }
 
-export function AIGenerateDialog({ onGenerated, includeReferralLink }: AIGenerateDialogProps) {
+export function AIGenerateDialog({ onGenerated, includeReferralLink, includePersonalContacts }: AIGenerateDialogProps) {
   const [open, setOpen] = useState(false);
   const [topic, setTopic] = useState("");
   const generate = useGenerateCampaignText();
@@ -34,7 +35,7 @@ export function AIGenerateDialog({ onGenerated, includeReferralLink }: AIGenerat
 
   function handleGenerate() {
     if (!topic.trim()) return;
-    generate.mutate({ topic: topic.trim(), includeReferralLink }, {
+    generate.mutate({ topic: topic.trim(), includeReferralLink, includePersonalContacts }, {
       onSuccess: (result) => {
         onGenerated(result);
         toast.success("Testo generato: rivedi e modifica prima di lanciare la campagna");
@@ -71,6 +72,12 @@ export function AIGenerateDialog({ onGenerated, includeReferralLink }: AIGenerat
                 <span className="mt-1 block text-xs">
                   &quot;Includi link referral&quot; è attivo: i testi per X e Threads verranno generati più corti
                   per lasciare spazio al link.
+                </span>
+              )}
+              {includePersonalContacts && (
+                <span className="mt-1 block text-xs">
+                  &quot;Includi contatti personali&quot; è attivo: i testi per X e Threads verranno generati più
+                  corti per lasciare spazio anche al blocco di contatti.
                 </span>
               )}
             </DialogDescription>

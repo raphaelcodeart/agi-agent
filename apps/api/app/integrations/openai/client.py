@@ -70,6 +70,15 @@ HARD_LIMITS: Dict[str, int] = {
 # generated X/Twitter text blocked the wizard the moment referral was enabled).
 REFERRAL_LINK_RESERVED_CHARS = 60
 
+# Same idea as REFERRAL_LINK_RESERVED_CHARS above, but for the "Includi contatti
+# personali" checkbox and User.personal_contacts (a short signature block - name,
+# phone, etc. - not a single URL). Mirrors PERSONAL_CONTACTS_RESERVED_CHARS in
+# apps/dashboard/lib/validation/campaigns.ts - keep both in sync if either
+# changes. Deliberately modest, same rationale as the referral link constant:
+# a soft UI/generation-time guardrail, not the real safety check (that remains
+# campaign_resolver.py's PLATFORM_TEXT_LIMITS check on the resolved text).
+PERSONAL_CONTACTS_RESERVED_CHARS = 100
+
 SYSTEM_PROMPT = """Sei un social media copywriter. Dato un argomento in italiano, scrivi contenuti pronti per essere pubblicati su più piattaforme social, nella stessa lingua della richiesta dell'utente.
 
 Rispondi SOLO con un oggetto JSON con esattamente queste chiavi, tutte stringhe:
@@ -101,7 +110,11 @@ def _truncate(text: str, limit: int) -> str:
 
 
 def generate_campaign_text(
-    api_key: str, model: str, topic: str, include_referral_link: bool = False
+    api_key: str,
+    model: str,
+    topic: str,
+    include_referral_link: bool = False,
+    include_personal_contacts: bool = False,
 ) -> Dict[str, str]:
     """
     Calls OpenAI's Chat Completions API to draft campaign copy for every
@@ -109,18 +122,24 @@ def generate_campaign_text(
     dict with exactly the keys in FIELD_TARGETS, each truncated to HARD_LIMITS
     as a safety net regardless of what the model returned.
 
-    include_referral_link: pass the wizard's current "Includi link referral"
-    state (not whether a link exists on any specific user - the caller can't
-    know which recipients will get one yet at generation time). When true,
-    x_text/threads_text targets and hard limits shrink by
-    REFERRAL_LINK_RESERVED_CHARS so the generated text leaves room for it.
+    include_referral_link / include_personal_contacts: pass the wizard's
+    current checkbox state (not whether a link/contacts block exists on any
+    specific user - the caller can't know which recipients will get one yet
+    at generation time). When on, x_text/threads_text targets and hard limits
+    shrink by the matching *_RESERVED_CHARS constant so the generated text
+    already leaves room for it.
     """
     field_targets = dict(FIELD_TARGETS)
     hard_limits = dict(HARD_LIMITS)
+    reserved_chars = 0
     if include_referral_link:
+        reserved_chars += REFERRAL_LINK_RESERVED_CHARS
+    if include_personal_contacts:
+        reserved_chars += PERSONAL_CONTACTS_RESERVED_CHARS
+    if reserved_chars:
         for field in ("x_text", "threads_text"):
-            field_targets[field] = max(1, FIELD_TARGETS[field] - REFERRAL_LINK_RESERVED_CHARS)
-            hard_limits[field] = max(1, HARD_LIMITS[field] - REFERRAL_LINK_RESERVED_CHARS)
+            field_targets[field] = max(1, FIELD_TARGETS[field] - reserved_chars)
+            hard_limits[field] = max(1, HARD_LIMITS[field] - reserved_chars)
 
     system_prompt = SYSTEM_PROMPT.format(
         targets=", ".join(f"{k}={v}" for k, v in field_targets.items())
@@ -130,6 +149,13 @@ def generate_campaign_text(
             "\n\nA ogni testo generato verrà aggiunto automaticamente, dopo la tua risposta, un link "
             "personale in fondo (circa 60 caratteri in più) - i target sopra per x_text e threads_text "
             "sono già ridotti per lasciare spazio a questo link: non aggiungerlo tu stesso nel testo."
+        )
+    if include_personal_contacts:
+        system_prompt += (
+            "\n\nA ogni testo generato verrà anche aggiunto automaticamente, in fondo (dopo l'eventuale "
+            "link sopra), un blocco di contatti personali (circa 100 caratteri in più) - i target sopra "
+            "per x_text e threads_text sono già ridotti per lasciare spazio anche a questo: non "
+            "aggiungerlo tu stesso nel testo."
         )
 
     try:

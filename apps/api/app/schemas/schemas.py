@@ -55,6 +55,7 @@ class UserCreate(BaseModel):
     status: str = Field("active", description="active, inactive, suspended")
     notes: Optional[str] = Field(None, max_length=1000)
     referral_link: Optional[str] = Field(None, max_length=1000)
+    personal_contacts: Optional[str] = Field(None, max_length=1000)
     group_ids: Optional[List[uuid.UUID]] = None
 
 class UserUpdate(BaseModel):
@@ -64,6 +65,7 @@ class UserUpdate(BaseModel):
     status: Optional[str] = None
     notes: Optional[str] = Field(None, max_length=1000)
     referral_link: Optional[str] = Field(None, max_length=1000)
+    personal_contacts: Optional[str] = Field(None, max_length=1000)
     group_ids: Optional[List[uuid.UUID]] = None
 
 class UserResponse(BaseModel):
@@ -74,6 +76,7 @@ class UserResponse(BaseModel):
     status: str
     notes: Optional[str]
     referral_link: Optional[str] = None
+    personal_contacts: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     groups: List[GroupResponse] = []
@@ -182,6 +185,9 @@ class AIGenerateTextRequest(BaseModel):
     # generation time - shrinks the x_text/threads_text targets asked of the
     # model so generated text already leaves room (see openai/client.py).
     include_referral_link: bool = False
+    # Same idea as include_referral_link above, but for the "Includi contatti
+    # personali" checkbox (see openai/client.py PERSONAL_CONTACTS_RESERVED_CHARS).
+    include_personal_contacts: bool = False
 
 
 class AIGenerateTextResponse(BaseModel):
@@ -223,6 +229,10 @@ class CampaignCreate(BaseModel):
     # owning user's own referral_link appended (see campaign_resolver.py) - a
     # user with no referral_link configured is unaffected either way.
     include_referral_link: bool = False
+    # Off by default, same mechanics as include_referral_link but for the
+    # owning user's personal_contacts signature block, appended right after
+    # the referral link (see campaign_resolver.py).
+    include_personal_contacts: bool = False
 
 class CampaignResponse(BaseModel):
     id: uuid.UUID
@@ -241,6 +251,7 @@ class CampaignResponse(BaseModel):
     timezone: str
     targeting_mode: str
     include_referral_link: bool = False
+    include_personal_contacts: bool = False
     # Targeting params used at launch (e.g. {"channel_ids": [...]}), needed to
     # reproduce the same recipient selection when duplicating a campaign.
     metadata_json: Optional[Dict[str, Any]] = None

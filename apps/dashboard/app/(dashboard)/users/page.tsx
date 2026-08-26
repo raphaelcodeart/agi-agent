@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PlusIcon, PencilIcon, LinkIcon, UserRoundIcon } from "lucide-react";
+import { PlusIcon, PencilIcon, LinkIcon, IdCardIcon, UserRoundIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { SearchInput } from "@/components/shared/search-input";
@@ -18,6 +18,7 @@ import { formatDateTime } from "@/lib/format";
 import type { UserResponse, UserStatus } from "@/types/api";
 import { UserFormDialog } from "./_components/user-form-dialog";
 import { ReferralLinkDialog } from "./_components/referral-link-dialog";
+import { PersonalContactsDialog } from "./_components/personal-contacts-dialog";
 
 const LIMIT = 20;
 
@@ -28,6 +29,7 @@ export default function UsersPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserResponse | undefined>(undefined);
   const [referralUser, setReferralUser] = useState<UserResponse | undefined>(undefined);
+  const [contactsUser, setContactsUser] = useState<UserResponse | undefined>(undefined);
 
   const debouncedSearch = useDebounce(search, 300);
   const usersQuery = useUsers({
@@ -110,6 +112,16 @@ export default function UsersPage() {
             >
               <LinkIcon className="size-3.5" />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setContactsUser(row.original)}
+              aria-label="Contatti personali"
+              title={row.original.personal_contacts ? "Contatti personali configurati" : "Contatti personali"}
+              className={row.original.personal_contacts ? "text-primary" : undefined}
+            >
+              <IdCardIcon className="size-3.5" />
+            </Button>
             <Button variant="ghost" size="icon-sm" onClick={() => openEdit(row.original)} aria-label="Modifica">
               <PencilIcon className="size-3.5" />
             </Button>
@@ -184,6 +196,13 @@ export default function UsersPage() {
           open={!!referralUser}
           onOpenChange={(open) => !open && setReferralUser(undefined)}
           user={referralUser}
+        />
+      )}
+      {contactsUser && (
+        <PersonalContactsDialog
+          open={!!contactsUser}
+          onOpenChange={(open) => !open && setContactsUser(undefined)}
+          user={contactsUser}
         />
       )}
     </div>

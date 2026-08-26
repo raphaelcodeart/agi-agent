@@ -35,6 +35,7 @@ export interface UserResponse {
   status: UserStatus;
   notes: string | null;
   referral_link: string | null;
+  personal_contacts: string | null;
   created_at: string;
   updated_at: string;
   groups: GroupResponse[];
@@ -170,6 +171,7 @@ export interface CampaignCreatePayload {
   targeting_mode: TargetingMode;
   targeting_params: Record<string, unknown>;
   include_referral_link: boolean;
+  include_personal_contacts: boolean;
 }
 
 export interface CampaignResponse {
@@ -189,6 +191,7 @@ export interface CampaignResponse {
   timezone: string;
   targeting_mode: TargetingMode;
   include_referral_link: boolean;
+  include_personal_contacts: boolean;
   metadata_json?: Record<string, unknown> | null;
   status: CampaignStatus;
   media_file_id: string | null;

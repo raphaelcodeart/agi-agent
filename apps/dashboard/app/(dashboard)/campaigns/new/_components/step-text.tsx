@@ -16,6 +16,7 @@ import {
   type CampaignWizardValues,
   PLATFORM_HARD_LIMITS,
   REFERRAL_LINK_RESERVED_CHARS,
+  PERSONAL_CONTACTS_RESERVED_CHARS,
 } from "@/lib/validation/campaigns";
 import { AIGenerateDialog } from "./ai-generate-dialog";
 import type { AIGenerateTextResponse } from "@/types/api";
@@ -31,6 +32,10 @@ const PLATFORM_TABS: { value: keyof CampaignWizardValues; label: string; maxLeng
 
 export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }) {
   const includeReferralLink = form.watch("include_referral_link");
+  const includePersonalContacts = form.watch("include_personal_contacts");
+  const reservedChars =
+    (includeReferralLink ? REFERRAL_LINK_RESERVED_CHARS : 0) +
+    (includePersonalContacts ? PERSONAL_CONTACTS_RESERVED_CHARS : 0);
   function handleGenerated(result: AIGenerateTextResponse) {
     form.setValue("default_text", result.default_text, { shouldDirty: true, shouldValidate: true });
     form.setValue("instagram_text", result.instagram_text, { shouldDirty: true, shouldValidate: true });
@@ -49,7 +54,11 @@ export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }
         <p className="text-sm text-muted-foreground">
           Scrivi il testo a mano oppure genera una bozza con AI da un argomento e poi modificala.
         </p>
-        <AIGenerateDialog onGenerated={handleGenerated} includeReferralLink={includeReferralLink} />
+        <AIGenerateDialog
+          onGenerated={handleGenerated}
+          includeReferralLink={includeReferralLink}
+          includePersonalContacts={includePersonalContacts}
+        />
       </div>
 
       <FormField
@@ -111,6 +120,48 @@ export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }
         )}
       />
 
+      <FormField
+        control={form.control}
+        name="include_personal_contacts"
+        render={({ field }) => (
+          <FormItem>
+            <label className="flex items-start gap-2 rounded-md border p-3">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked);
+                    if (!checked) return;
+                    // Same immediate-warning pattern as "Includi link referral" above.
+                    const otherReserved = includeReferralLink ? REFERRAL_LINK_RESERVED_CHARS : 0;
+                    const overLimit = (["x_text", "threads_text"] as const).filter((f) => {
+                      const limit = PLATFORM_HARD_LIMITS[f] - otherReserved - PERSONAL_CONTACTS_RESERVED_CHARS;
+                      return (form.getValues(f) ?? "").length > limit;
+                    });
+                    if (overLimit.length > 0) {
+                      const labels = overLimit.map((f) => (f === "x_text" ? "X" : "Threads")).join(" e ");
+                      toast.warning(`Il testo per ${labels} è già troppo lungo per lasciare spazio ai contatti personali - riducilo prima di continuare.`);
+                      form.trigger(overLimit);
+                    }
+                  }}
+                  className="mt-0.5"
+                />
+              </FormControl>
+              <span>
+                <span className="block text-sm font-medium text-foreground">Includi contatti personali</span>
+                <FormDescription>
+                  Se attivo, per ogni destinatario viene aggiunto in fondo al testo (subito dopo l&apos;eventuale
+                  link referral) il suo blocco di contatti personali/firma (configurato nella pagina Utenti) —
+                  solo il suo, mai quello di altri. Chi non ha contatti configurati riceve il testo invariato,
+                  esattamente come con questa opzione spenta. I box con un limite reale (X, Threads) si riducono
+                  di altri {PERSONAL_CONTACTS_RESERVED_CHARS} caratteri per lasciare sempre spazio al blocco.
+                </FormDescription>
+              </span>
+            </label>
+          </FormItem>
+        )}
+      />
+
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">Override per piattaforma (opzionale)</p>
         <Tabs defaultValue="instagram_text">
@@ -124,8 +175,7 @@ export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }
           </TabsList>
           {PLATFORM_TABS.map((tab) => {
             const hasHardLimit = tab.value === "x_text" || tab.value === "threads_text";
-            const effectiveMax =
-              hasHardLimit && includeReferralLink ? tab.maxLength - REFERRAL_LINK_RESERVED_CHARS : tab.maxLength;
+            const effectiveMax = hasHardLimit ? tab.maxLength - reservedChars : tab.maxLength;
             return (
               <TabsContent key={tab.value} value={tab.value} className="pt-3">
                 <FormField
@@ -144,8 +194,8 @@ export function StepText({ form }: { form: UseFormReturn<CampaignWizardValues> }
                       </FormControl>
                       <FormDescription>
                         {((field.value as string) ?? "").length}/{effectiveMax} caratteri
-                        {hasHardLimit && includeReferralLink && (
-                          <> (ridotto da {tab.maxLength} per lasciare spazio al link referral)</>
+                        {hasHardLimit && reservedChars > 0 && (
+                          <> (ridotto da {tab.maxLength} per lasciare spazio a link referral e/o contatti personali)</>
                         )}
                       </FormDescription>
                       <FormMessage />

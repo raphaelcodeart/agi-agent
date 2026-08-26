@@ -24,6 +24,15 @@ export const referralLinkFormSchema = z.object({
 
 export type ReferralLinkFormValues = z.infer<typeof referralLinkFormSchema>;
 
+// Deliberately smaller than the 1000 chars the backend column allows - this is
+// meant as a short signature block (nome, telefono, email...), not free-form
+// notes; see PERSONAL_CONTACTS_RESERVED_CHARS in lib/validation/campaigns.ts.
+export const personalContactsFormSchema = z.object({
+  personal_contacts: z.string().max(300),
+});
+
+export type PersonalContactsFormValues = z.infer<typeof personalContactsFormSchema>;
+
 export const groupFormSchema = z.object({
   name: z.string().min(1, "Il nome è obbligatorio").max(100),
   description: z.string().max(500).optional().or(z.literal("")),

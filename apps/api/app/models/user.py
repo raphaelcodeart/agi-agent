@@ -30,6 +30,12 @@ class User(Base):
     # text when Campaign.include_referral_link is on (see campaign_resolver.py).
     # Optional: a user with no link set just gets the campaign text unchanged.
     referral_link: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    # Personal contacts/signature block, pasted verbatim right after the referral
+    # link (if also on) into a campaign's resolved text when
+    # Campaign.include_personal_contacts is on (see campaign_resolver.py).
+    # Optional: a user with nothing set here just gets the text unchanged, same
+    # as referral_link above.
+    personal_contacts: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

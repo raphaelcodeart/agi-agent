@@ -141,6 +141,7 @@ class CampaignResolver:
         channel: SocialChannel,
         channel_override_text: str = None,
         referral_link: Optional[str] = None,
+        personal_contacts: Optional[str] = None,
     ) -> str:
         """
         Text resolution order of priority:
@@ -154,8 +155,17 @@ class CampaignResolver:
         itself, so a channel can never end up with another user's link). A user
         with no referral_link configured (referral_link=None/empty here) leaves
         the text exactly as before this feature existed - no placeholder, no
-        error. Deliberately the *last* step: PLATFORM_TEXT_LIMITS validation in
-        launch_campaign runs on the value this returns, so an appended link that
+        error.
+
+        Then, if campaign.include_personal_contacts is on: same mechanics, but
+        appends the caller-supplied personal_contacts (the owning user's own
+        User.personal_contacts signature block) right after the referral link
+        above - deliberately the step right after it, so a recipient sees their
+        promoter link first, then their personal contacts, matching how the two
+        "Includi ..." checkboxes are ordered in the campaign wizard.
+
+        Both are deliberately the *last* steps: PLATFORM_TEXT_LIMITS validation
+        in launch_campaign runs on the value this returns, so appended text that
         pushes a target over its platform's character limit is caught the same
         way an over-limit plain text already is today.
         """
@@ -186,6 +196,9 @@ class CampaignResolver:
 
         if campaign.include_referral_link and referral_link:
             text = f"{text}\n\nISCRIVITI QUI: {referral_link}"
+
+        if campaign.include_personal_contacts and personal_contacts:
+            text = f"{text}\n\n{personal_contacts}"
 
         return text
 
@@ -325,11 +338,13 @@ class CampaignResolver:
             user_id = conn.user_id
 
             # Resolve text - conn.user is this channel's *own* owning user, loaded
-            # fresh per channel in this loop, so referral_link can never leak
-            # across users even when a campaign targets channels from many users
-            # at once.
+            # fresh per channel in this loop, so referral_link/personal_contacts
+            # can never leak across users even when a campaign targets channels
+            # from many users at once.
             override_text = channel_overrides.get(str(chan.id))
-            resolved_text = cls.resolve_text_for_channel(campaign, chan, override_text, conn.user.referral_link)
+            resolved_text = cls.resolve_text_for_channel(
+                campaign, chan, override_text, conn.user.referral_link, conn.user.personal_contacts
+            )
 
             # Catch platform text-length violations here instead of letting them reach
             # Buffer as a wasted, confusing API call - see PLATFORM_TEXT_LIMITS above.

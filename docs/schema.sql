@@ -3,13 +3,14 @@
 -- "social_publisher" — generato con:
 --   pg_dump -U postgres -d social_publisher --schema-only --no-owner --no-privileges
 --
--- Snapshot generato: 2026-08-16 00:25 UTC, dal server di produzione di questo
--- progetto, alla revisione Alembic "6ad75c20ec09" (head) - `SELECT version_num
--- FROM alembic_version;`. Nessuna migration nuova dal 2026-08-15 (verificato
--- con `alembic check`, zero drift): questa rigenerazione conferma che la
--- struttura è identica alla precedente, non introduce differenze - regenerata
--- su richiesta esplicita per avere una conferma aggiornata a oggi, non perché
--- fosse cambiato qualcosa.
+-- Snapshot generato: 2026-08-26 21:01 UTC, dal server di produzione di questo
+-- progetto, alla revisione Alembic "d4e5f6a7b8c9" (head) - `SELECT version_num
+-- FROM alembic_version;`. Rigenerato per due migration reali dal precedente
+-- snapshot (2026-08-16, revisione "6ad75c20ec09"): "9c1f3a7e2b6d" (modulo
+-- Statistiche - tabelle stat_sync_runs/stat_post_metrics/stat_metric_history,
+-- vedi STATISTICS.md) e "d4e5f6a7b8c9" (contatti personali - users.personal_contacts
+-- e campaigns.include_personal_contacts, vedi FUNCTIONALITY.md §3 e DATABASE.md §4/§7).
+-- Include quindi sia le tabelle/colonne nuove sia tutte quelle preesistenti.
 --
 -- QUESTO FILE NON È LA FONTE DI VERITÀ DELLO SCHEMA. Lo sono le migration in
 -- apps/api/alembic/versions/ (vedi docs/DEPLOYMENT.md §5): per creare il
@@ -28,10 +29,6 @@
 -- token casuali per esecuzione introdotti da pg_dump 16.10+, privi di
 -- significato in un file versionato — non servono per un semplice restore
 -- di sola lettura).
---
--- Per un elenco tabella-per-tabella con spiegazione di ogni colonna, vedi
--- invece docs/DATABASE.md, docs/BLOG_WRITER.md §2 e
--- docs/OMNICHANNEL_RESPONDER.md §3.
 -- ============================================================================
 
 --
@@ -274,7 +271,8 @@ CREATE TABLE public.campaigns (
     updated_at timestamp with time zone NOT NULL,
     metadata jsonb,
     article_id uuid,
-    include_referral_link boolean NOT NULL
+    include_referral_link boolean NOT NULL,
+    include_personal_contacts boolean NOT NULL
 );
 
 
@@ -655,6 +653,83 @@ CREATE TABLE public.social_channels (
 
 
 --
+-- Name: stat_metric_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.stat_metric_history (
+    id uuid NOT NULL,
+    publication_id uuid NOT NULL,
+    synced_at timestamp with time zone NOT NULL,
+    reactions double precision,
+    views double precision,
+    follows double precision,
+    clicks double precision,
+    comments double precision,
+    shares double precision,
+    engagement_rate double precision,
+    metrics_raw jsonb,
+    created_at timestamp with time zone NOT NULL
+);
+
+
+--
+-- Name: stat_post_metrics; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.stat_post_metrics (
+    id uuid NOT NULL,
+    publication_id uuid NOT NULL,
+    campaign_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    social_channel_id uuid NOT NULL,
+    buffer_connection_id uuid NOT NULL,
+    platform character varying(50) NOT NULL,
+    external_post_id character varying(255) NOT NULL,
+    external_post_url character varying(1000),
+    published_at timestamp with time zone,
+    reactions double precision,
+    likes double precision,
+    views double precision,
+    impressions double precision,
+    reach double precision,
+    follows double precision,
+    clicks double precision,
+    comments double precision,
+    shares double precision,
+    engagement_rate double precision,
+    metrics_raw jsonb,
+    metrics_updated_at timestamp with time zone,
+    last_synced_at timestamp with time zone,
+    last_sync_error character varying(1000),
+    last_sync_run_id uuid,
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL
+);
+
+
+--
+-- Name: stat_sync_runs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.stat_sync_runs (
+    id uuid NOT NULL,
+    scope character varying(20) NOT NULL,
+    scope_user_id uuid,
+    scope_campaign_id uuid,
+    triggered_by uuid,
+    status character varying(30) NOT NULL,
+    total_posts integer NOT NULL,
+    synced_posts integer NOT NULL,
+    failed_posts integer NOT NULL,
+    skipped_posts integer NOT NULL,
+    error_message character varying(1000),
+    started_at timestamp with time zone NOT NULL,
+    finished_at timestamp with time zone,
+    created_at timestamp with time zone NOT NULL
+);
+
+
+--
 -- Name: user_group_association; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -691,7 +766,8 @@ CREATE TABLE public.users (
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     deleted_at timestamp with time zone,
-    referral_link character varying(1000)
+    referral_link character varying(1000),
+    personal_contacts character varying(1000)
 );
 
 
@@ -936,6 +1012,30 @@ ALTER TABLE ONLY public.social_channels
 
 
 --
+-- Name: stat_metric_history stat_metric_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_metric_history
+    ADD CONSTRAINT stat_metric_history_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stat_post_metrics stat_post_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_post_metrics
+    ADD CONSTRAINT stat_post_metrics_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stat_sync_runs stat_sync_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_sync_runs
+    ADD CONSTRAINT stat_sync_runs_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: blog_writer_publications uq_blog_publication_article_site; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -992,6 +1092,14 @@ ALTER TABLE ONLY public.publications
 
 
 --
+-- Name: stat_post_metrics uq_stat_post_metrics_publication; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_post_metrics
+    ADD CONSTRAINT uq_stat_post_metrics_publication UNIQUE (publication_id);
+
+
+--
 -- Name: user_group_association user_group_association_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1041,6 +1149,62 @@ CREATE INDEX idx_publication_scheduled_at ON public.publications USING btree (sc
 --
 
 CREATE INDEX idx_publication_status ON public.publications USING btree (status);
+
+
+--
+-- Name: idx_stat_metric_history_publication_synced; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_stat_metric_history_publication_synced ON public.stat_metric_history USING btree (publication_id, synced_at);
+
+
+--
+-- Name: idx_stat_post_metrics_campaign_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_stat_post_metrics_campaign_id ON public.stat_post_metrics USING btree (campaign_id);
+
+
+--
+-- Name: idx_stat_post_metrics_last_synced_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_stat_post_metrics_last_synced_at ON public.stat_post_metrics USING btree (last_synced_at);
+
+
+--
+-- Name: idx_stat_post_metrics_social_channel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_stat_post_metrics_social_channel_id ON public.stat_post_metrics USING btree (social_channel_id);
+
+
+--
+-- Name: idx_stat_post_metrics_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_stat_post_metrics_user_id ON public.stat_post_metrics USING btree (user_id);
+
+
+--
+-- Name: idx_stat_sync_runs_scope_campaign; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_stat_sync_runs_scope_campaign ON public.stat_sync_runs USING btree (scope_campaign_id);
+
+
+--
+-- Name: idx_stat_sync_runs_scope_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_stat_sync_runs_scope_user ON public.stat_sync_runs USING btree (scope_user_id);
+
+
+--
+-- Name: idx_stat_sync_runs_started_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_stat_sync_runs_started_at ON public.stat_sync_runs USING btree (started_at);
 
 
 --
@@ -1592,6 +1756,86 @@ ALTER TABLE ONLY public.publications
 
 ALTER TABLE ONLY public.social_channels
     ADD CONSTRAINT social_channels_buffer_organization_id_fkey FOREIGN KEY (buffer_organization_id) REFERENCES public.buffer_organizations(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stat_metric_history stat_metric_history_publication_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_metric_history
+    ADD CONSTRAINT stat_metric_history_publication_id_fkey FOREIGN KEY (publication_id) REFERENCES public.publications(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stat_post_metrics stat_post_metrics_buffer_connection_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_post_metrics
+    ADD CONSTRAINT stat_post_metrics_buffer_connection_id_fkey FOREIGN KEY (buffer_connection_id) REFERENCES public.buffer_connections(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stat_post_metrics stat_post_metrics_campaign_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_post_metrics
+    ADD CONSTRAINT stat_post_metrics_campaign_id_fkey FOREIGN KEY (campaign_id) REFERENCES public.campaigns(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stat_post_metrics stat_post_metrics_last_sync_run_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_post_metrics
+    ADD CONSTRAINT stat_post_metrics_last_sync_run_id_fkey FOREIGN KEY (last_sync_run_id) REFERENCES public.stat_sync_runs(id) ON DELETE SET NULL;
+
+
+--
+-- Name: stat_post_metrics stat_post_metrics_publication_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_post_metrics
+    ADD CONSTRAINT stat_post_metrics_publication_id_fkey FOREIGN KEY (publication_id) REFERENCES public.publications(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stat_post_metrics stat_post_metrics_social_channel_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_post_metrics
+    ADD CONSTRAINT stat_post_metrics_social_channel_id_fkey FOREIGN KEY (social_channel_id) REFERENCES public.social_channels(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stat_post_metrics stat_post_metrics_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_post_metrics
+    ADD CONSTRAINT stat_post_metrics_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stat_sync_runs stat_sync_runs_scope_campaign_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_sync_runs
+    ADD CONSTRAINT stat_sync_runs_scope_campaign_id_fkey FOREIGN KEY (scope_campaign_id) REFERENCES public.campaigns(id) ON DELETE SET NULL;
+
+
+--
+-- Name: stat_sync_runs stat_sync_runs_scope_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_sync_runs
+    ADD CONSTRAINT stat_sync_runs_scope_user_id_fkey FOREIGN KEY (scope_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: stat_sync_runs stat_sync_runs_triggered_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.stat_sync_runs
+    ADD CONSTRAINT stat_sync_runs_triggered_by_fkey FOREIGN KEY (triggered_by) REFERENCES public.administrators(id) ON DELETE SET NULL;
 
 
 --

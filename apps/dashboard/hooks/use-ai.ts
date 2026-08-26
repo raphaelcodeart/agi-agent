@@ -5,7 +5,14 @@ import * as aiService from "@/services/ai";
 
 export function useGenerateCampaignText() {
   return useMutation({
-    mutationFn: ({ topic, includeReferralLink }: { topic: string; includeReferralLink: boolean }) =>
-      aiService.generateCampaignText(topic, includeReferralLink),
+    mutationFn: ({
+      topic,
+      includeReferralLink,
+      includePersonalContacts,
+    }: {
+      topic: string;
+      includeReferralLink: boolean;
+      includePersonalContacts: boolean;
+    }) => aiService.generateCampaignText(topic, includeReferralLink, includePersonalContacts),
   });
 }

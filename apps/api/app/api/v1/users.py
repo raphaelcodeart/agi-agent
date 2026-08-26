@@ -60,6 +60,7 @@ def create_user(
         status=payload.status,
         notes=payload.notes,
         referral_link=payload.referral_link,
+        personal_contacts=payload.personal_contacts,
     )
     
     if payload.group_ids:

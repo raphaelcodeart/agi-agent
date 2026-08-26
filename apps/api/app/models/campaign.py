@@ -41,6 +41,11 @@ class Campaign(Base):
     # user's link, never another user's, since resolution happens per target.
     # If off, text resolution is identical to before this field existed.
     include_referral_link: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Off by default, same mechanics as include_referral_link above but for the
+    # resolving channel's owning User.personal_contacts, appended right after the
+    # referral link (see resolve_text_for_channel) - a signature-style block of
+    # text (name, phone, etc.) rather than a single URL.
+    include_personal_contacts: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Targeting params matching targeting_mode (e.g. user_ids/group_ids/channel_ids),
     # persisted so poll_and_queue_scheduled_publications can re-launch a scheduled
     # campaign with the same selection later.

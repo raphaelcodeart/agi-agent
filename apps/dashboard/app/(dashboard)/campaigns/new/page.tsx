@@ -56,6 +56,7 @@ function NewCampaignForm() {
       x_text: "",
       threads_text: "",
       include_referral_link: false,
+      include_personal_contacts: false,
       media_file_id: null,
       article_id: null,
       targeting_mode: "all_active_channels",

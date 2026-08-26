@@ -23,6 +23,7 @@ export interface UserPayload {
   status: UserStatus;
   notes?: string | null;
   referral_link?: string | null;
+  personal_contacts?: string | null;
   group_ids?: string[] | null;
 }
 

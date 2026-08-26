@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from app.services.campaign_resolver import CampaignResolver, PLATFORM_TEXT_LIMITS
 
 
-def _campaign(include_referral_link=False, **text_fields):
+def _campaign(include_referral_link=False, include_personal_contacts=False, **text_fields):
     defaults = dict(
         default_text="Guarda il nostro nuovo video!",
         instagram_text=None,
@@ -14,7 +14,11 @@ def _campaign(include_referral_link=False, **text_fields):
         youtube_description=None,
     )
     defaults.update(text_fields)
-    return SimpleNamespace(include_referral_link=include_referral_link, **defaults)
+    return SimpleNamespace(
+        include_referral_link=include_referral_link,
+        include_personal_contacts=include_personal_contacts,
+        **defaults,
+    )
 
 
 def _channel(platform="instagram"):

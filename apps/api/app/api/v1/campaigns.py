@@ -74,6 +74,7 @@ def create_campaign(
         timezone=payload.timezone,
         targeting_mode=payload.targeting_mode,
         include_referral_link=payload.include_referral_link,
+        include_personal_contacts=payload.include_personal_contacts,
         status="draft",
         created_by=admin.id,
         metadata_json=payload.targeting_params, # Save targeting parameters here

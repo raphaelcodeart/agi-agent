@@ -38,6 +38,14 @@ export const PLATFORM_HARD_LIMITS: Record<"x_text" | "threads_text", number> = {
 // just that one target if a user's real link is longer than assumed here.
 export const REFERRAL_LINK_RESERVED_CHARS = 60;
 
+// Same idea as REFERRAL_LINK_RESERVED_CHARS above, but for "Includi contatti
+// personali" (a short signature block - name, phone, etc. - not a single URL).
+// Mirrors PERSONAL_CONTACTS_RESERVED_CHARS in
+// apps/api/app/integrations/openai/client.py - keep both in sync if either
+// changes. Same soft, UI-only guardrail rationale: the real backstop remains
+// the backend's PLATFORM_TEXT_LIMITS check on the resolved text at launch.
+export const PERSONAL_CONTACTS_RESERVED_CHARS = 100;
+
 export const campaignWizardSchema = z
   .object({
     // Step 1 - Info
@@ -54,6 +62,7 @@ export const campaignWizardSchema = z
     x_text: z.string().max(280).optional().or(z.literal("")),
     threads_text: z.string().max(500).optional().or(z.literal("")),
     include_referral_link: z.boolean(),
+    include_personal_contacts: z.boolean(),
 
     // Step 3 - Media
     media_file_id: z.string().optional().nullable(),
@@ -75,14 +84,23 @@ export const campaignWizardSchema = z
     timezone: z.string().min(1),
   })
   .superRefine((data, ctx) => {
-    if (data.include_referral_link) {
+    const reservedChars =
+      (data.include_referral_link ? REFERRAL_LINK_RESERVED_CHARS : 0) +
+      (data.include_personal_contacts ? PERSONAL_CONTACTS_RESERVED_CHARS : 0);
+    if (reservedChars > 0) {
+      const toggledLabel =
+        data.include_referral_link && data.include_personal_contacts
+          ? "il link referral e i contatti personali attivi"
+          : data.include_referral_link
+            ? "il link referral attivo"
+            : "i contatti personali attivi";
       (Object.keys(PLATFORM_HARD_LIMITS) as (keyof typeof PLATFORM_HARD_LIMITS)[]).forEach((field) => {
-        const limit = PLATFORM_HARD_LIMITS[field] - REFERRAL_LINK_RESERVED_CHARS;
+        const limit = PLATFORM_HARD_LIMITS[field] - reservedChars;
         const length = (data[field] ?? "").length;
         if (length > limit) {
           ctx.addIssue({
             code: "custom",
-            message: `Con il link referral attivo restano ${limit} caratteri disponibili (${PLATFORM_HARD_LIMITS[field]} del limite piattaforma meno lo spazio riservato al link) - ${length - limit} di troppo`,
+            message: `Con ${toggledLabel} restano ${limit} caratteri disponibili (${PLATFORM_HARD_LIMITS[field]} del limite piattaforma meno lo spazio riservato) - ${length - limit} di troppo`,
             path: [field],
           });
         }
@@ -129,7 +147,7 @@ export type CampaignWizardValues = z.infer<typeof campaignWizardSchema>;
 
 export const WIZARD_STEP_FIELDS: (keyof CampaignWizardValues)[][] = [
   ["title"],
-  ["default_text", "x_text", "threads_text", "include_referral_link"],
+  ["default_text", "x_text", "threads_text", "include_referral_link", "include_personal_contacts"],
   ["media_file_id"],
   ["targeting_mode", "user_ids", "group_ids", "channel_ids", "platform_names"],
   ["publishing_mode", "scheduled_at", "timezone"],
@@ -158,6 +176,7 @@ export function toCampaignCreatePayload(values: CampaignWizardValues): CampaignC
     x_text: values.x_text || null,
     threads_text: values.threads_text || null,
     include_referral_link: values.include_referral_link,
+    include_personal_contacts: values.include_personal_contacts,
     media_file_id: values.media_file_id || null,
     article_id: values.article_id || null,
     publishing_mode: values.publishing_mode,
@@ -188,6 +207,7 @@ export function campaignToWizardDefaults(campaign: CampaignResponse): Partial<Ca
     x_text: campaign.x_text ?? "",
     threads_text: campaign.threads_text ?? "",
     include_referral_link: campaign.include_referral_link,
+    include_personal_contacts: campaign.include_personal_contacts,
     media_file_id: campaign.media_file_id,
     targeting_mode: campaign.targeting_mode,
     user_ids: asStringArray(params.user_ids),
