@@ -23,7 +23,24 @@ import { statMetricTiles } from "@/lib/metric-config";
 import { formatDateTime, formatMetricValue } from "@/lib/format";
 import { queryKeys } from "@/lib/query/keys";
 import { ApiError } from "@/lib/api/errors";
-import type { StatPostRow } from "@/types/api";
+import type { StatMetricTotals, StatPostRow } from "@/types/api";
+
+// Le 3 metriche piu' universalmente interessanti (utili senza dover aprire il
+// dettaglio del post) diventano colonne dedicate, strette e sempre visibili -
+// le altre restano compattate in "Altre metriche" cosi' nessun dato sparisce.
+// I nomi coincidono con i "type" di METRIC_TILE_CONFIG (lib/metric-config.ts),
+// riusato sotto per filtrare le tile della colonna "Altre metriche".
+const DEDICATED_METRIC_COLUMNS: { key: keyof StatMetricTotals; label: string }[] = [
+  { key: "views", label: "Visualizz." },
+  { key: "reactions", label: "Mi piace" },
+  { key: "comments", label: "Commenti" },
+];
+const DEDICATED_METRIC_TYPES = new Set(DEDICATED_METRIC_COLUMNS.map((c) => c.key as string));
+
+function MetricCell({ value, type }: { value: number | null; type: string }) {
+  if (value === null) return <span className="text-xs text-muted-foreground">—</span>;
+  return <span className="text-xs tabular-nums text-foreground">{formatMetricValue(type, value)}</span>;
+}
 
 export default function ChannelStatisticsPage({
   params,
@@ -60,11 +77,17 @@ export default function ChannelStatisticsPage({
       header: "Pubblicato",
       cell: ({ row }) => formatDateTime(row.original.published_at),
     },
+    ...DEDICATED_METRIC_COLUMNS.map(
+      ({ key, label }): ColumnDef<StatPostRow, unknown> => ({
+        id: key,
+        header: label,
+        cell: ({ row }) => <MetricCell value={row.original.metrics[key]} type={key} />,
+      })
+    ),
     {
-      id: "metrics",
-      header: "Metriche",
+      id: "other_metrics",
+      header: "Altre metriche",
       cell: ({ row }) => {
-        const tiles = statMetricTiles(row.original.metrics);
         if (row.original.last_sync_error) {
           return (
             <Tooltip>
@@ -73,8 +96,13 @@ export default function ChannelStatisticsPage({
             </Tooltip>
           );
         }
+        const tiles = statMetricTiles(row.original.metrics).filter((t) => !DEDICATED_METRIC_TYPES.has(t.type));
         if (tiles.length === 0) {
-          return <span className="text-xs text-muted-foreground">Non ancora sincronizzato</span>;
+          return (
+            <span className="text-xs text-muted-foreground">
+              {row.original.last_synced_at ? "—" : "Non ancora sincronizzato"}
+            </span>
+          );
         }
         return (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">

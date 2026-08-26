@@ -95,11 +95,13 @@ Router `app/api/v1/statistics.py`, prefisso `/api/v1/statistics`, tutti autentic
 
 ## 6. Frontend
 
-Voce sidebar **"Statistiche"** subito dopo "Media" (`lib/navigation.ts`, `BarChart3Icon`).
+Voce sidebar **"Statistiche"** (`lib/navigation.ts`, `BarChart3Icon`) - dal 2026-08-26 in `BUFFER_NAV_ITEMS`, tra "Pubblicazioni" e "Centro errori" (spostata su richiesta esplicita da sotto "Media": legge dati di pubblicazione, quindi si accompagna meglio a quel gruppo che a quello di configurazione connessioni/canali sopra).
 
-- `app/(dashboard)/statistics/page.tsx` — dashboard generale: tile metriche, distribuzione piattaforme (`PlatformDistributionChart`, riusato da campaigns), classifica utenti cliccabile, bottone "Sincronizza tutto", export Excel.
-- `app/(dashboard)/statistics/users/[id]/page.tsx` — totali utente, elenco canali cliccabili, bottone "Sincronizza utente", export Excel.
-- `app/(dashboard)/statistics/users/[id]/channels/[channelId]/page.tsx` — totali canale, tabella campagne/post (link a `/campaigns/[id]` e `/publications/[id]` esistenti), bottone "aggiorna" per singolo post, export Excel.
+- `app/(dashboard)/statistics/page.tsx` — dashboard generale: tile metriche, distribuzione piattaforme (`PlatformDistributionChart`, riusato da campaigns), grafico di andamento (§9), classifica utenti cliccabile, bottone "Sincronizza tutto", export Excel.
+- `app/(dashboard)/statistics/users/[id]/page.tsx` — totali utente, grafico di andamento (§9), elenco canali cliccabili (con mini-numeri di visualizzazioni/mi piace/commenti accanto a ognuno, visibili dal breakpoint `md` in su, senza dover aprire il canale), bottone "Sincronizza utente", export Excel.
+- `app/(dashboard)/statistics/users/[id]/channels/[channelId]/page.tsx` — totali canale, grafico di andamento (§9), tabella campagne/post (link a `/campaigns/[id]` e `/publications/[id]` esistenti), bottone "aggiorna" per singolo post, export Excel.
+
+**Colonne metriche dedicate nella tabella post** (aggiunte 2026-08-26): le 3 metriche più universalmente interessanti — visualizzazioni, mi piace/reazioni, commenti — hanno una colonna propria, stretta, sempre visibile in `StatPostRow.metrics` senza dover aprire il dettaglio del post o leggere un elenco di tile compresso. Le restanti (`likes` specifico Facebook, `impressions`, `reach`, `follows`, `clicks`, `shares`, `engagement_rate`) restano compattate nella colonna "Altre metriche" — nessun dato sparisce, solo i tre più richiesti guadagnano una colonna propria. L'indicatore di errore di sincronizzazione (tooltip rosso) resta in questa stessa colonna, non duplicato nelle 3 dedicate.
 
 `components/shared/sync-button.tsx` + `hooks/use-statistics.ts::useSyncFlow` è il componente/hook condiviso dai 3 bottoni "Sincronizza": dispatcha, fa polling di `GET /sync/{id}` ogni 2s finché lo stato non è definitivo, mostra il progresso (`sincronizzati/falliti/saltati` su `totale`), notifica l'esito con un toast e invalida tutte le query del modulo (`queryKey: ["statistics"]`) così la pagina mostra i nuovi totali senza bisogno di un refresh manuale. L'etichetta "Ultima sincronizzazione" è sempre visibile accanto al bottone (tranne quando il chiamante non ha un timestamp aggregato pertinente, es. il bottone sulla scheda di una singola campagna).
 

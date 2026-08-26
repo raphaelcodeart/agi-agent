@@ -264,7 +264,7 @@ Il frontend (`app/(dashboard)/board/page.tsx`) mostra ogni pubblicazione come un
 
 ### 10.2 Modulo Statistiche (dati persistiti)
 
-Tutto quanto descritto sopra in questo §10 è **live**: chiamato al volo, mai salvato. Il modulo **Statistiche** (voce sidebar dedicata, sotto "Media") aggiunge un secondo livello sopra queste stesse chiamate a Buffer, salvando il risultato in tabelle proprie (`stat_*`) così da poterlo navigare per utente → canale → campagna senza richiamare Buffer ogni volta, con 3 bottoni di sincronizzazione manuale (utente/campagna/tutti) ed export Excel. Documentazione completa, schema dati e motore di sync in **[STATISTICS.md](./STATISTICS.md)**.
+Tutto quanto descritto sopra in questo §10 è **live**: chiamato al volo, mai salvato. Il modulo **Statistiche** (voce sidebar dedicata, tra "Pubblicazioni" e "Centro errori") aggiunge un secondo livello sopra queste stesse chiamate a Buffer, salvando il risultato in tabelle proprie (`stat_*`) così da poterlo navigare per utente → canale → campagna senza richiamare Buffer ogni volta, con 3 bottoni di sincronizzazione manuale (utente/campagna/tutti) ed export Excel. Documentazione completa, schema dati e motore di sync in **[STATISTICS.md](./STATISTICS.md)**.
 
 ---
 

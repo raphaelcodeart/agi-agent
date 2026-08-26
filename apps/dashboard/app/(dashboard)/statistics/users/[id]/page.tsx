@@ -17,6 +17,17 @@ import { useUserStatistics, useSyncUserMutation } from "@/hooks/use-statistics";
 import { userExportUrl } from "@/services/statistics";
 import { statMetricTiles } from "@/lib/metric-config";
 import { formatDateTime, formatMetricValue } from "@/lib/format";
+import type { StatMetricTotals } from "@/types/api";
+
+// Stesse 3 metriche mostrate come colonne dedicate nella tabella post del
+// canale (statistics/users/[id]/channels/[channelId]/page.tsx) - qui come
+// mini-numeri accanto a ogni canale, cosi' i totali sono visibili senza
+// dover aprire il dettaglio.
+const CHANNEL_ROW_METRICS: { key: keyof StatMetricTotals; label: string }[] = [
+  { key: "views", label: "views" },
+  { key: "reactions", label: "mi piace" },
+  { key: "comments", label: "commenti" },
+];
 
 export default function UserStatisticsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -115,7 +126,20 @@ export default function UserStatisticsPage({ params }: { params: Promise<{ id: s
                         {channel.username ? `@${channel.username}` : "—"} · {channel.post_count} post
                       </p>
                     </div>
-                    <span className="hidden text-xs text-muted-foreground sm:block">
+                    <div className="hidden shrink-0 items-center gap-4 md:flex">
+                      {CHANNEL_ROW_METRICS.map(({ key, label }) => {
+                        const value = channel.totals[key];
+                        return (
+                          <div key={key} className="text-right">
+                            <p className="text-sm font-medium tabular-nums text-foreground">
+                              {value === null ? "—" : formatMetricValue(key, value)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">{label}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <span className="hidden text-xs text-muted-foreground lg:block">
                       Sync: {formatDateTime(channel.last_synced_at)}
                     </span>
                     <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />

@@ -47,15 +47,19 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
   { href: "/buffer-connections", label: "Connessioni Buffer", icon: LinkIcon },
   { href: "/channels", label: "Canali social", icon: Share2Icon },
   { href: "/media", label: "Media", icon: ImagesIcon },
-  { href: "/statistics", label: "Statistiche", icon: BarChart3Icon },
 ];
 
 // The campaign execution/monitoring side of the Buffer integration - appended
 // right after MAIN_NAV_ITEMS in the same "Campagne Buffer" sidebar block
-// (see above), not a second/separate section.
+// (see above), not a second/separate section. "Statistiche" sits here (not in
+// MAIN_NAV_ITEMS) specifically between "Pubblicazioni" and "Centro errori" -
+// moved here 2026-08-26 on explicit request, since it reads publication data
+// (what was actually sent) rather than belonging with the Buffer connection
+// setup above.
 export const BUFFER_NAV_ITEMS: NavItem[] = [
   { href: "/campaigns", label: "Campagne", icon: MegaphoneIcon },
   { href: "/publications", label: "Pubblicazioni", icon: SendIcon },
+  { href: "/statistics", label: "Statistiche", icon: BarChart3Icon },
   { href: "/errors", label: "Centro errori", icon: AlertOctagonIcon },
 ];
 
