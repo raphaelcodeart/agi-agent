@@ -7,6 +7,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { PlatformDistributionChart } from "@/components/shared/platform-distribution-chart";
+import { MetricMiniStat } from "@/components/shared/metric-mini-stat";
 import { MetricTrendChart } from "./_components/metric-trend-chart";
 import { SyncButton } from "@/components/shared/sync-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStatisticsDashboard, useSyncAllMutation } from "@/hooks/use-statistics";
 import { dashboardExportUrl } from "@/services/statistics";
-import { statMetricTiles } from "@/lib/metric-config";
+import { ROW_SUMMARY_METRIC_KEYS, shortLabelForMetric, statMetricTiles } from "@/lib/metric-config";
 import { formatDateTime, formatMetricValue } from "@/lib/format";
 
 export default function StatisticsDashboardPage() {
@@ -138,7 +139,19 @@ export default function StatisticsDashboardPage() {
                           {user.company_name || "—"} · {user.channel_count} canali · {user.post_count} post
                         </p>
                       </div>
-                      <span className="hidden text-xs text-muted-foreground sm:block">
+                      <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
+                        {ROW_SUMMARY_METRIC_KEYS.map((key) => {
+                          const value = user.totals[key];
+                          return (
+                            <MetricMiniStat
+                              key={key}
+                              label={shortLabelForMetric(key)}
+                              value={value === null ? "—" : formatMetricValue(key, value)}
+                            />
+                          );
+                        })}
+                      </div>
+                      <span className="hidden text-xs text-muted-foreground xl:block">
                         Sync: {formatDateTime(user.last_synced_at)}
                       </span>
                       <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />

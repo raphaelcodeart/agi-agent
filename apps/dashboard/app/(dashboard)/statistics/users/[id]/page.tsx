@@ -16,18 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserStatistics, useSyncUserMutation } from "@/hooks/use-statistics";
 import { userExportUrl } from "@/services/statistics";
-import { METRIC_TILE_CONFIG, statMetricTiles } from "@/lib/metric-config";
+import { ROW_SUMMARY_METRIC_KEYS, shortLabelForMetric, statMetricTiles } from "@/lib/metric-config";
 import { formatDateTime, formatMetricValue } from "@/lib/format";
-import type { StatMetricTotals } from "@/types/api";
-
-// Stesse 3 metriche mostrate nella tabella post del canale
-// (statistics/users/[id]/channels/[channelId]/page.tsx) - qui come mini-tile
-// accanto a ogni canale, cosi' i totali sono visibili senza dover aprire il
-// dettaglio. Etichette abbreviate riusate da METRIC_TILE_CONFIG.
-const CHANNEL_ROW_METRIC_KEYS: (keyof StatMetricTotals)[] = ["views", "reactions", "comments"];
-function shortLabelFor(key: string): string {
-  return METRIC_TILE_CONFIG.find((c) => c.type === key)?.shortLabel ?? key;
-}
 
 export default function UserStatisticsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -129,13 +119,13 @@ export default function UserStatisticsPage({ params }: { params: Promise<{ id: s
                         {channel.username ? `@${channel.username}` : "—"} · {channel.post_count} post
                       </p>
                     </div>
-                    <div className="hidden shrink-0 items-center gap-1.5 md:flex">
-                      {CHANNEL_ROW_METRIC_KEYS.map((key) => {
+                    <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
+                      {ROW_SUMMARY_METRIC_KEYS.map((key) => {
                         const value = channel.totals[key];
                         return (
                           <MetricMiniStat
                             key={key}
-                            label={shortLabelFor(key)}
+                            label={shortLabelForMetric(key)}
                             value={value === null ? "—" : formatMetricValue(key, value)}
                           />
                         );

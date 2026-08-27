@@ -45,3 +45,14 @@ export function statMetricTiles(
     return value === null || value === undefined ? [] : [{ ...config, value }];
   });
 }
+
+// Le 4 metriche mostrate come mini-tile accanto a ogni riga di un elenco
+// (classifica promoter in statistics/page.tsx, canali in
+// statistics/users/[id]/page.tsx) - cosi' i totali sono visibili senza dover
+// aprire il dettaglio. Stesso principio di statMetricTiles ma per un
+// sottoinsieme fisso invece di "tutte le metriche disponibili per questo post".
+export const ROW_SUMMARY_METRIC_KEYS: (keyof StatMetricTotals)[] = ["views", "reactions", "comments", "shares"];
+
+export function shortLabelForMetric(type: string): string {
+  return METRIC_TILE_CONFIG.find((c) => c.type === type)?.shortLabel ?? type;
+}
