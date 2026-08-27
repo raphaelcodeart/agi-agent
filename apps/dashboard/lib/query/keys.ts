@@ -3,6 +3,7 @@ export const queryKeys = {
   users: {
     list: (params?: unknown) => ["users", "list", params] as const,
     detail: (id: string) => ["users", "detail", id] as const,
+    summary: () => ["users", "summary"] as const,
   },
   groups: {
     list: () => ["groups", "list"] as const,
@@ -22,12 +23,14 @@ export const queryKeys = {
     list: (params?: unknown) => ["campaigns", "list", params] as const,
     detail: (id: string) => ["campaigns", "detail", id] as const,
     metrics: (id: string) => ["campaigns", "metrics", id] as const,
+    summary: () => ["campaigns", "summary"] as const,
   },
   publications: {
     list: (params?: unknown) => ["publications", "list", params] as const,
     detail: (id: string) => ["publications", "detail", id] as const,
     metrics: (id: string) => ["publications", "metrics", id] as const,
     feed: (params?: unknown) => ["publications", "feed", params] as const,
+    summary: () => ["publications", "summary"] as const,
   },
   settings: {
     detail: () => ["settings", "detail"] as const,

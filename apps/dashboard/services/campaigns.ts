@@ -9,12 +9,18 @@ import type {
   CampaignPreviewResponse,
   CampaignResponse,
   CampaignStatus,
+  StatusCountsSummaryResponse,
 } from "@/types/api";
 
 export interface ListCampaignsParams {
   skip?: number;
   limit?: number;
   status_filter?: CampaignStatus | "";
+}
+
+export function getCampaignsSummary(): Promise<StatusCountsSummaryResponse> {
+  if (isMockApiEnabled()) return mock.getCampaignsSummary();
+  return apiClient.get<StatusCountsSummaryResponse>("/campaigns/summary");
 }
 
 export function listCampaigns(params: ListCampaignsParams = {}): Promise<CampaignResponse[]> {

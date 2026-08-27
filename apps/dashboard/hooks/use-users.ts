@@ -21,12 +21,20 @@ export function useUser(id: string | undefined) {
   });
 }
 
+export function useUsersSummary() {
+  return useQuery({
+    queryKey: queryKeys.users.summary(),
+    queryFn: usersService.getUsersSummary,
+  });
+}
+
 export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: UserPayload) => usersService.createUser(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users", "list"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.summary() });
     },
   });
 }
@@ -38,6 +46,7 @@ export function useUpdateUser(id: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users", "list"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.summary() });
     },
   });
 }
@@ -48,6 +57,7 @@ export function useDeleteUser() {
     mutationFn: (id: string) => usersService.deleteUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users", "list"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.summary() });
     },
   });
 }

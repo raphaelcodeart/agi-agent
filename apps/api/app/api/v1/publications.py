@@ -1,6 +1,7 @@
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
@@ -22,6 +23,7 @@ from app.schemas.schemas import (
     MediaResponse,
     ChannelMetrics,
     PostMetricValue,
+    StatusCountsSummaryResponse,
 )
 
 router = APIRouter()
@@ -41,8 +43,20 @@ def list_publications(
         query = query.filter(Publication.campaign_id == campaign_id)
     if status_filter:
         query = query.filter(Publication.status == status_filter)
-        
+
     return query.offset(skip).limit(limit).all()
+
+
+@router.get("/summary", response_model=StatusCountsSummaryResponse)
+def get_publications_summary(db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """Counts for the stat cards atop the Pubblicazioni list - registered
+    before "/{pub_id}" so FastAPI doesn't try to parse "summary" as a UUID.
+    Deliberately not filterable by campaign_id/status_filter like the list
+    above - always the platform-wide totals, same principle as
+    statistics_service.build_dashboard."""
+    rows = db.query(Publication.status, func.count(Publication.id)).group_by(Publication.status).all()
+    counts = dict(rows)
+    return StatusCountsSummaryResponse(total=sum(counts.values()), by_status=counts)
 
 
 @router.get("/feed", response_model=List[PublicationFeedItem])

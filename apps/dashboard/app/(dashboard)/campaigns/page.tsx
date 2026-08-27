@@ -5,21 +5,36 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { PlusIcon, CopyIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, CopyIcon, Trash2Icon, MegaphoneIcon, FileEditIcon, LoaderIcon, CheckCircle2Icon, XCircleIcon, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { MediaPreview } from "@/components/shared/media-preview";
 import { FilterBar, FilterSelect } from "@/components/shared/filter-bar";
 import { Pagination } from "@/components/shared/pagination";
+import { StatCard } from "@/components/shared/stat-card";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { useCampaigns, useDeleteCampaign } from "@/hooks/use-campaigns";
+import { useCampaigns, useCampaignsSummary, useDeleteCampaign } from "@/hooks/use-campaigns";
 import { useCampaignDetail } from "@/hooks/use-campaigns";
 import { formatDateTime } from "@/lib/format";
 import { hasUnresolvedPublications } from "@/lib/campaign-stats";
+import { campaignStatusBuckets } from "@/lib/status-buckets";
 import { ApiError } from "@/lib/api/errors";
 import type { CampaignResponse, CampaignStatus } from "@/types/api";
+
+const CAMPAIGN_SUMMARY_ICONS: Record<string, LucideIcon> = {
+  total: MegaphoneIcon,
+  draft: FileEditIcon,
+  active: LoaderIcon,
+  completed: CheckCircle2Icon,
+  failed: XCircleIcon,
+};
+const CAMPAIGN_SUMMARY_TONES: Record<string, "default" | "success" | "warning" | "destructive"> = {
+  completed: "success",
+  active: "warning",
+  failed: "destructive",
+};
 
 const STATUS_OPTIONS: { value: CampaignStatus; label: string }[] = [
   { value: "draft", label: "Bozza" },
@@ -68,6 +83,10 @@ export default function CampaignsPage() {
 
   const campaignsQuery = useCampaigns({ status_filter: statusFilter || undefined, skip, limit: LIMIT });
   const deleteCampaign = useDeleteCampaign();
+  const summaryQuery = useCampaignsSummary();
+  const summaryBuckets = summaryQuery.data
+    ? campaignStatusBuckets(summaryQuery.data.total, summaryQuery.data.by_status)
+    : [];
 
   const columns = useMemo<ColumnDef<CampaignResponse, unknown>[]>(
     () => [
@@ -150,6 +169,22 @@ export default function CampaignsPage() {
           </Button>
         }
       />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        {(summaryQuery.isLoading
+          ? Object.keys(CAMPAIGN_SUMMARY_ICONS).map((key) => ({ key, label: "", value: 0 }))
+          : summaryBuckets
+        ).map((bucket) => (
+          <StatCard
+            key={bucket.key}
+            label={bucket.label}
+            value={bucket.value}
+            icon={CAMPAIGN_SUMMARY_ICONS[bucket.key]}
+            tone={CAMPAIGN_SUMMARY_TONES[bucket.key] ?? "default"}
+            loading={summaryQuery.isLoading}
+          />
+        ))}
+      </div>
 
       <FilterBar>
         <FilterSelect

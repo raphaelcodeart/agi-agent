@@ -41,6 +41,23 @@ export interface UserResponse {
   groups: GroupResponse[];
 }
 
+export interface UserSummaryResponse {
+  total: number;
+  active: number;
+  inactive: number;
+  suspended: number;
+}
+
+// Riusato per i conteggi di Campagne e Pubblicazioni (vedi
+// StatusCountsSummaryResponse in schemas.py) - un dizionario grezzo
+// per-status invece di un campo per ognuno, cosi' il frontend puo'
+// raggruppare gli status in meno card senza dover cambiare il backend ogni
+// volta che ne viene introdotto uno nuovo.
+export interface StatusCountsSummaryResponse {
+  total: number;
+  by_status: Record<string, number>;
+}
+
 // ==============================================================================
 // Buffer Connections & Channels
 // ==============================================================================

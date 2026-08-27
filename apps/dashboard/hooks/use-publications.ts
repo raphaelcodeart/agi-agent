@@ -15,6 +15,13 @@ export function usePublications(params: ListPublicationsParams = {}) {
   });
 }
 
+export function usePublicationsSummary() {
+  return useQuery({
+    queryKey: queryKeys.publications.summary(),
+    queryFn: publicationsService.getPublicationsSummary,
+  });
+}
+
 // "Bacheca" feed - kept as its own hook (not reusing usePublications) since it
 // hits a different, pre-joined endpoint (GET /publications/feed) rather than
 // the raw publication rows the Publications table view uses.
@@ -60,6 +67,8 @@ export function usePublicationMetrics(id: string) {
 function invalidatePublications(queryClient: ReturnType<typeof useQueryClient>, ids?: string | string[]) {
   queryClient.invalidateQueries({ queryKey: ["publications", "list"] });
   queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+  queryClient.invalidateQueries({ queryKey: queryKeys.publications.summary() });
+  queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.summary() });
   const idList = ids ? (Array.isArray(ids) ? ids : [ids]) : [];
   idList.forEach((id) => queryClient.invalidateQueries({ queryKey: queryKeys.publications.detail(id) }));
 }

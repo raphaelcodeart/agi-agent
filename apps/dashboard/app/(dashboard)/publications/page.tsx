@@ -4,24 +4,39 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
-import { RotateCcwIcon, ExternalLinkIcon } from "lucide-react";
+import { RotateCcwIcon, ExternalLinkIcon, SendIcon, CheckCircle2Icon, LoaderIcon, XCircleIcon, BanIcon, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { PlatformBadge } from "@/components/shared/platform-badge";
 import { FilterBar, FilterSelect } from "@/components/shared/filter-bar";
 import { Pagination } from "@/components/shared/pagination";
+import { StatCard } from "@/components/shared/stat-card";
 import { RetryButton } from "@/components/shared/retry-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { usePublications, useRetryPublication, useRetrySelectedPublications } from "@/hooks/use-publications";
+import { usePublications, usePublicationsSummary, useRetryPublication, useRetrySelectedPublications } from "@/hooks/use-publications";
 import { useCampaigns } from "@/hooks/use-campaigns";
 import { useUsers } from "@/hooks/use-users";
 import { useChannels } from "@/hooks/use-channels";
 import { formatDateTime } from "@/lib/format";
+import { publicationStatusBuckets } from "@/lib/status-buckets";
 import { ApiError } from "@/lib/api/errors";
 import type { PublicationResponse, PublicationStatus } from "@/types/api";
+
+const PUBLICATION_SUMMARY_ICONS: Record<string, LucideIcon> = {
+  total: SendIcon,
+  published: CheckCircle2Icon,
+  active: LoaderIcon,
+  failed: XCircleIcon,
+  cancelled: BanIcon,
+};
+const PUBLICATION_SUMMARY_TONES: Record<string, "default" | "success" | "warning" | "destructive"> = {
+  published: "success",
+  active: "warning",
+  failed: "destructive",
+};
 
 const STATUS_OPTIONS: { value: PublicationStatus; label: string }[] = [
   { value: "pending", label: "In attesa" },
@@ -44,6 +59,10 @@ export default function PublicationsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const publicationsQuery = usePublications({ status_filter: statusFilter || undefined, skip, limit: LIMIT });
+  const summaryQuery = usePublicationsSummary();
+  const summaryBuckets = summaryQuery.data
+    ? publicationStatusBuckets(summaryQuery.data.total, summaryQuery.data.by_status)
+    : [];
   const campaignsQuery = useCampaigns({ limit: 100 });
   const usersQuery = useUsers({ limit: 100 });
   const channelsQuery = useChannels({});
@@ -204,6 +223,22 @@ export default function PublicationsPage() {
   return (
     <div className="space-y-4">
       <PageHeader title="Pubblicazioni" description="Storico delle pubblicazioni verso i canali social" />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        {(summaryQuery.isLoading
+          ? Object.keys(PUBLICATION_SUMMARY_ICONS).map((key) => ({ key, label: "", value: 0 }))
+          : summaryBuckets
+        ).map((bucket) => (
+          <StatCard
+            key={bucket.key}
+            label={bucket.label}
+            value={bucket.value}
+            icon={PUBLICATION_SUMMARY_ICONS[bucket.key]}
+            tone={PUBLICATION_SUMMARY_TONES[bucket.key] ?? "default"}
+            loading={summaryQuery.isLoading}
+          />
+        ))}
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <FilterBar>

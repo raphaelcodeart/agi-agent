@@ -14,6 +14,13 @@ export function useCampaigns(params: ListCampaignsParams = {}) {
   });
 }
 
+export function useCampaignsSummary() {
+  return useQuery({
+    queryKey: queryKeys.campaigns.summary(),
+    queryFn: campaignsService.getCampaignsSummary,
+  });
+}
+
 export function useCampaignDetail(
   id: string | undefined,
   options?: { refetchInterval?: UseQueryOptions<CampaignDetailResponse>["refetchInterval"] }
@@ -44,6 +51,7 @@ export function useCreateCampaign() {
     mutationFn: (payload: CampaignCreatePayload) => campaignsService.createCampaign(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", "list"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.summary() });
     },
   });
 }
@@ -69,6 +77,8 @@ export function useLaunchCampaign() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", "list"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.detail(variables.campaignId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.summary() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.publications.summary() });
     },
   });
 }
@@ -84,6 +94,8 @@ function useCampaignAction(
       queryClient.invalidateQueries({ queryKey: ["campaigns", "list"] });
       queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.detail(campaignId) });
       queryClient.invalidateQueries({ queryKey: ["publications", "list"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.summary() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.publications.summary() });
     },
   });
 }
@@ -96,6 +108,8 @@ export function useDeleteCampaign() {
       queryClient.invalidateQueries({ queryKey: ["campaigns", "list"] });
       queryClient.removeQueries({ queryKey: queryKeys.campaigns.detail(campaignId) });
       queryClient.invalidateQueries({ queryKey: ["publications", "list"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.summary() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.publications.summary() });
     },
   });
 }

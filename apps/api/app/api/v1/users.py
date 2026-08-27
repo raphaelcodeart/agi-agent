@@ -3,12 +3,20 @@ import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
 from app.models.administrator import Administrator
 from app.models.user import User, UserGroup
-from app.schemas.schemas import UserCreate, UserUpdate, UserResponse, GroupCreate, GroupUpdate, GroupResponse
+from app.schemas.schemas import (
+    UserCreate,
+    UserUpdate,
+    UserResponse,
+    UserSummaryResponse,
+    GroupCreate,
+    GroupUpdate,
+    GroupResponse,
+)
 
 router = APIRouter()
 
@@ -71,6 +79,25 @@ def create_user(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.get("/summary", response_model=UserSummaryResponse)
+def get_users_summary(db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """Counts for the stat cards atop the Utenti list - registered before
+    "/{user_id}" so FastAPI doesn't try to parse "summary" as a UUID."""
+    rows = (
+        db.query(User.status, func.count(User.id))
+        .filter(User.deleted_at.is_(None))
+        .group_by(User.status)
+        .all()
+    )
+    counts = dict(rows)
+    return UserSummaryResponse(
+        total=sum(counts.values()),
+        active=counts.get("active", 0),
+        inactive=counts.get("inactive", 0),
+        suspended=counts.get("suspended", 0),
+    )
 
 
 @router.get("/{user_id}", response_model=UserResponse)

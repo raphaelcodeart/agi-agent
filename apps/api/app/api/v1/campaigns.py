@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import uuid
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from app.db.session import get_db
 from app.api.v1.auth import get_current_admin
@@ -22,6 +23,7 @@ from app.schemas.schemas import (
     CampaignMetricsResponse,
     ChannelMetrics,
     PostMetricValue,
+    StatusCountsSummaryResponse,
 )
 
 router = APIRouter()
@@ -41,6 +43,15 @@ def list_campaigns(
     if status_filter:
         query = query.filter(Campaign.status == status_filter)
     return query.order_by(Campaign.created_at.desc()).offset(skip).limit(limit).all()
+
+
+@router.get("/summary", response_model=StatusCountsSummaryResponse)
+def get_campaigns_summary(db: Session = Depends(get_db), admin: Administrator = Depends(get_current_admin)):
+    """Counts for the stat cards atop the Campagne list - registered before
+    "/{campaign_id}" so FastAPI doesn't try to parse "summary" as a UUID."""
+    rows = db.query(Campaign.status, func.count(Campaign.id)).group_by(Campaign.status).all()
+    counts = dict(rows)
+    return StatusCountsSummaryResponse(total=sum(counts.values()), by_status=counts)
 
 
 @router.post("/", response_model=CampaignResponse, status_code=status.HTTP_201_CREATED)

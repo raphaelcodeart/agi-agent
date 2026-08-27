@@ -2,7 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import { buildQueryString } from "@/lib/api/query-string";
 import { isMockApiEnabled } from "@/lib/env";
 import * as mock from "@/lib/api/mock/adapter";
-import type { GroupResponse, UserResponse, UserStatus } from "@/types/api";
+import type { GroupResponse, UserResponse, UserStatus, UserSummaryResponse } from "@/types/api";
 
 export interface ListUsersParams {
   skip?: number;
@@ -14,6 +14,11 @@ export interface ListUsersParams {
 export function listUsers(params: ListUsersParams = {}): Promise<UserResponse[]> {
   if (isMockApiEnabled()) return mock.listUsers(params);
   return apiClient.get<UserResponse[]>(`/users/${buildQueryString(params)}`);
+}
+
+export function getUsersSummary(): Promise<UserSummaryResponse> {
+  if (isMockApiEnabled()) return mock.getUsersSummary();
+  return apiClient.get<UserSummaryResponse>("/users/summary");
 }
 
 export interface UserPayload {

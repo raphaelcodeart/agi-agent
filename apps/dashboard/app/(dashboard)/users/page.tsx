@@ -3,16 +3,17 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { PlusIcon, PencilIcon, LinkIcon, IdCardIcon, UserRoundIcon } from "lucide-react";
+import { PlusIcon, PencilIcon, LinkIcon, IdCardIcon, UserRoundIcon, UsersIcon, UserCheckIcon, UserMinusIcon, BanIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
 import { SearchInput } from "@/components/shared/search-input";
 import { FilterBar, FilterSelect } from "@/components/shared/filter-bar";
 import { Pagination } from "@/components/shared/pagination";
+import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useUsers } from "@/hooks/use-users";
+import { useUsers, useUsersSummary } from "@/hooks/use-users";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatDateTime } from "@/lib/format";
 import type { UserResponse, UserStatus } from "@/types/api";
@@ -38,6 +39,8 @@ export default function UsersPage() {
     skip,
     limit: LIMIT,
   });
+  const summaryQuery = useUsersSummary();
+  const summary = summaryQuery.data;
 
   function openCreate() {
     setEditingUser(undefined);
@@ -147,6 +150,30 @@ export default function UsersPage() {
           </Button>
         }
       />
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard label="Totale utenti" value={summary?.total ?? "—"} icon={UsersIcon} loading={summaryQuery.isLoading} />
+        <StatCard
+          label="Attivi"
+          value={summary?.active ?? "—"}
+          icon={UserCheckIcon}
+          tone="success"
+          loading={summaryQuery.isLoading}
+        />
+        <StatCard
+          label="Inattivi"
+          value={summary?.inactive ?? "—"}
+          icon={UserMinusIcon}
+          loading={summaryQuery.isLoading}
+        />
+        <StatCard
+          label="Sospesi"
+          value={summary?.suspended ?? "—"}
+          icon={BanIcon}
+          tone="destructive"
+          loading={summaryQuery.isLoading}
+        />
+      </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SearchInput

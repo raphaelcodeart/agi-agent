@@ -32,9 +32,11 @@ import type {
   PublicationFeedItem,
   PublicationResponse,
   SocialChannelResponse,
+  StatusCountsSummaryResponse,
   SystemSettingsResponse,
   SystemSettingsUpdatePayload,
   UserResponse,
+  UserSummaryResponse,
 } from "@/types/api";
 import type { GroupPayload, ListUsersParams, UserPayload } from "@/services/users";
 import type { ListChannelsParams } from "@/services/channels";
@@ -55,6 +57,12 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function countByStatus(rows: { status: string }[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const row of rows) counts[row.status] = (counts[row.status] ?? 0) + 1;
+  return counts;
+}
+
 // ---------------------------------------------------------------------------
 // Users & Groups
 // ---------------------------------------------------------------------------
@@ -71,6 +79,17 @@ export function listUsers(params: ListUsersParams = {}): Promise<UserResponse[]>
     );
   }
   return delay(result.slice(params.skip ?? 0, (params.skip ?? 0) + (params.limit ?? 20)));
+}
+
+export function getUsersSummary(): Promise<UserSummaryResponse> {
+  const users = mockUsers.filter((u) => !("deleted" in u));
+  const byStatus = countByStatus(users);
+  return delay({
+    total: users.length,
+    active: byStatus.active ?? 0,
+    inactive: byStatus.inactive ?? 0,
+    suspended: byStatus.suspended ?? 0,
+  });
 }
 
 export function createUser(payload: UserPayload): Promise<UserResponse> {
@@ -274,6 +293,10 @@ export function listCampaigns(params: ListCampaignsParams = {}): Promise<Campaig
   return delay(result.slice(params.skip ?? 0, (params.skip ?? 0) + (params.limit ?? 20)));
 }
 
+export function getCampaignsSummary(): Promise<StatusCountsSummaryResponse> {
+  return delay({ total: mockCampaigns.length, by_status: countByStatus(mockCampaigns) });
+}
+
 export function generateCampaignText(topic: string): Promise<AIGenerateTextResponse> {
   const clean = topic.trim();
   return delay({
@@ -455,6 +478,10 @@ export function listPublications(params: ListPublicationsParams = {}): Promise<P
   if (params.campaign_id) result = result.filter((p) => p.campaign_id === params.campaign_id);
   if (params.status_filter) result = result.filter((p) => p.status === params.status_filter);
   return delay(result.slice(params.skip ?? 0, (params.skip ?? 0) + (params.limit ?? 50)));
+}
+
+export function getPublicationsSummary(): Promise<StatusCountsSummaryResponse> {
+  return delay({ total: mockPublications.length, by_status: countByStatus(mockPublications) });
 }
 
 export function listPublicationFeed(params: ListPublicationFeedParams = {}): Promise<PublicationFeedItem[]> {

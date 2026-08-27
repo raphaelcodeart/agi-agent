@@ -85,6 +85,26 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
+class UserSummaryResponse(BaseModel):
+    """Counts for the stat cards atop the Utenti list - active/inactive/suspended
+    always sum to total (every non-deleted user has exactly one of the 3
+    UserStatus values), unlike StatusCountsSummaryResponse below which is a
+    generic bucket for statuses that can grow over time."""
+    total: int
+    active: int
+    inactive: int
+    suspended: int
+
+
+class StatusCountsSummaryResponse(BaseModel):
+    """Reused for the Campagne and Pubblicazioni list stat cards: total plus a
+    raw per-status count, so the frontend can bucket/group statuses into
+    fewer cards (see lib/status-buckets.ts) without a backend change every
+    time a new status value is introduced."""
+    total: int
+    by_status: Dict[str, int]
+
+
 # ==============================================================================
 # Buffer Connection & Channel Schemas
 # ==============================================================================
