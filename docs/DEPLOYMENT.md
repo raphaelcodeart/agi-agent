@@ -323,6 +323,37 @@ crontab -e
 0 4 * * * cd ~/social-publisher && docker compose -f docker-compose.prod.yml run --rm certbot renew --quiet && docker compose -f docker-compose.prod.yml exec nginx nginx -s reload >> backups/certbot-renew.log 2>&1
 ```
 
+### Sito pubblico (agimarketing.app) — repo separato
+
+Il sito statico servito al dominio nudo (`agimarketing.app` / `www.agimarketing.app`, homepage con "Accedi" che rimanda ad `app.agimarketing.app`) vive in un **secondo repository**, separato da questo: [`raphaelcodeart/agimarketing-site`](https://github.com/raphaelcodeart/agimarketing-site) (privato). È solo HTML/CSS/JS statico, nessuna build.
+
+Per rimetterlo in piedi su un server nuovo:
+
+```bash
+git clone https://github.com/raphaelcodeart/agimarketing-site.git /opt/agimarketing-public/agi-marketing
+```
+
+`docker-compose.prod.yml` (in questo repo, servizio `nginx`) monta quel path assoluto in sola lettura:
+
+```yaml
+- /opt/agimarketing-public/agi-marketing:/usr/share/nginx/public:ro
+```
+
+Se sul nuovo server lo clonate in un percorso diverso, aggiornate questa riga di conseguenza prima di avviare lo stack.
+
+`infrastructure/nginx/nginx.conf` è già configurato con i vhost per `agimarketing.app`/`www.agimarketing.app` (dominio nudo → sito statico) accanto a quelli di `app./api./media.agimarketing.app` (piattaforma) — vedi i commenti nel file. `setup-https.sh` (sopra) copre solo i tre sottodomini `app/api/media`: il certificato per il dominio nudo va richiesto **a parte**, dopo aver completato la procedura sslip.io/dominio sopra e con lo stack già up (la config finale nel repo risponde già alla ACME challenge su porta 80 per tutti i domini elencati in `server_name`):
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm certbot certonly \
+  --webroot -w /var/www/certbot \
+  -d agimarketing.app -d www.agimarketing.app \
+  --email tuaemail@esempio.com --agree-tos --non-interactive --keep-until-expiring
+
+docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+```
+
+Aggiungete `agimarketing.app` e `www.agimarketing.app` allo stesso cron di rinnovo del certificato descritto sopra (basta un secondo `certbot renew`, oppure un unico comando: certbot rinnova tutti i certificati emessi su questo host in un colpo solo).
+
 ---
 
 ## 10. Backup e ripristino del database (il "dump")
