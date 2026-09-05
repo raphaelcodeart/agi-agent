@@ -1124,3 +1124,24 @@ class StatDashboardResponse(BaseModel):
     last_synced_at: Optional[datetime]
     timeseries_monthly: List[StatTimeseriesPoint]
     timeseries_yearly: List[StatTimeseriesPoint]
+
+
+class PublicPlatformStats(BaseModel):
+    """One platform's aggregate totals for the public marketing site - no
+    user/channel identifier, see app/api/v1/public_stats.py."""
+    platform: str
+    post_count: int
+    totals: StatMetricTotals
+
+
+class PublicStatsResponse(BaseModel):
+    """Anonymous, aggregate-only snapshot exposed without authentication to
+    the public marketing site (agimarketing.app) - see
+    app/api/v1/public_stats.py and docs/STATISTICS.md."""
+    post_count: int
+    campaign_count: int
+    channel_count: int
+    active_user_count: int
+    totals: StatMetricTotals
+    platforms: List[PublicPlatformStats]
+    last_synced_at: Optional[datetime]

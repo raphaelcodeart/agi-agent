@@ -5,6 +5,7 @@ from app.api.v1 import auth, users, buffer, media, campaigns, publications, sett
 from app.api.v1 import blog_writer_sites, blog_writer_articles
 from app.api.v1 import omnichannel, omnichannel_webhooks
 from app.api.v1 import statistics
+from app.api.v1 import public_stats
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -44,6 +45,7 @@ app.include_router(blog_writer_articles.router, prefix=f"{settings.API_V1_STR}/b
 app.include_router(omnichannel.router, prefix=f"{settings.API_V1_STR}/omnichannel-responder", tags=["omnichannel-responder"])
 app.include_router(omnichannel_webhooks.router, prefix=f"{settings.API_V1_STR}/omnichannel-responder", tags=["omnichannel-responder"])
 app.include_router(statistics.router, prefix=f"{settings.API_V1_STR}/statistics", tags=["statistics"])
+app.include_router(public_stats.router, prefix=f"{settings.API_V1_STR}/public/stats", tags=["public"])
 
 @app.get("/")
 def read_root():

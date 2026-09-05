@@ -5,6 +5,7 @@ from app.services.statistics_service import (
     ALL_METRIC_COLUMNS,
     STALE_SYNC_THRESHOLD,
     _impact_score,
+    _platform_breakdown,
     _totals_dict,
     extract_metric_columns,
     needs_sync,
@@ -114,3 +115,26 @@ def test_timeseries_buckets_by_year():
 def test_timeseries_excludes_posts_with_no_published_at():
     rows = [_metric_row(published_at=None, views=1.0)]
     assert timeseries(rows, "month") == []
+
+
+def test_platform_breakdown_groups_by_platform_and_sums_totals():
+    rows = [
+        _metric_row(platform="instagram", views=100.0),
+        _metric_row(platform="instagram", views=50.0),
+        _metric_row(platform="facebook", views=10.0),
+    ]
+    breakdown = _platform_breakdown(rows)
+    assert [b["platform"] for b in breakdown] == ["facebook", "instagram"]
+    facebook, instagram = breakdown
+    assert facebook["post_count"] == 1
+    assert facebook["totals"]["views"] == 10.0
+    assert instagram["post_count"] == 2
+    assert instagram["totals"]["views"] == 150.0
+
+
+def test_platform_breakdown_never_exposes_row_identifiers():
+    """Public-site aggregation must never carry a user/channel id or name -
+    only platform, post_count and totals may leave _platform_breakdown."""
+    rows = [_metric_row(platform="tiktok", views=1.0)]
+    breakdown = _platform_breakdown(rows)
+    assert set(breakdown[0].keys()) == {"platform", "post_count", "totals"}

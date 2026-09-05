@@ -93,6 +93,8 @@ Router `app/api/v1/statistics.py`, prefisso `/api/v1/statistics`, tutti autentic
 | `GET /export/users/{user_id}.xlsx` | Export Excel utente (per canale) |
 | `GET /export/users/{user_id}/channels/{channel_id}.xlsx` | Export Excel canale (per post) |
 
+Router separato, **senza autenticazione**, prefisso `/api/v1/public/stats` (`app/api/v1/public_stats.py`): un solo `GET`, per il sito pubblico `agimarketing.app`. Espone solo `statistics_service.build_public_summary` — totali generali, conteggio post/campagne/canali/utenti attivi (`active_user_count`, mostrato sul sito come "Influencer attivi") e un breakdown per piattaforma (`_platform_breakdown`), mai un id o nome di utente/canale. CORS gestito a mano nell'endpoint (allow-list fissa di origin, nessuna credenziale) invece che tramite il `CORSMiddleware` globale di `main.py`, che resta con `allow_credentials=True` per gli origin autenticati dell'app — questo endpoint non deve mai transitare su quella configurazione.
+
 ## 6. Frontend
 
 Voce sidebar **"Statistiche"** (`lib/navigation.ts`, `BarChart3Icon`) - dal 2026-08-26 in `BUFFER_NAV_ITEMS`, tra "Pubblicazioni" e "Centro errori" (spostata su richiesta esplicita da sotto "Media": legge dati di pubblicazione, quindi si accompagna meglio a quel gruppo che a quello di configurazione connessioni/canali sopra).

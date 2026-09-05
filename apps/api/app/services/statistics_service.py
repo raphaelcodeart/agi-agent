@@ -142,6 +142,47 @@ def timeseries(rows: Sequence[Any], granularity: str) -> list[dict[str, Any]]:
     ]
 
 
+def _platform_breakdown(rows: Sequence[Any]) -> list[dict[str, Any]]:
+    """Groups metric rows by platform - post count + totals only, no
+    user/channel identifier ever included. Used by build_public_summary
+    (app/api/v1/public_stats.py) so the public marketing site's chart never
+    sees anything more granular than "this platform, this many posts, these
+    totals"."""
+    by_platform: dict[str, list[Any]] = {}
+    for row in rows:
+        by_platform.setdefault(row.platform, []).append(row)
+    return [
+        {"platform": platform, "post_count": len(platform_rows), "totals": _totals_dict(platform_rows)}
+        for platform, platform_rows in sorted(by_platform.items())
+    ]
+
+
+def build_public_summary(db: Session) -> dict[str, Any]:
+    """Anonymous, aggregate-only snapshot for the public marketing site
+    (agimarketing.app) - see app/api/v1/public_stats.py. Deliberately never
+    touches User/SocialChannel names or ids: only platform-level totals and
+    plain counts leave this function."""
+    rows = db.query(StatPostMetric).all()
+    campaign_count = db.query(Campaign).filter(Campaign.status == "completed").count()
+    channel_count = db.query(SocialChannel).filter(SocialChannel.is_active.is_(True)).count()
+    active_user_count = (
+        db.query(User).filter(User.status == "active", User.deleted_at.is_(None)).count()
+    )
+    last_synced_at = max(
+        (r.last_synced_at for r in rows if r.last_synced_at is not None), default=None
+    )
+
+    return {
+        "post_count": len(rows),
+        "campaign_count": campaign_count,
+        "channel_count": channel_count,
+        "active_user_count": active_user_count,
+        "totals": _totals_dict(rows),
+        "platforms": _platform_breakdown(rows),
+        "last_synced_at": last_synced_at,
+    }
+
+
 def build_dashboard(db: Session) -> dict[str, Any]:
     rows = (
         db.query(StatPostMetric, User.name, User.company_name)
